@@ -1,0 +1,21 @@
+{
+  "name": "osworld-text",
+  "owner": {
+    "name": "MMSkills"
+  },
+  "metadata": {
+    "description": "Text-only OS World skills with step-by-step instructions",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "osworld-text",
+      "description": "Text-only OS World skills with step-by-step instructions",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/os-world/text/chrome-knowledge"
+      ]
+    }
+  ]
+}

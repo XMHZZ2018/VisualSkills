@@ -1,0 +1,55 @@
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.2}
+
+\begin{tabular}{
+  l
+  S[table-format=+2.2] c
+  S[table-format=+2.2] c
+  S[table-format=+2.2] c
+  S[table-format=+2.2] c}
+\toprule
+\textbf{Training Data Configuration} &
+\multicolumn{2}{c}{\textbf{Image $\Delta$}} &
+\multicolumn{2}{c}{\textbf{Video $\Delta$}} &
+\multicolumn{2}{c}{\textbf{VisDoc $\Delta$}} &
+\multicolumn{2}{c}{\textbf{Global $\Delta$}} \\
+\cmidrule(lr){1-1}\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}
+Image 200K (Baseline) &
+\multicolumn{2}{c}{--} &
+\multicolumn{2}{c}{--} &
+\multicolumn{2}{c}{--} &
+\multicolumn{2}{c}{--} \\
+
+Image 100K + ColPali 100K &
+-1.74 &      &
+-0.02 &      &
++7.76 & ***  &
++1.58 & *    \\
+
+Image 100K + VideoCap 100K &
+-2.52 & ***  &
+-0.89 &      &
+-0.36 &      &
+-1.48 & ***  \\
+
+Image 100K + ColPali 50K + VideoCap 50K &
+-1.55 & **   &
++1.09 & *    &
++6.69 & ***  &
++1.59 & **   \\
+
+All Sources 200K &
+-2.13 & **   &
+-0.84 &      &
++10.19 & *** &
++1.96 & *    \\
+\bottomrule
+\end{tabular}
+
+\vspace{4pt}
+\caption{Task-level significance evaluation of different modality mixing strategies compared to the Image 200K baseline. Listed values indicate the mean performance change across 78 MMEB-V2 tasks, with positive values reflecting consistent gains. Statistical reliability is assessed using paired $t$-tests: * $p < 0.05$, ** $p < 0.01$, *** $p < 0.001$.}
+\label{tab:stat_significance}
+\end{table}

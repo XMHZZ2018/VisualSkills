@@ -1,0 +1,123 @@
+
+\documentclass[10pt]{article} % For LaTeX2e
+\usepackage[accepted]{tmlr}
+% If accepted, instead use the following line for the camera-ready submission:
+%\usepackage[accepted]{tmlr}
+% To de-anonymize and remove mentions to TMLR (for example for posting to preprint servers), instead use the following:
+%\usepackage[preprint]{tmlr}
+
+% Optional math commands from https://github.com/goodfeli/dlbook_notation.
+\input{math_commands.tex}
+
+
+\usepackage{xspace}
+\usepackage{microtype}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{graphicx}
+ \usepackage{multirow}
+ \usepackage[table]{xcolor}
+\usepackage{amsmath}
+\usepackage{lineno}
+\usepackage{amssymb}
+\usepackage{subcaption}
+\usepackage{enumitem}
+\usepackage{arydshln}
+\usepackage{comment}
+\usepackage{adjustbox}
+
+\definecolor{lightgray}{gray}{0.95}
+\definecolor{darkblue}{rgb}{0, 0, 0.5}
+\hypersetup{colorlinks=true, citecolor=darkblue, linkcolor=darkblue, urlcolor=darkblue}
+
+\usepackage{siunitx}
+\sisetup{
+  detect-family = true,
+  detect-weight = true,
+  table-number-alignment = left,
+  retain-explicit-plus       % <<--- THIS keeps your "+" signs
+}
+
+
+
+\newcommand{\model}{\texttt{\textsc{VLM2Vec-V2}}\xspace}
+\newcommand{\benchmark}{\texttt{\textsc{MMEB-V2}}\xspace}
+\newcommand{\mmeb}{\texttt{\textsc{MMEB}}\xspace}
+\newcommand{\vlmvec}{\texttt{\textsc{VLM2Vec}}\xspace}
+
+\title{VLM2Vec-V2: Advancing Multimodal Embedding for Videos, Images, and Visual Documents}
+
+% Authors must not appear in the submitted version. They should be hidden
+% as long as the tmlr package is used without the [accepted] or [preprint] options.
+% Non-anonymous submissions will be rejected without review.
+
+\author{Rui Meng\textsuperscript{1}\thanks{Contributed equally.} \thanks{Now at Google.} \quad
+    Ziyan Jiang\textsuperscript{2}\footnotemark[1] \quad
+    Ye Liu\textsuperscript{1} \quad
+    Mingyi Su\textsuperscript{3} \quad
+    Xinyi Yang\textsuperscript{1} \quad
+    Yuepeng Fu\textsuperscript{4} \\
+    \textbf{Can Qin\textsuperscript{1} \quad
+    Raghuveer Thirukovalluru\textsuperscript{5} \quad
+    Xuan Zhang\textsuperscript{6} \quad
+    Zeyuan Chen\textsuperscript{1} \quad
+    Ran Xu\textsuperscript{1} \quad \\
+    \textbf{
+    Caiming Xiong\textsuperscript{1} \quad
+    Yingbo Zhou\textsuperscript{1}} \quad
+    Wenhu Chen\textsuperscript{3} \quad
+    Semih Yavuz\textsuperscript{1}}
+    \\[\medskipamount]
+    \textsuperscript{1}Salesforce Research \quad
+    \textsuperscript{2}UC Santa Barbara \quad
+    \textsuperscript{3}University of Waterloo \\
+    \textsuperscript{4}Tsinghua University  \quad
+    \textsuperscript{5}Duke University \quad
+    \textsuperscript{6}National University of Singapore
+}
+
+% The \author macro works with any number of authors. Use \AND 
+% to separate the names and addresses of multiple authors.
+
+\newcommand{\fix}{\marginpar{FIX}}
+\newcommand{\new}{\marginpar{NEW}}
+
+\def\month{02}  % Insert correct month for camera-ready version
+\def\year{2026} % Insert correct year for camera-ready version
+\def\openreview{\url{https://openreview.net/forum?id=TpU38jbKIJ}} % Insert correct link to OpenReview for camera-ready version
+
+
+\begin{document}
+
+
+\maketitle
+
+{
+\begin{center}
+\vspace{-2em}
+\url{https://tiger-ai-lab.github.io/VLM2Vec/}
+\end{center}
+}
+
+\begin{abstract}
+Multimodal embedding models have been crucial in enabling various downstream tasks such as semantic similarity, information retrieval, and clustering over different modalities. However, existing multimodal embeddings like \vlmvec, E5-V, GME are predominantly focused on natural images, with limited support for other visual forms such as videos and visual documents. This limits their applicability in settings that require broader visual understanding, including AI agents, retrieval-augmented generation (RAG) systems, and recommendation.
+In this work, we propose \model, a unified framework for learning embeddings across diverse visual forms. 
+To support comprehensive evaluation, we introduce \benchmark, an expanded benchmark that builds upon \mmeb by adding five new task types: visual document retrieval, video retrieval, temporal grounding, video classification and video question answering.
+We then train \model, a unified embedding model capable of handling text, images, videos, and visual documents. The results demonstrate that \model not only achieves strong performance on the newly introduced video and visual document tasks but also improves upon prior baselines on established image benchmarks. Our findings provide deeper insights into effective training strategies for unified embedding learning across diverse visual modalities.
+\end{abstract}
+\input{sections/introduction}
+\input{sections/benchmark}
+\input{sections/method}
+\input{sections/experiment}
+\input{sections/relatedwork}
+\input{sections/conclusion}
+
+
+\bibliography{main}
+\bibliographystyle{tmlr}
+
+\appendix
+\input{sections/appendix}
+
+\end{document}

@@ -1,0 +1,21 @@
+{
+  "name": "osworld-multimodal",
+  "owner": {
+    "name": "MMSkills"
+  },
+  "metadata": {
+    "description": "Multimodal OS World skills with embedded screenshots",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "osworld-multimodal",
+      "description": "Multimodal OS World skills with visual guidance (screenshots + instructions)",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/os-world/multimodal/chrome-knowledge"
+      ]
+    }
+  ]
+}

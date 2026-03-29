@@ -1,0 +1,34 @@
+# OS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+venv/
+.venv/
+
+# Downloaded videos and raw subtitles (reproducible via batch scripts)
+preprocess/**/assets/**/*.mp4
+preprocess/**/assets/**/*.vtt
+
+# Sparse frames from videos (reproducible via batch_extract.py)
+preprocess/**/assets/**/frames/
+
+# Evaluation workspaces and cache (generated on VM)
+workspaces/
+cache/
+
+# Node
+node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Env / secrets
+.env
+.env.*

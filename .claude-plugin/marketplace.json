@@ -1,0 +1,45 @@
+{
+  "name": "mmskills",
+  "owner": {
+    "name": "MMSkills"
+  },
+  "metadata": {
+    "description": "Multimodal skills for Claude Code — logo design, paper formatting, website beautification, skill creation, and OS World automation",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "mmskills",
+      "description": "Core design skills: logo design, paper formatting, website beautification",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/logo-design",
+        "./skills/setup-logo-refs",
+        "./skills/paper-beautify",
+        "./skills/setup-paper-refs",
+        "./skills/website-beautify",
+        "./skills/setup-website-refs",
+        "./skills/aws-iam-roles-policies"
+      ]
+    },
+    {
+      "name": "osworld-multimodal",
+      "description": "Multimodal OS World skills with visual guidance (screenshots + instructions)",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/os-world/multimodal/chrome-clear-cookies"
+      ]
+    },
+    {
+      "name": "osworld-text",
+      "description": "Text-only OS World skills with step-by-step instructions",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/os-world/text/chrome-clear-cookies"
+      ]
+    }
+  ]
+}

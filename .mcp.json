@@ -1,0 +1,42 @@
+{
+  "mcpServers": {
+    "paper-search": {
+      "command": "python3",
+      "args": ["tools/paper-search/server.py"],
+      "cwd": "/Users/ziyan/Documents/MMSkills"
+    },
+    "pdf-to-images": {
+      "command": "python3",
+      "args": ["tools/pdf-to-images/server.py"],
+      "cwd": "/Users/ziyan/Documents/MMSkills"
+    },
+    "image-search": {
+      "command": "python3",
+      "args": ["tools/image-search/server.py"],
+      "cwd": "/Users/ziyan/Documents/MMSkills"
+    },
+    "image-gen": {
+      "command": "python3",
+      "args": ["tools/image-gen/server.py"],
+      "cwd": "/Users/ziyan/Documents/MMSkills",
+      "env": {
+        "GEMINI_API_KEY": "AIzaSyA8vYk8QpRmYPG_4YC6GhJkjuaozEBZ59s"
+      }
+    },
+    "web-screenshot": {
+      "command": "python3",
+      "args": ["tools/web-screenshot/server.py"],
+      "cwd": "/Users/ziyan/Documents/MMSkills"
+    },
+    "youtube-tutorial": {
+      "command": "python3",
+      "args": ["tools/youtube-tutorial/server.py"],
+      "cwd": "/Users/ziyan/Documents/MMSkills"
+    },
+    "osworld-controller": {
+      "command": "python3",
+      "args": ["tools/osworld-controller/server.py"],
+      "cwd": "/Users/ziyan/Documents/MMSkills"
+    }
+  }
+}

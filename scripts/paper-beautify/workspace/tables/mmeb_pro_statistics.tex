@@ -1,0 +1,76 @@
+\begin{table}[!t]
+\small
+\centering
+\resizebox{.9\textwidth}{!}{
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Task} & \textbf{Query MOD} & \textbf{Target MOD} & \textbf{Domain} & \textbf{\#Query} & \textbf{\#Candidates} \\
+\midrule
+\rowcolor{white} \multicolumn{6}{c}{\textbf{Video Retrieval (5 Tasks)}} \\
+\midrule
+\rowcolor{lightgray}
+DiDeMo          & T     & V       & Open       & 1,004      &       1,004 \\
+MSR-VTT         & T     & V       & Open       & 1,000      &       1,000 \\
+\rowcolor{lightgray}
+MSVD            & T     & V       & Open       & 670        &       670   \\
+VATEX           & T     & V       & Open       & 4,478      &       4,478  \\
+\rowcolor{lightgray}
+YouCook2        & T     & V       & Cooking    & 3,179      &       3,179  \\
+\midrule
+
+
+
+\rowcolor{white} \multicolumn{6}{c}{\textbf{Moment Retrieval (3 Tasks)}} \\
+\midrule
+\rowcolor{lightgray}
+QVHighlights    & T + V & V       & Vlog/News  & 1,083       &       10 \\
+Charades-STA     & T + V & V       & Activity   & 727       &       10 \\
+\rowcolor{lightgray}
+MomentSeeker    & I + V & V       & Open       & 1,800 (1,602 deduped)       &       10 \\
+\midrule
+
+
+
+\rowcolor{white} \multicolumn{6}{c}{\textbf{Video Classification (5 Tasks)}} \\
+\midrule
+\rowcolor{lightgray}
+Kinetics-700    & V     & T       &   Open     & 1,000       &       700 \\
+SSv2            & V     & T       & Human-Object Interaction& 1,000      &       174 \\
+\rowcolor{lightgray}
+HMDB51          & V     & T       &   Open     & 1,000       &       51 \\
+UCF101          & V     & T       &   Open     & 1,000       &       101 \\
+\rowcolor{lightgray}
+Breakfast       & V     & T       &   Cooking  & 433       &       10 \\
+\midrule
+
+
+
+\rowcolor{white} \multicolumn{6}{c}{\textbf{Video QA (5 Tasks)}} \\
+\midrule
+\rowcolor{lightgray}
+MVBench             & V + T   & T       &     Spatial/Temporal       & 4,000 & $3 \sim 5$ \\
+Video-MME              & V + T   & T       &     Real-world       & 2,700 & 4 \\
+\rowcolor{lightgray}
+NExT-QA              & V + T   & T       &    Daily activity        & 8,564 & 5 \\
+EgoSchema      & V + T   & T       &     Egocentric       & 500 & 5 \\
+\rowcolor{lightgray}
+ActivityNetQA      & V + T   & T       &     Activity       & 1000 & 2 \\
+\midrule
+
+
+
+\rowcolor{white} \multicolumn{6}{c}{\textbf{Visual Document Retrieval (24 Tasks)}} \\
+\midrule
+\rowcolor{lightgray}
+ViDoRe (10)              & T   & D       &   Documents         & 280 - 1,646 & 70 - 999 \\
+ViDoRe-V2 (4)              & T   & D       &   Documents         & 52 - 640 & 452 - 1,538 \\
+VisRAG (6)   & T   & D       & Documents & 63 - 816 & 500 - 9,590 \\
+\rowcolor{lightgray}
+ViDoSeek (2)             & T   & D      & Documents & 1,142 & 5,349 \\
+MMLongBench-Doc (2)      & T   & D   & Documents & 838 & 6,492 \\
+\bottomrule
+\end{tabular}
+}
+\caption{The statistics of \benchmark, which includes \textbf{42} tasks across five meta-task categories in addition to the original \mmeb, are summarized below. Here, we list only the additional datasets introduced beyond those in \mmeb. We consider four modalities (MOD): T (Text), I (Image), V (Video), and D (Visual Document).}
+\label{tab:mmeb_v2_stat}
+\end{table}

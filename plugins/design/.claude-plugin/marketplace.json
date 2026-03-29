@@ -1,0 +1,27 @@
+{
+  "name": "design",
+  "owner": {
+    "name": "MMSkills"
+  },
+  "metadata": {
+    "description": "Design skills — logo design, paper formatting, website beautification, and skill creation",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "design",
+      "description": "Logo design, paper formatting, website beautification",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/logo-design",
+        "./skills/setup-logo-refs",
+        "./skills/paper-beautify",
+        "./skills/setup-paper-refs",
+        "./skills/website-beautify",
+        "./skills/setup-website-refs",
+        "./skills/aws-iam-roles-policies"
+      ]
+    }
+  ]
+}
