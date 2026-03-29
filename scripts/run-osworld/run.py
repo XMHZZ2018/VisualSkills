@@ -184,8 +184,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--osworld_root",
-        default=os.environ.get("OSWORLD_ROOT", str(Path.home() / "Documents/OSWorld")),
-        help="Path to the OSWorld repository root (default: ~/Documents/OSWorld or $OSWORLD_ROOT)",
+        default=os.environ.get("OSWORLD_ROOT", str(MMSKILLS_ROOT / "vendor" / "OSWorld")),
+        help="Path to the OSWorld repository root (default: vendor/OSWorld submodule or $OSWORLD_ROOT)",
     )
     parser.add_argument("--path_to_vm", default=None, help="Path to the VM file (.vmx / .vbox). Not required for Docker provider.")
     parser.add_argument(

@@ -2,12 +2,14 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OSWORLD_DIR="${OSWORLD_ROOT:-$HOME/OSWorld}"
+MMSKILLS_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+OSWORLD_DIR="$MMSKILLS_ROOT/vendor/OSWorld"
 
-# Clone OSWorld if not present
-if [ ! -d "$OSWORLD_DIR" ]; then
-  echo "Cloning OSWorld to $OSWORLD_DIR..."
-  git clone https://github.com/xlang-ai/OSWorld "$OSWORLD_DIR"
+# Initialize submodule if not already done
+if [ ! -f "$OSWORLD_DIR/pyproject.toml" ]; then
+  echo "Initializing OSWorld submodule..."
+  cd "$MMSKILLS_ROOT"
+  git submodule update --init vendor/OSWorld
 fi
 
 # Install Python dependencies
@@ -20,5 +22,5 @@ echo ""
 echo "Setup complete."
 echo "  OSWorld: $OSWORLD_DIR"
 echo ""
-echo "Make sure ANTHROPIC_API_KEY is set, then run:"
-echo "  python3 $SCRIPT_DIR/run.py --provider_name docker --osworld_root $OSWORLD_DIR --domain chrome --skill_mode none"
+echo "Make sure Claude CLI is authenticated (claude login), then run:"
+echo "  python3 $SCRIPT_DIR/run.py --provider_name docker --domain chrome --skill_mode none"

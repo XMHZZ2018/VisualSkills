@@ -1,22 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Baseline (no skills)
+# Baseline (no skills) — Docker
 # python3 scripts/run-osworld/run.py \
-#   --path_to_vm /Users/ziyan/Documents/OSWorld/vmware_vm_data/Ubuntu0/Ubuntu0.vmx \
+#   --provider_name docker \
 #   --domain chrome --skill_mode none
 
-# # Text skills
+# Text skills — Docker
 # python3 scripts/run-osworld/run.py \
-#   --path_to_vm /Users/ziyan/Documents/OSWorld/vmware_vm_data/Ubuntu0/Ubuntu0.vmx \
+#   --provider_name docker \
 #   --domain chrome --skill_mode text
 
-# # Multimodal skills
+# Multimodal skills — Docker
 # python3 scripts/run-osworld/run.py \
-#   --path_to_vm /Users/ziyan/Documents/OSWorld/vmware_vm_data/Ubuntu0/Ubuntu0.vmx \
+#   --provider_name docker \
 #   --domain chrome --skill_mode multimodal
 
-# # Parallel (4 VMs)
+# VMware (single VM)
 # python3 scripts/run-osworld/run.py \
-#   --path_to_vm /path/to/vms/ \
-#   --domain chrome --skill_mode multimodal --parallel 4
+#   --provider_name vmware \
+#   --path_to_vm /path/to/Ubuntu0.vmx \
+#   --domain chrome --skill_mode none
+
+# Parallel Docker (2 workers)
+# python3 scripts/run-osworld/run.py \
+#   --provider_name docker \
+#   --domain chrome --skill_mode none --parallel 2

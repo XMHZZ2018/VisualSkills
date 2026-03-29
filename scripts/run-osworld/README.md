@@ -2,6 +2,15 @@
 
 Run OSWorld desktop evaluation tasks using **Claude CLI + computer-use MCP**.
 
+## Setup
+
+```bash
+# Initialize OSWorld submodule and install dependencies
+bash scripts/run-osworld/setup.sh
+```
+
+This initializes the `vendor/OSWorld` git submodule (pinned to a specific commit) and installs its Python dependencies. No separate clone needed.
+
 ## Architecture
 
 ```
@@ -9,7 +18,7 @@ run.py  (host process)
 ├── DesktopEnv ──────────────────────────────► VM (Ubuntu desktop)
 ├── HTTP bridge  (localhost thread)                 ▲
 │   ├── GET /screenshot → env.controller            │
-│   ├── GET /accessibility_tree → env.controller    │  VMware/VBox bridge
+│   ├── GET /accessibility_tree → env.controller    │  Docker / VMware
 │   ├── POST /execute_python → env.controller       │
 │   ├── POST /run_bash → env.controller             │
 │   └── POST /signal → sets completion signal       │
@@ -24,89 +33,90 @@ The host evaluates the result with OSWorld's standard `env.evaluate()`.
 
 ## Requirements
 
-- [OSWorld](https://github.com/xlang-ai/OSWorld) installed and a VM image ready
-- Claude CLI (`claude`) installed and authenticated
-- Python dependencies: `mcp`, `httpx` (already in MMSkills requirements)
+- Claude CLI (`claude`) installed and authenticated (`claude login`)
+- Docker with KVM support (for Docker provider), or VMware/VirtualBox
+- Python dependencies installed via `setup.sh`
 
 ## Usage
+
+### Docker provider (recommended for GCP)
+
+```bash
+# Baseline (no skills)
+python3 scripts/run-osworld/run.py \
+    --provider_name docker \
+    --domain chrome --skill_mode none
+
+# With text skills
+python3 scripts/run-osworld/run.py \
+    --provider_name docker \
+    --domain chrome --skill_mode text
+
+# With multimodal skills
+python3 scripts/run-osworld/run.py \
+    --provider_name docker \
+    --domain chrome --skill_mode multimodal
+
+# Parallel (2 containers)
+python3 scripts/run-osworld/run.py \
+    --provider_name docker \
+    --domain chrome --skill_mode none --parallel 2
+```
+
+### VMware provider
+
+```bash
+python3 scripts/run-osworld/run.py \
+    --provider_name vmware \
+    --path_to_vm /path/to/Ubuntu0.vmx \
+    --domain chrome --skill_mode none
+```
 
 ### Single task
 
 ```bash
-python scripts/run-osworld/run.py \
-    --osworld_root ~/Documents/OSWorld \
-    --path_to_vm /path/to/ubuntu.vmx \
+python3 scripts/run-osworld/run.py \
+    --provider_name docker \
     --specific_task_id <task_id>
-```
-
-### Full domain
-
-```bash
-python scripts/run-osworld/run.py \
-    --osworld_root ~/Documents/OSWorld \
-    --path_to_vm /path/to/ubuntu.vmx \
-    --domain calc
-```
-
-### All tasks
-
-```bash
-python scripts/run-osworld/run.py \
-    --osworld_root ~/Documents/OSWorld \
-    --path_to_vm /path/to/ubuntu.vmx
 ```
 
 ## Key arguments
 
 | Argument | Default | Description |
 |---|---|---|
-| `--osworld_root` | `~/Documents/OSWorld` or `$OSWORLD_ROOT` | OSWorld repo path |
-| `--path_to_vm` | *(required)* | Path to `.vmx` / `.vbox` VM file |
+| `--osworld_root` | `vendor/OSWorld` | OSWorld repo path (submodule) |
+| `--path_to_vm` | – | Path to `.vmx` file (required for VMware/VirtualBox) |
 | `--provider_name` | `vmware` | `vmware`, `virtualbox`, or `docker` |
-| `--model` | `claude-sonnet-4-5` | Claude model to use |
+| `--model` | `claude-opus-4-6` | Claude model to use |
+| `--skill_mode` | `none` | `none` (baseline), `text`, or `multimodal` |
 | `--task_timeout` | `600` | Max seconds per task |
-| `--domain` | `all` | Restrict to a single domain |
+| `--domain` | `all` | Restrict to a single domain (e.g., `chrome`) |
+| `--max_tasks` | `0` | Limit number of tasks (0 = all) |
+| `--parallel` | `1` | Number of parallel workers |
 | `--specific_task_id` | – | Run one task by ID |
-| `--result_dir` | `./results_claude_mcp` | Where to write results |
-| `--cli_path` | `claude` | Path to Claude CLI binary |
 | `--headless` | off | Run VM headless |
 
 ## Output structure
 
 ```
-results_claude_mcp/
+workspaces/
 └── <model>/
-    └── <domain>/
-        └── <task_id>/
-            ├── result.txt          # score (0.0–1.0)
-            ├── meta.json           # task metadata + timing
-            ├── claude_output.txt   # Claude's text response
-            ├── final_screenshot.png
-            ├── recording.mp4
-            └── runtime.log
+    └── skill-<mode>/
+        ├── summary.json
+        └── <domain>/
+            └── <task_id>/
+                ├── result.txt
+                ├── meta.json
+                ├── claude_output.txt
+                ├── final_screenshot.png
+                ├── recording.mp4
+                ├── screenshots/
+                └── runtime.log
 ```
 
-## MCP tools available to Claude
+## Skill injection
 
-| Tool | Description |
-|---|---|
-| `screenshot()` | Take a screenshot of the VM desktop |
-| `get_accessibility_tree()` | Get all visible UI elements + coordinates |
-| `click(x, y, button)` | Click at pixel coordinates |
-| `double_click(x, y)` | Double-click |
-| `move_to(x, y)` | Move mouse without clicking |
-| `drag_to(sx, sy, ex, ey)` | Click and drag |
-| `scroll(x, y, clicks)` | Scroll up/down |
-| `type_text(text)` | Type text (newlines → Enter) |
-| `key_press(key)` | Press a single key |
-| `hotkey(keys)` | Press a keyboard shortcut |
-| `run_bash(script)` | Run bash inside the VM |
-| `task_done()` | Signal successful completion |
-| `task_fail()` | Signal task is impossible |
-
-## Note on `--mcp-config`
-
-This script passes `--mcp-config <path>` to the Claude CLI so it picks up the
-`osworld-controller` MCP server with the correct bridge URL. If your Claude CLI
-version does not support this flag, you can work around it by copying the
-generated temp JSON to `.mcp.json` in the directory you run `claude` from.
+Skills are loaded automatically by Claude CLI via `--plugin-dir`:
+- `--skill_mode none` → no plugin directory (baseline)
+- `--skill_mode text` → `plugins/osworld-text/` (text-only instructions)
+- `--skill_mode multimodal` → `plugins/osworld-multimodal/` (instructions + screenshots)
