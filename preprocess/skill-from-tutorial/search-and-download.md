@@ -4,7 +4,9 @@
 
 ### 1a: Search YouTube
 
-Use `search_youtube` with the query: `"$ARGUMENTS tutorial"`
+Use the `search_youtube` MCP tool with the query: `"$ARGUMENTS tutorial"`
+
+If the MCP tool returns empty results, fall back to `batch_search.py` which calls yt-dlp directly.
 
 ### 1b: Filter by duration
 
@@ -38,8 +40,10 @@ Write `preprocess/skill-from-tutorial/assets/searched/<query-slug>/search_result
 
 ## Step 2: Download video
 
-Use `download_youtube` for the selected video. Save to:
+Use the `download_youtube` MCP tool for the selected video. Save to:
 
 - `preprocess/skill-from-tutorial/assets/searched/<query-slug>/video.mp4`
+
+If the MCP tool fails, fall back to `batch_download.py` which calls yt-dlp directly.
 
 Record the video ID and download path in `search_results.md`.
