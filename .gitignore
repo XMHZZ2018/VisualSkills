@@ -16,6 +16,9 @@ preprocess/**/assets/**/*.vtt
 # Sparse frames from videos (reproducible via batch_extract.py)
 preprocess/**/assets/**/frames/
 
+# Skill pipeline downloaded videos and frames (reproducible via generate.py)
+preprocess/skill-pipeline/data/**/videos/
+
 # Evaluation workspaces and cache (generated on VM)
 workspaces/
 cache/
