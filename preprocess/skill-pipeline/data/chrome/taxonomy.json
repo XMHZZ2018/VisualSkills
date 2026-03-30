@@ -1,0 +1,559 @@
+{
+  "domain": "chrome",
+  "version": 1,
+  "max_depth": 3,
+  "root": {
+    "id": "chrome",
+    "name": "Chrome",
+    "depth": 0,
+    "children": [
+      {
+        "id": "tabs-windows",
+        "name": "Tabs & Windows",
+        "depth": 1,
+        "children": [
+          {
+            "id": "open-close-tabs",
+            "name": "Open and Close Tabs",
+            "depth": 2,
+            "description": "How to open new tabs, close individual tabs, and reopen recently closed tabs in Chrome.",
+            "search_queries": [
+              "how to open and close tabs in Chrome",
+              "Chrome tab management tutorial",
+              "reopen closed tab Chrome"
+            ],
+            "signals": [
+              "youtube:wSUJgLMQS6w"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          },
+          {
+            "id": "pin-tabs",
+            "name": "Pin Tabs",
+            "depth": 2,
+            "description": "How to pin and unpin tabs in Chrome to keep important pages accessible.",
+            "search_queries": [
+              "how to pin tabs in Chrome",
+              "Chrome pin tab tutorial",
+              "pinned tabs Chrome browser"
+            ],
+            "signals": [
+              "youtube:4woT6aL9g0E"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          },
+          {
+            "id": "tab-groups",
+            "name": "Tab Groups",
+            "depth": 2,
+            "description": "How to create, name, color-code, and manage tab groups in Chrome.",
+            "search_queries": [
+              "Chrome tab groups tutorial",
+              "how to group tabs in Chrome",
+              "Chrome tab group color and name"
+            ],
+            "signals": [
+              "youtube:S3EU6lqKfns"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          },
+          {
+            "id": "move-tabs-windows",
+            "name": "Move Tabs Between Windows",
+            "depth": 2,
+            "description": "How to drag tabs between Chrome windows or move a tab to a new window.",
+            "search_queries": [
+              "how to move tabs between windows Chrome",
+              "Chrome drag tab to new window",
+              "move tab different window Chrome tutorial"
+            ],
+            "signals": [
+              "youtube:4woT6aL9g0E"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          },
+          {
+            "id": "incognito-window",
+            "name": "Open Incognito Window",
+            "depth": 2,
+            "description": "How to open and use an Incognito window for private browsing in Chrome.",
+            "search_queries": [
+              "how to open incognito window Chrome",
+              "Chrome private browsing incognito tutorial",
+              "open incognito mode Chrome step by step"
+            ],
+            "signals": [
+              "youtube:zzZHXA3ZTEI"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          }
+        ]
+      },
+      {
+        "id": "navigation",
+        "name": "Navigation & Search",
+        "depth": 1,
+        "children": [
+          {
+            "id": "address-bar-search",
+            "name": "Search from Address Bar",
+            "depth": 2,
+            "description": "How to use the Chrome address bar (Omnibox) to search the web and navigate to URLs.",
+            "search_queries": [
+              "Chrome omnibox address bar search tutorial",
+              "how to search from address bar in Chrome",
+              "Chrome URL bar tips and tricks"
+            ],
+            "signals": [
+              "youtube:3zP1hk_x4vo"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          },
+          {
+            "id": "keyboard-shortcuts",
+            "name": "Keyboard Shortcuts",
+            "depth": 2,
+            "description": "Essential Chrome keyboard shortcuts for navigation, tabs, and browser actions.",
+            "search_queries": [
+              "Chrome keyboard shortcuts tutorial",
+              "essential Chrome shortcuts for browsing",
+              "Chrome hotkeys complete guide"
+            ],
+            "signals": [
+              "youtube:RMHTdesm0RI"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          },
+          {
+            "id": "page-search",
+            "name": "Find Text on Page",
+            "depth": 2,
+            "description": "How to use Ctrl+F / Cmd+F to find and highlight text on a webpage in Chrome.",
+            "search_queries": [
+              "how to find text on page Chrome",
+              "Chrome find in page tutorial",
+              "search text on webpage Chrome"
+            ],
+            "signals": [
+              "youtube:yvq0fTTjqzs"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          },
+          {
+            "id": "browser-history",
+            "name": "View and Clear Browsing History",
+            "depth": 2,
+            "description": "How to view, search, and delete browsing history in Chrome.",
+            "search_queries": [
+              "how to view and clear browsing history Chrome",
+              "Chrome history tutorial delete",
+              "clear Chrome browser history step by step"
+            ],
+            "signals": [
+              "youtube:M52Nd5lHUxY"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          }
+        ]
+      },
+      {
+        "id": "bookmarks",
+        "name": "Bookmarks",
+        "depth": 1,
+        "children": [
+          {
+            "id": "add-bookmark",
+            "name": "Add a Bookmark",
+            "depth": 2,
+            "description": "How to bookmark a page in Chrome using the star icon or keyboard shortcut.",
+            "search_queries": [
+              "how to add bookmark in Chrome",
+              "Chrome bookmark a page tutorial",
+              "save bookmark Chrome browser"
+            ],
+            "signals": [
+              "youtube:llqUNWs3qz8"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          },
+          {
+            "id": "bookmark-manager",
+            "name": "Manage Bookmarks",
+            "depth": 2,
+            "description": "How to organize, rename, move, and delete bookmarks using Chrome's Bookmark Manager.",
+            "search_queries": [
+              "Chrome bookmark manager tutorial",
+              "how to organize bookmarks in Chrome",
+              "manage Chrome bookmarks step by step"
+            ],
+            "signals": [
+              "youtube:llqUNWs3qz8"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          },
+          {
+            "id": "bookmark-bar",
+            "name": "Show Bookmark Bar",
+            "depth": 2,
+            "description": "How to show or hide the bookmarks bar and add bookmarks to it in Chrome.",
+            "search_queries": [
+              "how to show bookmark bar in Chrome",
+              "Chrome bookmarks bar tutorial",
+              "enable bookmarks toolbar Chrome"
+            ],
+            "signals": [
+              "youtube:llqUNWs3qz8"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          },
+          {
+            "id": "import-export-bookmarks",
+            "name": "Import and Export Bookmarks",
+            "depth": 2,
+            "description": "How to export bookmarks from Chrome or import bookmarks from another browser or file.",
+            "search_queries": [
+              "how to export bookmarks from Chrome",
+              "import bookmarks into Chrome tutorial",
+              "Chrome bookmark import export HTML file"
+            ],
+            "signals": [
+              "youtube:waRtZiJLBMc"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          },
+          {
+            "id": "reading-list",
+            "name": "Reading List",
+            "depth": 2,
+            "description": "Save pages to Chrome's built-in reading list for later reading, separate from bookmarks and accessible offline",
+            "signals": [
+              "youtube:broad-search"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          }
+        ]
+      },
+      {
+        "id": "downloads",
+        "name": "Downloads",
+        "depth": 1,
+        "children": [
+          {
+            "id": "download-file",
+            "name": "Download a File",
+            "depth": 2,
+            "description": "How to download files from the web in Chrome and track download progress.",
+            "search_queries": [
+              "how to download files in Chrome",
+              "Chrome download file tutorial",
+              "downloading files Chrome browser guide"
+            ],
+            "signals": [
+              "youtube:9-sDsil_wJI"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          },
+          {
+            "id": "change-download-location",
+            "name": "Change Download Location",
+            "depth": 2,
+            "description": "How to change the default download folder or choose a save location for each download in Chrome.",
+            "search_queries": [
+              "how to change download location Chrome",
+              "Chrome default download folder change",
+              "set download path Chrome browser"
+            ],
+            "signals": [
+              "youtube:vXdx7gLaoRQ"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          },
+          {
+            "id": "view-downloads",
+            "name": "View Download History",
+            "depth": 2,
+            "description": "How to open and manage the Chrome downloads page to see past downloaded files.",
+            "search_queries": [
+              "how to view download history Chrome",
+              "Chrome downloads page tutorial",
+              "open downloads folder Chrome browser"
+            ],
+            "signals": [
+              "youtube:0OEFYxHUfYE"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          }
+        ]
+      },
+      {
+        "id": "extensions",
+        "name": "Extensions",
+        "depth": 1,
+        "children": [
+          {
+            "id": "install-extension",
+            "name": "Install an Extension",
+            "depth": 2,
+            "description": "How to find and install extensions from the Chrome Web Store.",
+            "search_queries": [
+              "how to install Chrome extensions",
+              "add extension to Chrome tutorial",
+              "Chrome web store install extension guide"
+            ],
+            "signals": [
+              "youtube:oswjtLwCUqg"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          },
+          {
+            "id": "manage-extensions",
+            "name": "Enable, Disable, and Remove Extensions",
+            "depth": 2,
+            "description": "How to enable, disable, or uninstall Chrome extensions from the extensions manager.",
+            "search_queries": [
+              "how to disable or remove Chrome extensions",
+              "manage Chrome extensions tutorial",
+              "uninstall extension Chrome browser"
+            ],
+            "signals": [
+              "youtube:ZkCWUNQsysI"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          },
+          {
+            "id": "extension-permissions",
+            "name": "Manage Extension Permissions",
+            "depth": 2,
+            "description": "How to view and change the site permissions granted to a Chrome extension.",
+            "search_queries": [
+              "Chrome extension permissions tutorial",
+              "how to change extension permissions Chrome",
+              "manage Chrome extension site access"
+            ],
+            "signals": [
+              "youtube:QB4Oza2dNaA"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          }
+        ]
+      },
+      {
+        "id": "settings-privacy",
+        "name": "Settings & Privacy",
+        "depth": 1,
+        "children": [
+          {
+            "id": "clear-cache-cookies",
+            "name": "Clear Cache and Cookies",
+            "depth": 2,
+            "description": "How to clear browsing data including cache, cookies, and site data in Chrome.",
+            "search_queries": [
+              "how to clear cache and cookies in Chrome",
+              "Chrome clear browsing data tutorial",
+              "delete cookies cache Chrome step by step"
+            ],
+            "signals": [
+              "youtube:M52Nd5lHUxY"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          },
+          {
+            "id": "site-permissions",
+            "name": "Manage Site Permissions",
+            "depth": 2,
+            "description": "How to control site-level permissions like camera, microphone, location, and notifications in Chrome.",
+            "search_queries": [
+              "Chrome site permissions tutorial",
+              "how to manage website permissions Chrome",
+              "block allow notifications camera Chrome"
+            ],
+            "signals": [
+              "youtube:Gqdq6NUdJ7g"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          },
+          {
+            "id": "default-browser",
+            "name": "Set Chrome as Default Browser",
+            "depth": 2,
+            "description": "How to make Chrome the default browser on Windows or macOS.",
+            "search_queries": [
+              "how to set Chrome as default browser",
+              "make Chrome default browser tutorial",
+              "Chrome default browser Windows Mac"
+            ],
+            "signals": [
+              "youtube:bS0iuWG5z3k"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          },
+          {
+            "id": "startup-pages",
+            "name": "Configure Startup Pages",
+            "depth": 2,
+            "description": "How to set which pages Chrome opens on startup, including restoring previous tabs.",
+            "search_queries": [
+              "Chrome startup pages tutorial",
+              "how to set home page Chrome on startup",
+              "Chrome open specific pages on start"
+            ],
+            "signals": [
+              "youtube:mbyMWDhQCz4"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          },
+          {
+            "id": "password-manager",
+            "name": "Use Chrome Password Manager",
+            "depth": 2,
+            "description": "How to save, view, edit, and delete saved passwords in Chrome's built-in password manager.",
+            "search_queries": [
+              "Chrome password manager tutorial",
+              "how to view saved passwords Chrome",
+              "manage passwords Chrome browser guide"
+            ],
+            "signals": [
+              "youtube:3BmYR--3z8M"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          }
+        ]
+      },
+      {
+        "id": "developer-tools",
+        "name": "Developer Tools",
+        "depth": 1,
+        "children": [
+          {
+            "id": "open-devtools",
+            "name": "Open DevTools",
+            "depth": 2,
+            "description": "How to open Chrome DevTools using keyboard shortcuts, menus, or right-click inspect.",
+            "search_queries": [
+              "how to open Chrome DevTools",
+              "Chrome inspect element tutorial",
+              "open developer tools Chrome browser"
+            ],
+            "signals": [
+              "youtube:TcTSqhpm80Y"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          },
+          {
+            "id": "inspect-element",
+            "name": "Inspect and Edit Page Elements",
+            "depth": 2,
+            "description": "How to use the Elements panel in Chrome DevTools to inspect and live-edit HTML and CSS.",
+            "search_queries": [
+              "Chrome inspect element and edit HTML CSS",
+              "Chrome DevTools elements panel tutorial",
+              "how to edit webpage elements Chrome"
+            ],
+            "signals": [
+              "youtube:KAxKLvNwfn0"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          },
+          {
+            "id": "console-panel",
+            "name": "Use the Console Panel",
+            "depth": 2,
+            "description": "How to use the Chrome DevTools Console to run JavaScript and view errors and logs.",
+            "search_queries": [
+              "Chrome DevTools console tutorial",
+              "how to use Chrome console panel",
+              "run JavaScript Chrome console guide"
+            ],
+            "signals": [
+              "youtube:H0XScE08hy8"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          },
+          {
+            "id": "network-panel",
+            "name": "Inspect Network Requests",
+            "depth": 2,
+            "description": "How to use the Network panel in Chrome DevTools to monitor HTTP requests and responses.",
+            "search_queries": [
+              "Chrome DevTools network panel tutorial",
+              "how to inspect network requests Chrome",
+              "monitor HTTP requests Chrome developer tools"
+            ],
+            "signals": [
+              "youtube:H0XScE08hy8"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          }
+        ]
+      },
+      {
+        "id": "profiles-sync",
+        "name": "Profiles & Sync",
+        "depth": 1,
+        "children": [
+          {
+            "id": "create-profile",
+            "name": "Create a Chrome Profile",
+            "depth": 2,
+            "description": "How to create and switch between multiple user profiles in Chrome.",
+            "search_queries": [
+              "how to create Chrome profile",
+              "Chrome multiple profiles tutorial",
+              "add new user profile Chrome browser"
+            ],
+            "signals": [
+              "youtube:mLGrgyyQZe4"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          },
+          {
+            "id": "sign-in-sync",
+            "name": "Sign In and Enable Sync",
+            "depth": 2,
+            "description": "How to sign into a Google account in Chrome and enable sync for bookmarks, passwords, and settings.",
+            "search_queries": [
+              "how to sign in Chrome and sync",
+              "Chrome sync tutorial Google account",
+              "enable Chrome sync bookmarks passwords"
+            ],
+            "signals": [
+              "youtube:XI1zHDzGhPQ"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          }
+        ]
+      }
+    ]
+  }
+}
