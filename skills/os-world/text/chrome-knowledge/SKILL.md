@@ -1,37 +1,63 @@
-# Chrome Knowledge
+---
+name: chrome-knowledge
+description: Quick-reference for Chrome browser tasks — keyboard shortcuts, chrome:// URLs, and menu paths. Consult when performing Chrome settings, bookmarks, extensions, or DevTools tasks.
+---
 
-Quick-reference guides for common tasks.
+# Chrome Quick Reference
 
-| Category | Topic | Guide |
-|----------|-------|-------|
-| Tabs & Windows | Open and Close Tabs | [✓](tabs-windows/open-close-tabs/guide.md) |
-| Tabs & Windows | Pin Tabs | [✓](tabs-windows/pin-tabs/guide.md) |
-| Tabs & Windows | Tab Groups | [✓](tabs-windows/tab-groups/guide.md) |
-| Tabs & Windows | Move Tabs Between Windows | [✓](tabs-windows/move-tabs-windows/guide.md) |
-| Tabs & Windows | Open Incognito Window | [✓](tabs-windows/incognito-window/guide.md) |
-| Navigation & Search | Search from Address Bar | [✓](navigation/address-bar-search/guide.md) |
-| Navigation & Search | Keyboard Shortcuts | [✓](navigation/keyboard-shortcuts/guide.md) |
-| Navigation & Search | Find Text on Page | [—](navigation/page-search/guide.md) |
-| Navigation & Search | View and Clear Browsing History | [✓](navigation/browser-history/guide.md) |
-| Bookmarks | Add a Bookmark | [✓](bookmarks/add-bookmark/guide.md) |
-| Bookmarks | Manage Bookmarks | [✓](bookmarks/bookmark-manager/guide.md) |
-| Bookmarks | Show Bookmark Bar | [✓](bookmarks/bookmark-bar/guide.md) |
-| Bookmarks | Import and Export Bookmarks | [✓](bookmarks/import-export-bookmarks/guide.md) |
-| Bookmarks | Reading List | [—](bookmarks/reading-list/guide.md) |
-| Downloads | Download a File | [✓](downloads/download-file/guide.md) |
-| Downloads | Change Download Location | [✓](downloads/change-download-location/guide.md) |
-| Downloads | View Download History | [✓](downloads/view-downloads/guide.md) |
-| Extensions | Install an Extension | [—](extensions/install-extension/guide.md) |
-| Extensions | Enable, Disable, and Remove Extensions | [✓](extensions/manage-extensions/guide.md) |
-| Extensions | Manage Extension Permissions | [✓](extensions/extension-permissions/guide.md) |
-| Settings & Privacy | Clear Cache and Cookies | [✓](settings-privacy/clear-cache-cookies/guide.md) |
-| Settings & Privacy | Manage Site Permissions | [✓](settings-privacy/site-permissions/guide.md) |
-| Settings & Privacy | Set Chrome as Default Browser | [✓](settings-privacy/default-browser/guide.md) |
-| Settings & Privacy | Configure Startup Pages | [✓](settings-privacy/startup-pages/guide.md) |
-| Settings & Privacy | Use Chrome Password Manager | [✓](settings-privacy/password-manager/guide.md) |
-| Developer Tools | Open DevTools | [✓](developer-tools/open-devtools/guide.md) |
-| Developer Tools | Inspect and Edit Page Elements | [✓](developer-tools/inspect-element/guide.md) |
-| Developer Tools | Use the Console Panel | [✓](developer-tools/console-panel/guide.md) |
-| Developer Tools | Inspect Network Requests | [✓](developer-tools/network-panel/guide.md) |
-| Profiles & Sync | Create a Chrome Profile | [✓](profiles-sync/create-profile/guide.md) |
-| Profiles & Sync | Sign In and Enable Sync | [✓](profiles-sync/sign-in-sync/guide.md) |
+## Tabs & Windows
+- **New tab**: `Ctrl+T` | **Close tab**: `Ctrl+W` | **Reopen closed tab**: `Ctrl+Shift+T`
+- **New incognito**: `Ctrl+Shift+N`
+- **Pin tab**: right-click tab → **Pin**
+- **Tab groups**: select multiple tabs with `Ctrl+Click`, right-click → **Add tabs to new group**
+- **Move tab to new window**: right-click tab → **Move tab to new window**, or drag tab out
+- **Restore tabs on startup**: `chrome://settings/onStartup` → **Continue where you left off**
+
+## Navigation & Search
+- **Address bar search**: type query in Omnibox, uses default search engine
+- **Change search engine**: `chrome://settings/search`
+- **Find on page**: `Ctrl+F`
+- **History**: `Ctrl+H` or `chrome://history`
+- **Clear browsing data**: `Ctrl+Shift+Delete` or `chrome://settings/clearBrowserData`
+- **Next/prev tab**: `Ctrl+Tab` / `Ctrl+Shift+Tab`
+
+## Bookmarks
+- **Bookmark page**: `Ctrl+D` (star icon in address bar) → choose folder → **Done**
+- **Bookmark all tabs**: `Ctrl+Shift+D`
+- **Toggle bookmarks bar**: `Ctrl+Shift+B`
+- **Bookmark manager**: `Ctrl+Shift+O` or `chrome://bookmarks`
+- **Export**: Bookmark Manager → ⋮ menu → **Export bookmarks** (saves .html)
+- **Import**: ⋮ menu → **Bookmarks** → **Import bookmarks and settings** → select HTML file
+
+## Downloads
+- **View downloads**: `Ctrl+J` or `chrome://downloads`
+- **Change download location**: `chrome://settings/downloads` → **Change**
+- **Show file in folder**: click **Show in folder** next to downloaded file
+
+## Extensions
+- **Manage extensions**: `chrome://extensions`
+- **Disable**: toggle switch off | **Remove**: click **Remove**
+- **Extension permissions**: click **Details** on extension → **Site access** dropdown
+- **Quick remove**: right-click extension icon in toolbar → **Remove from Chrome**
+
+## Settings & Privacy
+- **Clear cache/cookies**: `Ctrl+Shift+Delete` → select time range and data types → **Clear data**
+- **Site permissions** (camera/mic/location/notifications): `chrome://settings/content/camera`, `.../microphone`, `.../location`, `.../notifications`
+- **Default browser**: `chrome://settings/` → **Make default** (or OS Settings → Default apps)
+- **Startup pages**: `chrome://settings/onStartup` → choose option, add URLs if needed
+- **Password manager**: `chrome://password-manager/passwords` — view/edit/delete/add/export/import passwords
+- **Password checkup**: `chrome://password-manager/checkup`
+
+## Developer Tools
+- **Open DevTools**: `F12` or `Ctrl+Shift+I` | **Console**: `Ctrl+Shift+J`
+- **Inspect element**: `Ctrl+Shift+C` (activates picker), click element on page
+- **Elements panel**: edit HTML by double-clicking, edit CSS in Styles pane
+- **Network panel**: Network tab → reload page → click request for Headers/Preview/Response/Timing
+- **Filter network**: XHR, JS, CSS, Img buttons; **Preserve log** checkbox for cross-navigation
+- **Copy as cURL**: right-click request → Copy → Copy as cURL
+
+## Profiles & Sync
+- **Create profile**: click profile icon (top-right) → **Add**
+- **Switch profile**: click profile icon → select profile
+- **Sign in & sync**: Settings → sign in with Google account
+- **Manage profiles**: `chrome://settings` → **You and Google**

@@ -1,36 +1,35 @@
 """
 Run OSWorld evaluation with Claude CLI + osworld-controller MCP.
 
-Architecture:
-  1. This script creates one or more DesktopEnv (OSWorld VM connections).
-  2. An HTTP bridge server runs in a background thread per VM, exposing
-     env.controller methods over localhost HTTP.
-  3. For each task, Claude CLI is invoked with --mcp-config pointing
-     to a temp config that registers the osworld-controller MCP server.
-     The MCP server connects back to the HTTP bridge to take screenshots
-     and execute actions in the VM.
-  4. After Claude exits, env.evaluate() scores the result.
+Architecture (Docker isolation):
+  1. This script creates one or more DesktopEnv (OSWorld VM containers).
+  2. Each worker creates an isolated Docker network.
+  3. The VM container is attached to the network with alias "osworld-vm".
+  4. For each task, a Claude CLI container is launched on the same network.
+     Inside the container: bridge.py proxies MCP→VM, Claude CLI runs with
+     --mcp-config pointing to the osworld-controller MCP server.
+  5. Claude cannot escape to the host — no docker socket, no host network.
+  6. After Claude exits, env.evaluate() scores the result (host-side via
+     published ports).
 
 Memory isolation:
   - CLAUDE_CODE_DISABLE_AUTO_MEMORY=1 prevents auto-memory writes/reads
   - -p (print mode) runs non-interactively with no session persistence
-  - Each task gets a fresh Claude process with no shared state
+  - Each task gets a fresh Claude container with no shared state
 
 Parallel execution:
-  - Use --parallel N with --path_to_vm pointing to a directory of .vmx files
-  - Each worker gets its own VM + bridge, tasks are distributed round-robin
+  - Use --parallel N for multiple workers
+  - Each worker gets its own VM + isolated network, tasks distributed round-robin
 
 Usage:
-    # Single task
+    # Single task (Docker provider)
     python scripts/run-osworld/run.py \\
-        --osworld_root /path/to/OSWorld \\
-        --path_to_vm /path/to/vm.vmx \\
+        --provider_name docker \\
         --specific_task_id <task_id>
 
-    # All Chrome tasks, parallel on 4 VMs
+    # All Chrome tasks, parallel on 4 containers
     python scripts/run-osworld/run.py \\
-        --osworld_root /path/to/OSWorld \\
-        --path_to_vm /path/to/vms/ \\
+        --provider_name docker \\
         --domain chrome --parallel 4
 
     # Ablation: text vs multimodal vs none
@@ -42,26 +41,24 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import base64
 import concurrent.futures
 import datetime
 import json
 import logging
 import os
-import socket
 import subprocess
 import sys
-import tempfile
-import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
+import docker
+
 MMSKILLS_ROOT = Path(__file__).resolve().parents[2]
-MCP_SERVER = MMSKILLS_ROOT / "tools" / "osworld-controller" / "server.py"
+MCP_SERVER_PATH = "/opt/mmskills/tools/osworld-controller/server.py"
 PLUGIN_DIRS = {
-    "text": MMSKILLS_ROOT / "plugins" / "osworld-text",
-    "multimodal": MMSKILLS_ROOT / "plugins" / "osworld-multimodal",
+    "text": "/opt/mmskills/plugins/osworld-text",
+    "multimodal": "/opt/mmskills/plugins/osworld-multimodal",
 }
+CLAUDE_CLI_IMAGE = os.environ.get("CLAUDE_CLI_IMAGE", "osworld-claude-cli")
 
 
 SYSTEM_PROMPT = """\
@@ -71,10 +68,10 @@ IMPORTANT RULES:
 - Never ask the user for clarification or confirmation. Make a decision and act on it.
 - Never present multiple options or ask which approach to use. Pick the most direct approach and execute it.
 - Complete the task fully by yourself without any interaction.
+- You MUST interact with applications through their graphical user interface (GUI) only. Do NOT open a terminal, run shell commands, edit config files, or use any programmatic workaround.
 
 You have the following tools to interact with the desktop:
 - screenshot(): take a screenshot to see the current desktop state
-- get_accessibility_tree(): get all visible UI elements and their screen coordinates
 - click(x, y, button): click at pixel coordinates ("left"/"right"/"middle")
 - double_click(x, y): double-click at coordinates
 - move_to(x, y): move the mouse without clicking
@@ -83,97 +80,128 @@ You have the following tools to interact with the desktop:
 - type_text(text): type text (newlines become Enter key presses)
 - key_press(key): press a single key (e.g. "enter", "tab", "escape")
 - hotkey(keys): press a shortcut (e.g. ["ctrl", "c"], ["alt", "f4"])
-- run_bash(script): run a bash command inside the VM
 
-When finished:
-- Call task_done() after verifying the task goal has been achieved.
-- Call task_fail() if the task is impossible or you have exhausted all options.
+Every action tool automatically returns a screenshot after execution.
+
+When you believe the task is complete, simply stop — do not call any signal tool.
 
 Start by taking a screenshot to see the current state, then proceed step by step.\
 """
 
 
-# ── HTTP bridge ───────────────────────────────────────────────────────────────
+# ── VM port helper ────────────────────────────────────────────────────────────
 
-class _BridgeState:
-    """Shared mutable state between the HTTP bridge thread and the main loop."""
-    def __init__(self) -> None:
-        self.controller = None   # set to env.controller before each task
-        self.signal: str | None = None  # "DONE" or "FAIL", set by task_done/task_fail tool
-        self.output_dir: Path | None = None  # set before each task for per-step logging
-        self.step: int = 0
-        self.logger: logging.Logger | None = None
+def _get_vm_host_port(env) -> int:
+    """Get the host-mapped port for the VM's API server (port 5000).
+
+    The OSWorld Docker provider runs QEMU inside a container. Port 5000 is
+    inside the QEMU guest, accessible from the host via Docker port mapping
+    but NOT from other containers on the same Docker network. So the bridge
+    must connect via the host.
+    """
+    return env.provider.server_port
 
 
+# ── MCP config for inside the Claude container ────────────────────────────────
 
-def _make_handler(state: "_BridgeState"):
-    """Create a request handler class bound to a specific bridge state instance."""
+def _write_mcp_config(output_dir: Path, skill_mode: str) -> None:
+    """Write MCP config JSON to the output dir (mounted as /workspace)."""
+    config = {
+        "mcpServers": {
+            "osworld-controller": {
+                "command": "python3",
+                "args": [MCP_SERVER_PATH],
+                "env": {"OSWORLD_BRIDGE_URL": "http://127.0.0.1:8765"},
+            }
+        }
+    }
+    (output_dir / "mcp_config.json").write_text(
+        json.dumps(config, indent=2), encoding="utf-8"
+    )
 
-    class _BridgeHandler(BaseHTTPRequestHandler):
-        def do_GET(self) -> None:  # noqa: N802
-            if self.path == "/screenshot":
-                png = state.controller.get_screenshot()
-                b64 = base64.b64encode(png).decode() if png else ""
-                if png and state.output_dir:
-                    state.step += 1
-                    screenshots_dir = state.output_dir / "screenshots"
-                    screenshots_dir.mkdir(exist_ok=True)
-                    (screenshots_dir / f"step_{state.step:03d}.png").write_bytes(png)
-                    if state.logger:
-                        state.logger.info("[step %03d] screenshot", state.step)
-                self._json({"data": b64, "mime": "image/png"})
-            elif self.path == "/accessibility_tree":
-                if state.logger:
-                    state.logger.info("[step ---] get_accessibility_tree")
-                tree = state.controller.get_accessibility_tree()
-                self._json({"tree": tree or ""})
-            else:
-                self.send_error(404)
 
-        def do_POST(self) -> None:  # noqa: N802
-            length = int(self.headers.get("Content-Length", 0))
-            body: dict = json.loads(self.rfile.read(length)) if length else {}
+# ── Run Claude in Docker ─────────────────────────────────────────────────────
 
-            if self.path == "/execute_python":
-                if state.logger:
-                    state.logger.info("[step ---] execute_python: %s", body.get("command", ""))
-                try:
-                    state.controller.execute_python_command(body["command"])
-                    self._json({"ok": True})
-                except Exception as exc:
-                    self._json({"ok": False, "error": str(exc)}, status=500)
-            elif self.path == "/run_bash":
-                script = body.get("script", "")
-                if state.logger:
-                    state.logger.info("[step ---] run_bash: %s", script[:200])
-                result = state.controller.run_bash_script(script)
-                self._json(result or {"output": "", "returncode": 0})
-            elif self.path == "/signal":
-                state.signal = body.get("signal", "DONE")
-                if state.logger:
-                    state.logger.info("[step ---] signal: %s", state.signal)
-                self._json({"ok": True})
-            else:
-                self.send_error(404)
+def _run_claude_in_docker(
+    docker_client: docker.DockerClient,
+    vm_host_port: int,
+    output_dir: Path,
+    args: argparse.Namespace,
+    logger: logging.Logger,
+) -> tuple[str, str]:
+    """Run Claude CLI in a Docker container.
 
-        def _json(self, data: dict, status: int = 200) -> None:
-            body = json.dumps(data, ensure_ascii=False).encode()
-            self.send_response(status)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+    The bridge inside the container connects to the VM via the host's
+    mapped port (host.docker.internal:<port>), since the QEMU guest's
+    port 5000 is only reachable through Docker's port mapping.
 
-        def log_message(self, fmt, *args) -> None:  # suppress noisy HTTP logs
+    Returns (stdout, stderr) from the container.
+    """
+    # Build CLI args for entrypoint.sh (passed as CMD)
+    cli_args = [
+        "--mcp-config", "/workspace/mcp_config.json",
+        "--output-format", "text",
+        "--model", args.model,
+        "--no-session-persistence",
+        "--dangerously-skip-permissions",
+    ]
+    if args.skill_mode in PLUGIN_DIRS:
+        cli_args.extend(["--plugin-dir", PLUGIN_DIRS[args.skill_mode]])
+
+    env_vars = {
+        "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
+        "OSWORLD_VM_URL": f"http://host.docker.internal:{vm_host_port}",
+    }
+
+    container_name = f"osworld-claude-{output_dir.name[:12]}"
+    # Remove stale container if exists
+    try:
+        old = docker_client.containers.get(container_name)
+        old.remove(force=True)
+    except docker.errors.NotFound:
+        pass
+
+    logger.info("Starting Claude container: %s (VM port %d)", container_name, vm_host_port)
+
+    container = docker_client.containers.run(
+        CLAUDE_CLI_IMAGE,
+        command=cli_args,
+        name=container_name,
+        environment=env_vars,
+        extra_hosts={"host.docker.internal": "host-gateway"},
+        volumes={
+            str(output_dir): {"bind": "/workspace", "mode": "rw"},
+            str(MMSKILLS_ROOT): {"bind": "/opt/mmskills", "mode": "ro"},
+            # Mount Claude credentials file for API authentication
+            os.path.expanduser("~/.claude/.credentials.json"): {
+                "bind": "/home/node/.claude/.credentials.json", "mode": "ro",
+            },
+        },
+        detach=True,
+        # No docker socket mounted — Claude can't escape
+    )
+
+    try:
+        result = container.wait(timeout=args.task_timeout)
+        stdout = container.logs(stdout=True, stderr=False).decode(errors="replace")
+        stderr = container.logs(stdout=False, stderr=True).decode(errors="replace")
+        exit_code = result.get("StatusCode", -1)
+        logger.info("Claude container exited with code %d", exit_code)
+    except Exception as exc:
+        logger.warning("Claude container timed out or errored: %s", exc)
+        try:
+            container.kill()
+        except Exception:
+            pass
+        stdout = container.logs(stdout=True, stderr=False).decode(errors="replace")
+        stderr = container.logs(stdout=False, stderr=True).decode(errors="replace")
+    finally:
+        try:
+            container.remove(force=True)
+        except Exception:
             pass
 
-    return _BridgeHandler
-
-
-def _free_port() -> int:
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
+    return stdout, stderr
 
 
 # ── argument parsing ──────────────────────────────────────────────────────────
@@ -210,7 +238,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--domain", default="all", help="Domain to run, or 'all'")
     parser.add_argument("--specific_task_id", help="Run a single task by ID")
     parser.add_argument("--result_dir", default=str(MMSKILLS_ROOT / "scripts" / "run-osworld" / "workspaces"))
-    parser.add_argument("--cli_path", default="claude", help="Path to the Claude CLI binary")
     parser.add_argument(
         "--skill_mode",
         default="none",
@@ -227,10 +254,14 @@ def parse_args() -> argparse.Namespace:
         "--parallel",
         type=int,
         default=1,
-        help="Number of parallel workers. Use with --path_to_vm pointing to a directory of .vmx files",
+        help="Number of parallel workers (each gets its own VM + isolated network)",
     )
     parser.add_argument(
         "--log_level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"]
+    )
+    parser.add_argument(
+        "--rerun", action="store_true",
+        help="Re-run tasks even if results already exist (default: skip existing)",
     )
     return parser.parse_args()
 
@@ -276,41 +307,15 @@ def task_logger(task_id: str, output_dir: Path) -> logging.Logger:
     return lg
 
 
-# ── MCP config helper ─────────────────────────────────────────────────────────
-
-def _write_mcp_config(bridge_port: int) -> str:
-    """Write a temp MCP config JSON and return its path."""
-    config = {
-        "mcpServers": {
-            "osworld-controller": {
-                "command": "python3",
-                "args": [str(MCP_SERVER)],
-                "env": {"OSWORLD_BRIDGE_URL": f"http://127.0.0.1:{bridge_port}"},
-            }
-        }
-    }
-    fd, path = tempfile.mkstemp(prefix="osworld_mcp_", suffix=".json")
-    try:
-        with os.fdopen(fd, "w") as f:
-            json.dump(config, f)
-    except Exception:
-        os.close(fd)
-        raise
-    return path
-
-
 # ── task runner ───────────────────────────────────────────────────────────────
 
 def run_task(
+    docker_client: docker.DockerClient,
     env,
     example: dict,
     args: argparse.Namespace,
     output_dir: Path,
-    bridge_port: int,
-    bridge_state: _BridgeState | None = None,
 ) -> float:
-    if bridge_state is None:
-        bridge_state = _BridgeState()
     task_id: str = example["id"]
     instruction: str = example["instruction"]
     lg = task_logger(task_id, output_dir)
@@ -318,11 +323,6 @@ def run_task(
     # Reset the VM to a clean state for this task
     lg.info("Resetting environment for task: %s", task_id)
     env.reset(task_config=example)
-    bridge_state.controller = env.controller
-    bridge_state.signal = None
-    bridge_state.output_dir = output_dir
-    bridge_state.step = 0
-    bridge_state.logger = lg
 
     # Start screen recording
     try:
@@ -330,72 +330,43 @@ def run_task(
     except Exception:
         lg.warning("Could not start recording")
 
-    # Build prompt: system context + task instruction
-    # Skills are loaded automatically by Claude CLI via --plugin-dir
+    # Build prompt and write to workspace
     prompt = f"{SYSTEM_PROMPT}\n\nTask: {instruction}"
+    (output_dir / "prompt.txt").write_text(prompt, encoding="utf-8")
 
-    # Write temp MCP config with the bridge URL
-    mcp_config_path = _write_mcp_config(bridge_port)
+    # Write MCP config for the container
+    _write_mcp_config(output_dir, args.skill_mode)
+
     start_time = datetime.datetime.now()
 
-    # Memory isolation: disable auto-memory and session persistence
-    env_vars = {
-        **os.environ,
-        "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
-    }
-
-    # Resolve plugin directory for skill injection based on skill_mode
-    # "none" → no --plugin-dir (baseline)
-    # "text" / "multimodal" → point to MMSkills repo, CLI auto-discovers skills
-    cmd = [
-        args.cli_path,
-        "-p", prompt,
-        "--mcp-config", mcp_config_path,
-        "--output-format", "text",
-        "--model", args.model,
-        "--no-session-persistence",
-        "--dangerously-skip-permissions",
-    ]
-    if args.skill_mode in PLUGIN_DIRS:
-        cmd.extend(["--plugin-dir", str(PLUGIN_DIRS[args.skill_mode])])
-    lg.info("Invoking Claude CLI: %s", " ".join(cmd))
-
+    # Run Claude in isolated Docker container
+    vm_host_port = _get_vm_host_port(env)
     max_retries = 3
+    stdout, stderr = "", ""
     for attempt in range(1, max_retries + 1):
-        try:
-            proc = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=args.task_timeout,
-                env=env_vars,
-            )
-            if "API Error: 500" in (proc.stdout or "") or "API Error: 500" in (proc.stderr or ""):
-                lg.warning("API 500 error on attempt %d/%d, retrying...", attempt, max_retries)
-                bridge_state.signal = None  # reset signal for retry
-                continue
-            break
-        except subprocess.TimeoutExpired:
-            lg.warning("Claude CLI timed out after %ds", args.task_timeout)
-            bridge_state.signal = bridge_state.signal or "FAIL"
-            break
+        stdout, stderr = _run_claude_in_docker(
+            docker_client, vm_host_port, output_dir, args, lg,
+        )
+        if "API Error: 500" in stdout or "API Error: 500" in stderr:
+            lg.warning("API 500 error on attempt %d/%d, retrying...", attempt, max_retries)
+            continue
+        break
     else:
         lg.error("All %d attempts failed with API 500 errors", max_retries)
 
-    try:
-        os.unlink(mcp_config_path)
-    except OSError:
-        pass
-
     elapsed = (datetime.datetime.now() - start_time).total_seconds()
-    signal = bridge_state.signal or "DONE"
+
+    # Read signal from workspace (written by bridge.py)
+    signal_file = output_dir / "signal.txt"
+    signal = signal_file.read_text(encoding="utf-8").strip() if signal_file.exists() else "DONE"
     lg.info("Claude exited (%.1fs), signal=%s", elapsed, signal)
 
-    # Record final stdout from Claude
-    if "proc" in dir():
-        (output_dir / "claude_output.txt").write_text(proc.stdout or "", encoding="utf-8")
-        if proc.stderr:
-            lg.debug("Claude stderr: %s", proc.stderr[:2000])
+    # Save Claude output (also saved inside container, but capture logs too)
+    claude_output_file = output_dir / "claude_output.txt"
+    if not claude_output_file.exists():
+        claude_output_file.write_text(stdout, encoding="utf-8")
+    if stderr:
+        lg.debug("Claude stderr: %s", stderr[:2000])
 
     # Take a final screenshot of the desktop state
     try:
@@ -508,13 +479,8 @@ def _run_worker(
     osworld_root = Path(args.osworld_root)
     sys.path.insert(0, str(osworld_root))
 
-    # Each worker gets its own bridge
-    bridge_port = _free_port()
-    bridge_state = _BridgeState()
-    server = HTTPServer(("127.0.0.1", bridge_port), _make_handler(bridge_state))
-    t = threading.Thread(target=server.serve_forever, daemon=True)
-    t.start()
-    logger.info("Worker %d: bridge on port %d, vm=%s, %d tasks", worker_id, bridge_port, vm_path, len(task_queue))
+    docker_client = docker.from_env()
+    logger.info("Worker %d: vm=%s, %d tasks", worker_id, vm_path, len(task_queue))
 
     results = []
     env = None
@@ -526,8 +492,17 @@ def _run_worker(
             task_id = example["id"]
             logger.info("Worker %d [%d/%d] %s / %s", worker_id, idx, len(task_queue), domain, task_id)
             output_dir = task_result_dir(args, domain, task_id)
+            result_file = output_dir / "result.txt"
+            if not args.rerun and result_file.exists():
+                prev = result_file.read_text().strip()
+                logger.info("Worker %d [%d/%d] skipping (existing score=%s)", worker_id, idx, len(task_queue), prev)
+                try:
+                    results.append((domain, task_id, float(prev)))
+                except ValueError:
+                    results.append((domain, task_id, 0.0))
+                continue
             try:
-                score = run_task(env, example, args, output_dir, bridge_port, bridge_state)
+                score = run_task(docker_client, env, example, args, output_dir)
                 results.append((domain, task_id, score))
                 logger.info("Worker %d [%d/%d] score=%.4f", worker_id, idx, len(task_queue), score)
             except Exception:
@@ -539,7 +514,6 @@ def _run_worker(
                 env.close()
             except Exception:
                 logger.exception("Worker %d: failed to close environment", worker_id)
-        server.shutdown()
 
     return results
 
@@ -580,24 +554,20 @@ def main() -> int:
     num_workers = min(args.parallel, len(tasks))
 
     if num_workers <= 1:
-        # ── Sequential mode (single VM) ──
-        bridge_port = _free_port()
-        bridge_state = _BridgeState()
-        server = HTTPServer(("127.0.0.1", bridge_port), _make_handler(bridge_state))
-        t = threading.Thread(target=server.serve_forever, daemon=True)
-        t.start()
-        logger.info("HTTP bridge running on port %d", bridge_port)
+        # ── Sequential mode (single worker) ──
+        docker_client = docker.from_env()
 
         scores: list[float] = []
         env = None
         try:
             env = _make_desktop_env(args, args.path_to_vm)
+
             for idx, (domain, example) in enumerate(tasks, start=1):
                 task_id = example["id"]
                 logger.info("[%d/%d] %s / %s", idx, len(tasks), domain, task_id)
                 output_dir = task_result_dir(args, domain, task_id)
                 try:
-                    score = run_task(env, example, args, output_dir, bridge_port, bridge_state)
+                    score = run_task(docker_client, env, example, args, output_dir)
                     scores.append(score)
                     logger.info("[%d/%d] score=%.4f", idx, len(tasks), score)
                 except Exception:
@@ -616,9 +586,8 @@ def main() -> int:
                     env.close()
                 except Exception:
                     logger.exception("Failed to close environment")
-            server.shutdown()
     else:
-        # ── Parallel mode (multiple VMs) ──
+        # ── Parallel mode (multiple workers) ──
         vm_paths = _resolve_vm_paths(args.path_to_vm, num_workers, args.provider_name)
         if len(vm_paths) < num_workers:
             logger.warning("Only %d VM(s) found, reducing workers to %d", len(vm_paths), len(vm_paths))

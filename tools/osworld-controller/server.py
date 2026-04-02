@@ -2,21 +2,33 @@
 osworld-controller MCP server
 
 Bridges Claude to an OSWorld VM desktop via an HTTP bridge running in the
-host Python process. The bridge exposes env.controller methods over a local
-HTTP server, and this MCP server translates Claude's tool calls into HTTP
-requests to that bridge.
+host Python process. Each action tool executes a pyautogui command, waits
+for the UI to settle (2s, matching OSWorld's default pause), then returns
+a screenshot — mirroring the original OSWorld action-observation loop.
 
 Requires env var:
     OSWORLD_BRIDGE_URL  e.g. http://127.0.0.1:18765
 """
 
+import base64
+import io
 import json
 import os
+import time
 
 import httpx
+from PIL import Image as PILImage
 from mcp.server.fastmcp import FastMCP, Image
 
 BRIDGE_URL = os.environ.get("OSWORLD_BRIDGE_URL", "http://127.0.0.1:18765")
+
+# The VM runs at native resolution (e.g. 1920x1080) but we present
+# screenshots to the model at this target size so it generates coordinates
+# in a resolution matching the original OSWorld anthropic agent (1280x720).
+TARGET_WIDTH = int(os.environ.get("OSWORLD_TARGET_WIDTH", "1280"))
+TARGET_HEIGHT = int(os.environ.get("OSWORLD_TARGET_HEIGHT", "720"))
+_native_width: int | None = None  # detected from first screenshot
+_native_height: int | None = None
 
 mcp = FastMCP("osworld-controller")
 _client = httpx.Client(timeout=120.0)
@@ -36,13 +48,41 @@ def _post(path: str, data: dict) -> dict:
     return r.json()
 
 
-def _exec(command: str) -> str:
-    """Send a pyautogui command to the VM and return a confirmation string."""
+def _screenshot() -> Image:
+    """Capture a screenshot, resize to target resolution, return as Image."""
+    global _native_width, _native_height
+    data = _get("/screenshot")
+    png_bytes = base64.b64decode(data["data"])
+    img = PILImage.open(io.BytesIO(png_bytes))
+    # Detect native resolution on first call
+    if _native_width is None:
+        _native_width, _native_height = img.size
+    # Resize if needed
+    if img.size != (TARGET_WIDTH, TARGET_HEIGHT):
+        img = img.resize((TARGET_WIDTH, TARGET_HEIGHT), PILImage.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return Image(data=buf.getvalue(), format="png")
+
+
+def _scale_coords(x: int, y: int) -> tuple[int, int]:
+    """Scale coordinates from target (model) space to native (VM) space."""
+    if _native_width is None or _native_width == TARGET_WIDTH:
+        return x, y
+    sx = _native_width / TARGET_WIDTH
+    sy = _native_height / TARGET_HEIGHT
+    return int(x * sx), int(y * sy)
+
+
+def _exec_and_screenshot(command: str) -> list:
+    """Execute a pyautogui command, wait for UI to settle, return screenshot."""
     _post("/execute_python", {"command": command})
-    return json.dumps({"ok": True, "command": command})
+    time.sleep(2)  # match OSWorld's default pause for UI to update
+    img = _screenshot()
+    return [json.dumps({"ok": True}), img]
 
 
-# ── observation tools ─────────────────────────────────────────────────────────
+# ── observation ───────────────────────────────────────────────────────────────
 
 @mcp.tool()
 def screenshot() -> Image:
@@ -51,28 +91,13 @@ def screenshot() -> Image:
     Returns:
         Current screenshot of the VM desktop as an image.
     """
-    import base64
-    data = _get("/screenshot")
-    png_bytes = base64.b64decode(data["data"])
-    return Image(data=png_bytes, format="png")
-
-
-@mcp.tool()
-def get_accessibility_tree() -> str:
-    """Get the accessibility tree of the current VM desktop.
-
-    Returns:
-        JSON string of all visible UI elements and their properties.
-        Use this to identify button labels, text fields, and coordinates.
-    """
-    data = _get("/accessibility_tree")
-    return data.get("tree", "")
+    return _screenshot()
 
 
 # ── mouse tools ───────────────────────────────────────────────────────────────
 
 @mcp.tool()
-def click(x: int, y: int, button: str = "left") -> str:
+def click(x: int, y: int, button: str = "left") -> list:
     """Click the mouse at (x, y) on the VM desktop.
 
     Args:
@@ -81,19 +106,20 @@ def click(x: int, y: int, button: str = "left") -> str:
         button: "left" (default), "right", or "middle".
 
     Returns:
-        Confirmation message.
+        Confirmation message and a screenshot.
     """
+    nx, ny = _scale_coords(x, y)
     if button == "right":
-        cmd = f"pyautogui.rightClick({x}, {y})"
+        cmd = f"pyautogui.rightClick({nx}, {ny})"
     elif button == "middle":
-        cmd = f"pyautogui.click({x}, {y}, button='middle')"
+        cmd = f"pyautogui.click({nx}, {ny}, button='middle')"
     else:
-        cmd = f"pyautogui.click({x}, {y})"
-    return _exec(cmd)
+        cmd = f"pyautogui.click({nx}, {ny})"
+    return _exec_and_screenshot(cmd)
 
 
 @mcp.tool()
-def double_click(x: int, y: int) -> str:
+def double_click(x: int, y: int) -> list:
     """Double-click at (x, y) on the VM desktop.
 
     Args:
@@ -101,13 +127,14 @@ def double_click(x: int, y: int) -> str:
         y: Y coordinate in pixels.
 
     Returns:
-        Confirmation message.
+        Confirmation message and a screenshot.
     """
-    return _exec(f"pyautogui.doubleClick({x}, {y})")
+    nx, ny = _scale_coords(x, y)
+    return _exec_and_screenshot(f"pyautogui.doubleClick({nx}, {ny})")
 
 
 @mcp.tool()
-def move_to(x: int, y: int) -> str:
+def move_to(x: int, y: int) -> list:
     """Move the mouse cursor to (x, y) without clicking.
 
     Args:
@@ -115,13 +142,14 @@ def move_to(x: int, y: int) -> str:
         y: Y coordinate in pixels.
 
     Returns:
-        Confirmation message.
+        Confirmation message and a screenshot.
     """
-    return _exec(f"pyautogui.moveTo({x}, {y})")
+    nx, ny = _scale_coords(x, y)
+    return _exec_and_screenshot(f"pyautogui.moveTo({nx}, {ny})")
 
 
 @mcp.tool()
-def drag_to(start_x: int, start_y: int, end_x: int, end_y: int, duration: float = 0.5) -> str:
+def drag_to(start_x: int, start_y: int, end_x: int, end_y: int, duration: float = 0.5) -> list:
     """Click and drag from one point to another on the VM desktop.
 
     Args:
@@ -132,14 +160,16 @@ def drag_to(start_x: int, start_y: int, end_x: int, end_y: int, duration: float 
         duration: Duration of the drag in seconds (default 0.5).
 
     Returns:
-        Confirmation message.
+        Confirmation message and a screenshot.
     """
-    cmd = f"pyautogui.moveTo({start_x}, {start_y}); pyautogui.dragTo({end_x}, {end_y}, duration={duration})"
-    return _exec(cmd)
+    nsx, nsy = _scale_coords(start_x, start_y)
+    nex, ney = _scale_coords(end_x, end_y)
+    cmd = f"pyautogui.moveTo({nsx}, {nsy}); pyautogui.dragTo({nex}, {ney}, duration={duration})"
+    return _exec_and_screenshot(cmd)
 
 
 @mcp.tool()
-def scroll(x: int, y: int, clicks: int) -> str:
+def scroll(x: int, y: int, clicks: int) -> list:
     """Scroll the mouse wheel at (x, y).
 
     Args:
@@ -148,15 +178,16 @@ def scroll(x: int, y: int, clicks: int) -> str:
         clicks: Number of scroll clicks. Positive = up, negative = down.
 
     Returns:
-        Confirmation message.
+        Confirmation message and a screenshot.
     """
-    return _exec(f"pyautogui.scroll({clicks}, x={x}, y={y})")
+    nx, ny = _scale_coords(x, y)
+    return _exec_and_screenshot(f"pyautogui.scroll({clicks}, x={nx}, y={ny})")
 
 
 # ── keyboard tools ────────────────────────────────────────────────────────────
 
 @mcp.tool()
-def type_text(text: str, interval: float = 0.02) -> str:
+def type_text(text: str, interval: float = 0.02) -> list:
     """Type text on the VM desktop. Handles newlines by pressing Enter.
 
     Args:
@@ -164,7 +195,7 @@ def type_text(text: str, interval: float = 0.02) -> str:
         interval: Seconds between each keypress (default 0.02).
 
     Returns:
-        Confirmation message.
+        Confirmation message and a screenshot.
     """
     lines = text.split("\n")
     parts = []
@@ -174,11 +205,11 @@ def type_text(text: str, interval: float = 0.02) -> str:
         if i < len(lines) - 1:
             parts.append("pyautogui.press('enter')")
     cmd = "; ".join(parts) if parts else "pass"
-    return _exec(cmd)
+    return _exec_and_screenshot(cmd)
 
 
 @mcp.tool()
-def key_press(key: str) -> str:
+def key_press(key: str) -> list:
     """Press a single keyboard key on the VM desktop.
 
     Args:
@@ -187,13 +218,13 @@ def key_press(key: str) -> str:
              'f1'–'f12', 'space', 'ctrl', 'alt', 'shift', 'super'.
 
     Returns:
-        Confirmation message.
+        Confirmation message and a screenshot.
     """
-    return _exec(f"pyautogui.press({json.dumps(key)})")
+    return _exec_and_screenshot(f"pyautogui.press({json.dumps(key)})")
 
 
 @mcp.tool()
-def hotkey(keys: list[str]) -> str:
+def hotkey(keys: list[str]) -> list:
     """Press a keyboard shortcut (keys held simultaneously) on the VM desktop.
 
     Args:
@@ -201,60 +232,10 @@ def hotkey(keys: list[str]) -> str:
               ["alt", "f4"], ["super"].
 
     Returns:
-        Confirmation message.
+        Confirmation message and a screenshot.
     """
     keys_str = ", ".join(json.dumps(k) for k in keys)
-    return _exec(f"pyautogui.hotkey({keys_str})")
-
-
-# ── shell tool ────────────────────────────────────────────────────────────────
-
-@mcp.tool()
-def run_bash(script: str) -> str:
-    """Run a bash script inside the VM.
-
-    Use this for file operations, checking application state, or any task
-    that is easier via the command line than via the GUI.
-
-    Args:
-        script: Bash script to execute inside the VM.
-
-    Returns:
-        JSON with 'output' (stdout+stderr) and 'returncode'.
-    """
-    data = _post("/run_bash", {"script": script})
-    return json.dumps(data, ensure_ascii=False)
-
-
-# ── task completion signals ───────────────────────────────────────────────────
-
-@mcp.tool()
-def task_done() -> str:
-    """Signal that the task has been successfully completed.
-
-    Call this ONLY after you have verified (via screenshot or accessibility tree)
-    that the task goal has been achieved. The evaluation will run immediately
-    after this call.
-
-    Returns:
-        Confirmation that the done signal was received.
-    """
-    _post("/signal", {"signal": "DONE"})
-    return "Task marked as DONE. Evaluation will now run."
-
-
-@mcp.tool()
-def task_fail() -> str:
-    """Signal that the task cannot be completed.
-
-    Call this if the task is impossible, the required application is missing,
-    or you have encountered an unrecoverable error after exhausting retries.
-
-    Returns:
-        Confirmation that the fail signal was received.
-    """
-    _post("/signal", {"signal": "FAIL"})
-    return "Task marked as FAIL."
+    return _exec_and_screenshot(f"pyautogui.hotkey({keys_str})")
 
 
 if __name__ == "__main__":

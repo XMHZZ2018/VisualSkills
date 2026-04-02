@@ -1,0 +1,27 @@
+FROM node:20-slim
+
+# System dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-pip python3-venv curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Claude CLI
+RUN npm install -g @anthropic-ai/claude-code
+
+# Python venv for MCP server dependencies
+RUN python3 -m venv /opt/mcp-venv
+ENV PATH="/opt/mcp-venv/bin:$PATH"
+RUN pip install --no-cache-dir mcp httpx Pillow
+
+# Copy bridge and entrypoint
+COPY bridge.py /opt/bridge.py
+COPY entrypoint.sh /opt/entrypoint.sh
+RUN chmod +x /opt/entrypoint.sh
+
+# Run as node user (uid 1000, matches typical host user)
+# Claude CLI refuses --dangerously-skip-permissions as root
+RUN mkdir -p /workspace && chown node:node /workspace
+
+USER node
+WORKDIR /workspace
+ENTRYPOINT ["/opt/entrypoint.sh"]

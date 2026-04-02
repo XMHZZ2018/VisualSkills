@@ -582,11 +582,18 @@ def generate_multimodal_skill(
 
 # ── SKILL.md index generation ───────────────────────────────────────────────
 
-def generate_skill_index(taxonomy: Taxonomy, skills_dir: Path) -> None:
+def generate_skill_index(taxonomy: Taxonomy, skills_dir: Path, is_multimodal: bool = False) -> None:
     """Generate SKILL.md index file from taxonomy."""
+    domain_title = taxonomy.domain.replace("-", " ").title()
+    skill_name = f"{taxonomy.domain}-knowledge"
+    mm_note = " with screenshots" if is_multimodal else ""
     lines = [
-        f"# {taxonomy.domain.title()} Knowledge\n",
-        "Quick-reference guides for common tasks.\n",
+        "---",
+        f"name: {skill_name}",
+        f"description: Step-by-step{mm_note} guides for common {domain_title} tasks. Read the relevant guide before performing a {domain_title} browser task.",
+        "---\n",
+        f"# {domain_title} Knowledge\n",
+        f"Step-by-step{mm_note} guides for common {domain_title} tasks. Find the relevant topic below and read its guide for detailed instructions.\n",
         "| Category | Topic | Guide |",
         "|----------|-------|-------|",
     ]
@@ -731,10 +738,10 @@ def main():
 
     # Generate SKILL.md index files
     if args.mode in ("text", "both"):
-        generate_skill_index(taxonomy, TEXT_SKILLS_DIR)
+        generate_skill_index(taxonomy, TEXT_SKILLS_DIR, is_multimodal=False)
         print(f"Text SKILL.md updated")
     if args.mode in ("multimodal", "both"):
-        generate_skill_index(taxonomy, MM_SKILLS_DIR)
+        generate_skill_index(taxonomy, MM_SKILLS_DIR, is_multimodal=True)
         print(f"Multimodal SKILL.md updated")
 
     print(f"\nDone. {len(leaves)} topics processed.")

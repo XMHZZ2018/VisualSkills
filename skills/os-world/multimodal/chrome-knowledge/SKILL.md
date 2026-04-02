@@ -1,6 +1,11 @@
+---
+name: chrome-knowledge
+description: Step-by-step guides with screenshots for common Google Chrome tasks including tabs, bookmarks, downloads, extensions, settings, DevTools, and profiles. Read the relevant guide before performing a Chrome browser task.
+---
+
 # Chrome Knowledge
 
-Quick-reference guides for common tasks.
+Step-by-step guides with screenshots for common Google Chrome tasks. Find the relevant topic below and read its guide for detailed instructions.
 
 | Category | Topic | Guide |
 |----------|-------|-------|
