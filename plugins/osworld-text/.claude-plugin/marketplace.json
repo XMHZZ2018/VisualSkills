@@ -14,7 +14,8 @@
       "source": "./",
       "strict": false,
       "skills": [
-        "./skills/os-world/text/chrome-knowledge"
+        "./skills/chrome-knowledge-text",
+        "./skills/libreoffice-impress-knowledge-text"
       ]
     }
   ]

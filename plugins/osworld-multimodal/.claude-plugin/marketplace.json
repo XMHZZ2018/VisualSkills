@@ -14,7 +14,8 @@
       "source": "./",
       "strict": false,
       "skills": [
-        "./skills/os-world/multimodal/chrome-knowledge"
+        "./skills/chrome-knowledge-multimodal",
+        "./skills/libreoffice-impress-knowledge-multimodal"
       ]
     }
   ]

@@ -140,7 +140,8 @@ def _run_claude_in_docker(
     # Build CLI args for entrypoint.sh (passed as CMD)
     cli_args = [
         "--mcp-config", "/workspace/mcp_config.json",
-        "--output-format", "text",
+        "--output-format", "stream-json",
+        "--verbose",
         "--model", args.model,
         "--no-session-persistence",
         "--dangerously-skip-permissions",
@@ -236,7 +237,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--test_config_base_dir", default="evaluation_examples")
     parser.add_argument("--test_all_meta_path", default="evaluation_examples/test_all.json")
     parser.add_argument("--domain", default="all", help="Domain to run, or 'all'")
-    parser.add_argument("--specific_task_id", help="Run a single task by ID")
+    parser.add_argument(
+        "--specific_task_id",
+        nargs="+",
+        help="Run specific task(s) by ID. Accepts multiple IDs or comma-separated values.",
+    )
     parser.add_argument("--result_dir", default=str(MMSKILLS_ROOT / "scripts" / "run-osworld" / "workspaces"))
     parser.add_argument(
         "--skill_mode",
@@ -272,10 +277,24 @@ def select_tasks(args: argparse.Namespace) -> list[tuple[str, str]]:
     osworld = Path(args.osworld_root)
     meta = json.loads((osworld / args.test_all_meta_path).read_text(encoding="utf-8"))
     if args.specific_task_id:
-        for domain, task_ids in meta.items():
-            if args.specific_task_id in task_ids:
-                return [(domain, args.specific_task_id)]
-        raise ValueError(f"Task ID {args.specific_task_id!r} not found")
+        # Flatten: support both multiple args and comma-separated values
+        task_ids_requested = []
+        for tid in args.specific_task_id:
+            task_ids_requested.extend(tid.split(","))
+        task_ids_requested = [t.strip() for t in task_ids_requested if t.strip()]
+
+        # Build domain→task_ids lookup
+        result = []
+        for tid in task_ids_requested:
+            found = False
+            for domain, domain_task_ids in meta.items():
+                if tid in domain_task_ids:
+                    result.append((domain, tid))
+                    found = True
+                    break
+            if not found:
+                raise ValueError(f"Task ID {tid!r} not found")
+        return result
     if args.domain != "all":
         if args.domain not in meta:
             raise ValueError(f"Domain {args.domain!r} not found")
@@ -491,16 +510,17 @@ def _run_worker(
         for idx, (domain, example) in enumerate(task_queue, start=1):
             task_id = example["id"]
             logger.info("Worker %d [%d/%d] %s / %s", worker_id, idx, len(task_queue), domain, task_id)
-            output_dir = task_result_dir(args, domain, task_id)
-            result_file = output_dir / "result.txt"
-            if not args.rerun and result_file.exists():
-                prev = result_file.read_text().strip()
+            # Check for existing result BEFORE creating output dir (which wipes it)
+            existing_result = Path(args.result_dir) / args.model / f"skill-{args.skill_mode}" / domain / task_id / "result.txt"
+            if not args.rerun and existing_result.exists():
+                prev = existing_result.read_text().strip()
                 logger.info("Worker %d [%d/%d] skipping (existing score=%s)", worker_id, idx, len(task_queue), prev)
                 try:
                     results.append((domain, task_id, float(prev)))
                 except ValueError:
                     results.append((domain, task_id, 0.0))
                 continue
+            output_dir = task_result_dir(args, domain, task_id)
             try:
                 score = run_task(docker_client, env, example, args, output_dir)
                 results.append((domain, task_id, score))
@@ -528,11 +548,14 @@ def main() -> int:
     )
     logger = logging.getLogger("desktopenv.experiment.claude_mcp")
 
-    osworld_root = Path(args.osworld_root)
+    osworld_root = Path(args.osworld_root).resolve()
     if not osworld_root.exists():
         logger.error("OSWorld root not found: %s", osworld_root)
         return 1
     sys.path.insert(0, str(osworld_root))
+
+    # Resolve result_dir to absolute before chdir (Docker volumes need absolute paths)
+    args.result_dir = str(Path(args.result_dir).resolve())
 
     # OSWorld's Docker provider uses relative paths (./docker_vm_data/),
     # so we must run from the OSWorld root directory.
@@ -565,6 +588,16 @@ def main() -> int:
             for idx, (domain, example) in enumerate(tasks, start=1):
                 task_id = example["id"]
                 logger.info("[%d/%d] %s / %s", idx, len(tasks), domain, task_id)
+                # Check for existing result BEFORE creating output dir (which wipes it)
+                existing_result = Path(args.result_dir) / args.model / f"skill-{args.skill_mode}" / domain / task_id / "result.txt"
+                if not args.rerun and existing_result.exists():
+                    prev = existing_result.read_text().strip()
+                    logger.info("[%d/%d] skipping (existing score=%s)", idx, len(tasks), prev)
+                    try:
+                        scores.append(float(prev))
+                    except ValueError:
+                        scores.append(0.0)
+                    continue
                 output_dir = task_result_dir(args, domain, task_id)
                 try:
                     score = run_task(docker_client, env, example, args, output_dir)

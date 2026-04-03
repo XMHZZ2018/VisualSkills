@@ -33,8 +33,11 @@ from taxonomy import Taxonomy, TaxonomyNode
 PIPELINE_DIR = Path(__file__).parent
 DATA_DIR = PIPELINE_DIR / "data"
 MMSKILLS_ROOT = PIPELINE_DIR.parent.parent
-TEXT_SKILLS_DIR = MMSKILLS_ROOT / "skills" / "os-world" / "text" / "chrome-knowledge"
-MM_SKILLS_DIR = MMSKILLS_ROOT / "skills" / "os-world" / "multimodal" / "chrome-knowledge"
+
+
+def _skills_dir(domain: str, modality: str) -> Path:
+    """Return the skills directory for a domain and modality."""
+    return MMSKILLS_ROOT / "skills" / f"{domain}-knowledge-{modality}"
 
 MAX_VIDEO_DURATION = 20 * 60  # 20 minutes max
 
@@ -310,7 +313,7 @@ def call_claude(prompt: str, timeout: int = 120) -> str | None:
 
 
 TEXT_SKILL_PROMPT = """\
-You are generating a step-by-step guide for a Chrome browser task.
+You are generating a step-by-step guide for a desktop application task.
 
 Topic: {topic_name}
 Description: {topic_description}
@@ -324,7 +327,7 @@ Generate a concise, actionable guide in Markdown. Rules:
 - Title should be "# {topic_name}"
 - Write numbered steps (1. 2. 3. ...)
 - Each step: one clear action ("Click ...", "Navigate to ...", "Select ...")
-- Include the exact Chrome URL paths where relevant (e.g., chrome://settings/security)
+- Include exact menu paths where relevant (e.g., Format > Character > Font Effects)
 - Keep it under 30 lines
 - No fluff, no introduction, no conclusion — just the steps
 
@@ -334,7 +337,7 @@ Output ONLY the markdown guide, nothing else.
 # Pass 1: Claude sees coarse frames + transcript, writes a draft guide
 # and identifies which steps need a screenshot (with approximate timestamps)
 MM_COARSE_PROMPT = """\
-You are generating a step-by-step guide with screenshots for a Chrome browser task.
+You are generating a step-by-step guide with screenshots for a desktop application task.
 
 Topic: {topic_name}
 Description: {topic_description}
@@ -356,19 +359,19 @@ Output JSON with this structure:
   "guide_steps": [
     {{
       "step": 1,
-      "text": "Open Chrome and navigate to chrome://settings/security",
+      "text": "Right-click the slide and select Slide Properties",
       "needs_screenshot": true,
       "timestamp_sec": 15
     }},
     {{
       "step": 2,
-      "text": "Click on 'Enhanced protection'",
+      "text": "In the Background tab, select Color from the dropdown",
       "needs_screenshot": true,
       "timestamp_sec": 45
     }},
     {{
       "step": 3,
-      "text": "Close the settings tab",
+      "text": "Click OK to apply",
       "needs_screenshot": false,
       "timestamp_sec": null
     }}
@@ -377,10 +380,14 @@ Output JSON with this structure:
 
 Rules:
 - 4-8 steps total
-- Not every step needs a screenshot — only where visual reference helps
+- Be VERY selective with screenshots — at most 2-3 per guide
+- ONLY include a screenshot for steps where the UI element is genuinely hard to \
+find (e.g., a buried menu, a dialog box, a color picker). Do NOT screenshot \
+obvious actions like "click OK", "select text", or "press Ctrl+A"
+- Too many screenshots distract the reader — fewer is better
 - Timestamps should match moments from the coarse frames / transcript
 - Each step text: one clear action
-- Include Chrome URL paths where relevant
+- Include exact menu paths where relevant (e.g., Format > Character > Font Effects)
 
 Output ONLY valid JSON.
 """
@@ -605,6 +612,7 @@ def generate_skill_index(taxonomy: Taxonomy, skills_dir: Path, is_multimodal: bo
             status = "✓" if guide_path.exists() else "—"
             lines.append(f"| {cat.name} | {leaf.name} | [{status}]({guide_rel}) |")
 
+    skills_dir.mkdir(parents=True, exist_ok=True)
     (skills_dir / "SKILL.md").write_text("\n".join(lines) + "\n")
 
 
@@ -636,6 +644,7 @@ def process_leaf(
     taxonomy: Taxonomy,
     mode: str,
     data_dir: Path,
+    domain: str = "chrome",
 ) -> None:
     """Process a single leaf node."""
     video_id = get_video_id(leaf)
@@ -668,14 +677,14 @@ def process_leaf(
 
     # ── Generate text skill ──
     if mode in ("text", "both"):
-        text_dir = TEXT_SKILLS_DIR / category.id / leaf.id
+        text_dir = _skills_dir(domain, "text") / category.id / leaf.id
         print(f"  Generating text skill...", end=" ", flush=True)
         ok = generate_text_skill(leaf, category.name, transcript_text, text_dir)
         print("OK" if ok else "FAILED")
 
     # ── Generate multimodal skill (coarse-to-fine) ──
     if mode in ("multimodal", "both"):
-        mm_dir = MM_SKILLS_DIR / category.id / leaf.id
+        mm_dir = _skills_dir(domain, "multimodal") / category.id / leaf.id
         print(f"  Generating multimodal skill (coarse→fine)...")
         ok = generate_multimodal_skill(
             leaf, category.name, transcript_text,
@@ -726,7 +735,7 @@ def main():
 
         print(f"[{i:2d}/{len(leaves)}] {category.name} / {leaf.name}")
         try:
-            process_leaf(leaf, category, taxonomy, args.mode, data_dir)
+            process_leaf(leaf, category, taxonomy, args.mode, data_dir, domain=args.domain)
             leaf.skill_status = "generated"
         except Exception as e:
             print(f"  ERROR: {e}")
@@ -738,10 +747,10 @@ def main():
 
     # Generate SKILL.md index files
     if args.mode in ("text", "both"):
-        generate_skill_index(taxonomy, TEXT_SKILLS_DIR, is_multimodal=False)
+        generate_skill_index(taxonomy, _skills_dir(args.domain, "text"), is_multimodal=False)
         print(f"Text SKILL.md updated")
     if args.mode in ("multimodal", "both"):
-        generate_skill_index(taxonomy, MM_SKILLS_DIR, is_multimodal=True)
+        generate_skill_index(taxonomy, _skills_dir(args.domain, "multimodal"), is_multimodal=True)
         print(f"Multimodal SKILL.md updated")
 
     print(f"\nDone. {len(leaves)} topics processed.")

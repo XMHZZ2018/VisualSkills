@@ -1,0 +1,548 @@
+{
+  "domain": "libreoffice-impress",
+  "version": 1,
+  "max_depth": 3,
+  "root": {
+    "id": "libreoffice-impress",
+    "name": "LibreOffice Impress",
+    "depth": 0,
+    "children": [
+      {
+        "id": "slides-management",
+        "name": "Slides Management",
+        "depth": 1,
+        "children": [
+          {
+            "id": "add-delete-slides",
+            "name": "Add and Delete Slides",
+            "depth": 2,
+            "description": "How to insert new slides, duplicate existing ones, and delete slides in a presentation.",
+            "search_queries": [
+              "how to add and delete slides in LibreOffice Impress",
+              "LibreOffice Impress insert slide tutorial",
+              "add remove slides LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:4B1TjAfRwQ4"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          },
+          {
+            "id": "reorder-slides",
+            "name": "Reorder Slides",
+            "depth": 2,
+            "description": "How to rearrange the order of slides using drag-and-drop or the slide panel in LibreOffice Impress.",
+            "search_queries": [
+              "how to reorder slides in LibreOffice Impress",
+              "LibreOffice Impress move slides around",
+              "rearrange slide order LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:SUVDdEVhjqY"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          },
+          {
+            "id": "slide-layout",
+            "name": "Apply Slide Layouts",
+            "depth": 2,
+            "description": "How to apply and change predefined layouts (title, content, blank, etc.) to slides.",
+            "search_queries": [
+              "how to change slide layout in LibreOffice Impress",
+              "LibreOffice Impress layout options tutorial",
+              "apply slide layout LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:-FsOOBURw4E"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          },
+          {
+            "id": "duplicate-slides",
+            "name": "Duplicate Slides",
+            "depth": 2,
+            "description": "How to duplicate one or more slides to reuse their content and formatting.",
+            "search_queries": [
+              "how to duplicate a slide in LibreOffice Impress",
+              "LibreOffice Impress copy slide",
+              "duplicate slide LibreOffice Impress tutorial"
+            ],
+            "signals": [
+              "youtube:amMPs5Tpg5Y"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          }
+        ]
+      },
+      {
+        "id": "text-formatting",
+        "name": "Text and Formatting",
+        "depth": 1,
+        "children": [
+          {
+            "id": "add-text-box",
+            "name": "Add and Edit Text Boxes",
+            "depth": 2,
+            "description": "How to insert text boxes, type content, and edit existing text on a slide.",
+            "search_queries": [
+              "how to add text box in LibreOffice Impress",
+              "LibreOffice Impress insert text tutorial",
+              "edit text box LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:h63DYRSIyxA"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          },
+          {
+            "id": "font-styling",
+            "name": "Font Styling",
+            "depth": 2,
+            "description": "How to change font type, size, bold, italic, underline, and color for text in a presentation.",
+            "search_queries": [
+              "how to change font in LibreOffice Impress",
+              "LibreOffice Impress text formatting tutorial",
+              "font size color LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:k9RMAhcf6H0"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          },
+          {
+            "id": "bullet-lists",
+            "name": "Bullet and Numbered Lists",
+            "depth": 2,
+            "description": "How to create and customize bullet points and numbered lists on slides.",
+            "search_queries": [
+              "how to add bullet points in LibreOffice Impress",
+              "LibreOffice Impress numbered list tutorial",
+              "create bullet list LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:ojzPxHmUKLg"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          },
+          {
+            "id": "text-alignment",
+            "name": "Text Alignment and Spacing",
+            "depth": 2,
+            "description": "How to align text horizontally and vertically, and adjust line and paragraph spacing.",
+            "search_queries": [
+              "how to align text in LibreOffice Impress",
+              "LibreOffice Impress text spacing tutorial",
+              "center align text LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:ZosJTiMh3XU"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          }
+        ]
+      },
+      {
+        "id": "design-themes",
+        "name": "Design and Themes",
+        "depth": 1,
+        "children": [
+          {
+            "id": "apply-master-slide",
+            "name": "Apply Master Slide",
+            "depth": 2,
+            "description": "How to apply a master slide (theme) to change the overall look of the presentation.",
+            "search_queries": [
+              "how to apply master slide in LibreOffice Impress",
+              "LibreOffice Impress theme tutorial",
+              "change master slide LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:-FsOOBURw4E"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          },
+          {
+            "id": "slide-background",
+            "name": "Set Slide Background",
+            "depth": 2,
+            "description": "How to set a solid color, gradient, image, or pattern as the slide background.",
+            "search_queries": [
+              "how to change slide background in LibreOffice Impress",
+              "LibreOffice Impress background image tutorial",
+              "set background color LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:3-IJG0mtgSg"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          },
+          {
+            "id": "slide-size",
+            "name": "Change Slide Size and Orientation",
+            "depth": 2,
+            "description": "How to change the slide dimensions (e.g., 4:3 vs 16:9) and switch between landscape and portrait.",
+            "search_queries": [
+              "how to change slide size in LibreOffice Impress",
+              "LibreOffice Impress widescreen 16x9 tutorial",
+              "change slide orientation LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:U6GF5mLhaEs"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          },
+          {
+            "id": "header-footer",
+            "name": "Add Header and Footer",
+            "depth": 2,
+            "description": "How to insert headers, footers, slide numbers, and date fields on slides.",
+            "search_queries": [
+              "how to add footer in LibreOffice Impress",
+              "LibreOffice Impress slide number tutorial",
+              "insert header footer LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:_TjloJHGRo8"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          }
+        ]
+      },
+      {
+        "id": "images-media",
+        "name": "Images and Media",
+        "depth": 1,
+        "children": [
+          {
+            "id": "insert-image",
+            "name": "Insert and Resize Images",
+            "depth": 2,
+            "description": "How to insert images from file or clipboard and resize or crop them on a slide.",
+            "search_queries": [
+              "how to insert image in LibreOffice Impress",
+              "LibreOffice Impress add picture tutorial",
+              "resize image LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:vyW1-HSrC1I"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          },
+          {
+            "id": "insert-video-audio",
+            "name": "Insert Video and Audio",
+            "depth": 2,
+            "description": "How to embed or link video and audio files into a LibreOffice Impress presentation.",
+            "search_queries": [
+              "how to insert video in LibreOffice Impress",
+              "LibreOffice Impress embed audio tutorial",
+              "add video to LibreOffice Impress presentation"
+            ],
+            "signals": [
+              "youtube:GitgAe0GTRE"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          },
+          {
+            "id": "insert-table",
+            "name": "Insert and Edit Tables",
+            "depth": 2,
+            "description": "How to insert a table, add rows and columns, and format table cells on a slide.",
+            "search_queries": [
+              "how to insert table in LibreOffice Impress",
+              "LibreOffice Impress table tutorial",
+              "add table to slide LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:f4j5fJkl5L0"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          },
+          {
+            "id": "insert-chart",
+            "name": "Insert Charts and Graphs",
+            "depth": 2,
+            "description": "How to insert and edit bar, pie, line, and other chart types on a slide.",
+            "search_queries": [
+              "how to insert chart in LibreOffice Impress",
+              "LibreOffice Impress graph tutorial",
+              "add pie chart LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:3Fn64NqHttc"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          }
+        ]
+      },
+      {
+        "id": "shapes-drawing",
+        "name": "Shapes and Drawing",
+        "depth": 1,
+        "children": [
+          {
+            "id": "insert-shapes",
+            "name": "Insert and Format Shapes",
+            "depth": 2,
+            "description": "How to draw basic shapes (rectangles, circles, arrows) and customize their fill and border.",
+            "search_queries": [
+              "how to insert shapes in LibreOffice Impress",
+              "LibreOffice Impress draw shapes tutorial",
+              "add shape to slide LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:g8zcxmKaY5w"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          },
+          {
+            "id": "group-objects",
+            "name": "Group and Ungroup Objects",
+            "depth": 2,
+            "description": "How to group multiple shapes or objects together and ungroup them for individual editing.",
+            "search_queries": [
+              "how to group objects in LibreOffice Impress",
+              "LibreOffice Impress group shapes tutorial",
+              "group ungroup elements LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:kQp_mB0YLpU"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          },
+          {
+            "id": "align-distribute",
+            "name": "Align and Distribute Objects",
+            "depth": 2,
+            "description": "How to align objects to each other or the slide, and evenly distribute spacing between them.",
+            "search_queries": [
+              "how to align objects in LibreOffice Impress",
+              "LibreOffice Impress distribute objects tutorial",
+              "align shapes to center LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:b0P5oKvyJPc"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          },
+          {
+            "id": "arrange-order",
+            "name": "Arrange Object Order",
+            "depth": 2,
+            "description": "How to bring objects forward or send them backward to control the stacking order on a slide.",
+            "search_queries": [
+              "how to arrange objects in LibreOffice Impress",
+              "LibreOffice Impress bring to front tutorial",
+              "send to back object LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:kQp_mB0YLpU"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          }
+        ]
+      },
+      {
+        "id": "animations-transitions",
+        "name": "Animations and Transitions",
+        "depth": 1,
+        "children": [
+          {
+            "id": "slide-transitions",
+            "name": "Apply Slide Transitions",
+            "depth": 2,
+            "description": "How to add and configure transition effects between slides during a slideshow.",
+            "search_queries": [
+              "how to add slide transitions in LibreOffice Impress",
+              "LibreOffice Impress transition effects tutorial",
+              "set slide transition LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:z4jwzgchey8"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          },
+          {
+            "id": "object-animations",
+            "name": "Add Object Animations",
+            "depth": 2,
+            "description": "How to animate text boxes, images, and shapes with entrance, exit, and emphasis effects.",
+            "search_queries": [
+              "how to animate objects in LibreOffice Impress",
+              "LibreOffice Impress animation tutorial",
+              "add animation effect LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:u6pqnRnl0kM"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          },
+          {
+            "id": "animation-timing",
+            "name": "Set Animation Timing and Order",
+            "depth": 2,
+            "description": "How to control the sequence, delay, and duration of animations on a slide.",
+            "search_queries": [
+              "how to set animation timing in LibreOffice Impress",
+              "LibreOffice Impress animation order tutorial",
+              "animation delay duration LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:ttOuaVrhZUQ"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          }
+        ]
+      },
+      {
+        "id": "slideshow-presentation",
+        "name": "Slideshow and Presentation",
+        "depth": 1,
+        "children": [
+          {
+            "id": "run-slideshow",
+            "name": "Run a Slideshow",
+            "depth": 2,
+            "description": "How to start, navigate, and end a slideshow presentation in full-screen mode.",
+            "search_queries": [
+              "how to run slideshow in LibreOffice Impress",
+              "LibreOffice Impress presentation mode tutorial",
+              "start slideshow LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:SUVDdEVhjqY"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          },
+          {
+            "id": "presenter-console",
+            "name": "Use Presenter Console",
+            "depth": 2,
+            "description": "How to enable and use the presenter console to see notes and upcoming slides on a second screen.",
+            "search_queries": [
+              "how to use presenter console LibreOffice Impress",
+              "LibreOffice Impress presenter view tutorial",
+              "presenter notes dual screen LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:w_7KYAJdXuo"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          },
+          {
+            "id": "slide-notes",
+            "name": "Add Speaker Notes",
+            "depth": 2,
+            "description": "How to add and edit speaker notes for each slide visible during presenter mode.",
+            "search_queries": [
+              "how to add speaker notes in LibreOffice Impress",
+              "LibreOffice Impress notes panel tutorial",
+              "add notes to slides LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:1rlGh4Znxzg"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          },
+          {
+            "id": "custom-slideshow",
+            "name": "Create Custom Slideshows",
+            "depth": 2,
+            "description": "How to create a custom show that plays only a selected subset of slides.",
+            "search_queries": [
+              "how to create custom slideshow in LibreOffice Impress",
+              "LibreOffice Impress custom show tutorial",
+              "play selected slides LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:QKAvWQvVR0c"
+            ],
+            "skill_status": "none",
+            "tasks": []
+          }
+        ]
+      },
+      {
+        "id": "export-sharing",
+        "name": "Export and Sharing",
+        "depth": 1,
+        "children": [
+          {
+            "id": "export-pdf",
+            "name": "Export to PDF",
+            "depth": 2,
+            "description": "How to export a LibreOffice Impress presentation as a PDF file with various quality options.",
+            "search_queries": [
+              "how to export PDF in LibreOffice Impress",
+              "LibreOffice Impress save as PDF tutorial",
+              "convert presentation to PDF LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:u7FtYEPzgAI"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          },
+          {
+            "id": "save-pptx",
+            "name": "Save as PowerPoint Format",
+            "depth": 2,
+            "description": "How to save or export a presentation in .pptx format for compatibility with Microsoft PowerPoint.",
+            "search_queries": [
+              "how to save as PowerPoint in LibreOffice Impress",
+              "LibreOffice Impress export pptx tutorial",
+              "save pptx format LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:u7FtYEPzgAI"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          },
+          {
+            "id": "export-images",
+            "name": "Export Slides as Images",
+            "depth": 2,
+            "description": "How to export individual slides or the whole presentation as PNG or JPEG image files.",
+            "search_queries": [
+              "how to export slides as images LibreOffice Impress",
+              "LibreOffice Impress save slide as PNG tutorial",
+              "export presentation to images LibreOffice Impress"
+            ],
+            "signals": [
+              "youtube:Ub0kZITilU0"
+            ],
+            "skill_status": "generated",
+            "tasks": []
+          }
+        ]
+      }
+    ]
+  }
+}
