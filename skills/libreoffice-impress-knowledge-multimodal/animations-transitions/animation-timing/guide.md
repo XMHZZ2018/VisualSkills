@@ -5,10 +5,10 @@
 3. Choose your desired transition effect from the transition gallery.
 4. In the 'Timing' section on the far right of the Transitions panel, uncheck 'On Mouse Click' to disable manual advancement.
 
-   ![Step 4](step04.png)
+   Read the screenshot `step04.png` in this directory — it shows step 4.
 
 5. Check 'After' and enter the number of seconds each slide should display before automatically advancing (e.g., 1.00).
 
-   ![Step 5](step05.png)
+   Read the screenshot `step05.png` in this directory — it shows step 5.
 
 6. Run the slideshow to confirm each slide advances automatically after the specified duration.

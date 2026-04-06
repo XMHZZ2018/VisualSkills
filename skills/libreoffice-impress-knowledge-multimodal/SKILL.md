@@ -1,11 +1,11 @@
 ---
 name: libreoffice-impress-knowledge
-description: LibreOffice Impress has many hidden or unintuitive menu paths. This skill has visual guides showing exactly where to click for slide backgrounds, font colors, text formatting, inserting images, animations, and more. Use when working with LibreOffice Impress.
+description: "REQUIRED for any LibreOffice Impress task. LibreOffice Impress 7.x UI differs significantly from PowerPoint and newer LibreOffice versions: font color is buried in Format > Character > Font Effects (not the toolbar), slide backgrounds require Slide > Slide Properties (not right-click), bullet lists need List > List Style, and many common operations are in unexpected places. Always read the relevant guide before acting."
 ---
 
 # LibreOffice Impress Knowledge
 
-LibreOffice Impress menus and dialogs are often unintuitive — the guides below show the exact click paths with screenshots.
+LibreOffice Impress 7.x UI is very different from PowerPoint and newer LibreOffice. Even simple tasks like changing font color, adding bullets, or setting backgrounds use non-obvious menu paths. Read the relevant guide before acting.
 
 ## Guides
 
