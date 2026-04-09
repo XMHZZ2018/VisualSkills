@@ -1,33 +1,57 @@
 ---
 name: libreoffice-impress-knowledge
-description: "REQUIRED for any LibreOffice Impress task. LibreOffice Impress 7.x UI differs significantly from PowerPoint and newer LibreOffice versions: font color is buried in Format > Character > Font Effects (not the toolbar), slide backgrounds require Slide > Slide Properties (not right-click), bullet lists need List > List Style, and many common operations are in unexpected places. Always read the relevant guide before acting."
+description: "Practical with screenshots guides for LibreOffice Impress 7.3.7 tasks. LibreOffice Impress 7.3.7 UI may differ from what you expect — read the relevant guide before acting."
 ---
 
-# LibreOffice Impress Knowledge
+# LibreOffice Impress 7.3.7 Knowledge
 
-LibreOffice Impress 7.x UI is very different from PowerPoint and newer LibreOffice. Even simple tasks like changing font color, adding bullets, or setting backgrounds use non-obvious menu paths. Read the relevant guide before acting.
+Practical with screenshots guides for common LibreOffice Impress tasks.
 
 ## Guides
 
-- [Set Slide Background](design-themes/slide-background/guide.md) — Slide > Slide Properties > Background tab; apply to one or all slides
-- [Font Styling (color, size, bold)](text-formatting/font-styling/guide.md) — Character dialog, font color picker
-- [Bullet and Numbered Lists](text-formatting/bullet-lists/guide.md)
-- [Add and Edit Text Boxes](text-formatting/add-text-box/guide.md)
-- [Insert and Resize Images](images-media/insert-image/guide.md)
-- [Insert and Edit Tables](images-media/insert-table/guide.md)
-- [Insert Charts](images-media/insert-chart/guide.md)
-- [Insert and Format Shapes](shapes-drawing/insert-shapes/guide.md)
-- [Align and Distribute Objects](shapes-drawing/align-distribute/guide.md)
-- [Add/Delete Slides](slides-management/add-delete-slides/guide.md)
-- [Reorder Slides](slides-management/reorder-slides/guide.md)
-- [Apply Slide Layouts](slides-management/slide-layout/guide.md)
-- [Duplicate Slides](slides-management/duplicate-slides/guide.md)
-- [Apply Master Slide](design-themes/apply-master-slide/guide.md)
-- [Slide Size and Orientation](design-themes/slide-size/guide.md)
-- [Header and Footer](design-themes/header-footer/guide.md)
-- [Object Animations](animations-transitions/object-animations/guide.md)
-- [Animation Timing](animations-transitions/animation-timing/guide.md)
-- [Run a Slideshow](slideshow-presentation/run-slideshow/guide.md)
-- [Speaker Notes](slideshow-presentation/slide-notes/guide.md)
-- [Export to PDF](export-sharing/export-pdf/guide.md)
-- [Save as PowerPoint](export-sharing/save-pptx/guide.md)
+### Text Formatting
+
+- [Change Font Color](text-formatting/font-color/guide.md) — How to change the color of text in text boxes or titles
+- [Change Font Size](text-formatting/font-size/guide.md) — How to set the font size of text in text boxes or titles
+- [Change Font Family / Typeface](text-formatting/font-style/guide.md) — How to change the font family (typeface) of text across one or all slides
+- [Bold, Underline, and Strikethrough](text-formatting/text-decoration/guide.md) — How to apply bold, underline, or strikethrough formatting to text
+- [Text Alignment](text-formatting/text-alignment/guide.md) — How to align text (left, center, right) within a text box
+- [Bullets and Indentation](text-formatting/bullet-indent/guide.md) — How to add bullet points and adjust indentation levels in text boxes
+
+### Slide Design
+
+- [Set Slide Background Color](slide-design/slide-background/guide.md) — How to change the background color of one or all slides
+- [Add Slide Transition](slide-design/slide-transition/guide.md) — How to add or change the transition animation between slides
+- [Add Speaker Notes](slide-design/slide-notes/guide.md) — How to add or edit notes in the slide notes panel
+- [Slide Number Formatting](slide-design/slide-numbers/guide.md) — How to change the appearance (e.g., color) of slide numbers
+- [Change Slide Orientation](slide-design/slide-orientation/guide.md) — How to switch slides between landscape and portrait orientation
+
+### Image Management
+
+- [Insert an Image](image-management/image-insert/guide.md) — How to insert an image file onto a slide
+- [Move / Reposition an Image](image-management/image-position/guide.md) — How to move an image to a specific location on the slide
+- [Resize an Image](image-management/image-resize/guide.md) — How to change the dimensions (width, height) of an image on a slide
+
+### Tables
+
+- [Insert a Table](tables/insert-table/guide.md) — How to insert a new table with a specified number of rows and columns
+- [Edit Table Content](tables/edit-table-content/guide.md) — How to edit the text content inside table cells
+- [Move / Reposition a Table](tables/table-position/guide.md) — How to move a table to a specific location on the slide
+
+### Slide Content & Structure
+
+- [Edit Slide Title and Text Boxes](slide-content/title-editing/guide.md) — How to set, move, or modify the title and content text boxes on a slide
+- [Manage Slides (Duplicate, Summary)](slide-content/slide-management/guide.md) — How to duplicate slides and use built-in features to reorganize or summarize a presentation
+
+### File Operations & Media
+
+- [Save / Save As](file-and-media/save-file/guide.md) — How to save a presentation to a specific file name or format (e.g., .pptx)
+- [Export Slides as Images](file-and-media/export-slides/guide.md) — How to export presentation slides as image files (e.g., PNG)
+- [Insert Audio](file-and-media/insert-audio/guide.md) — How to embed an audio file into a presentation slide
+
+### Presentation Settings & UI
+
+- [Configure Auto-Save](presentation-settings/auto-save/guide.md) — How to enable and set the auto-save interval in LibreOffice
+- [Presenter View / Monitor Setup](presentation-settings/presenter-view/guide.md) — How to configure the presenter view and multi-monitor display settings
+- [Restore Hidden UI Panels](presentation-settings/ui-panels/guide.md) — How to show or restore panels (e.g., the slide panel) that have been hidden
+
