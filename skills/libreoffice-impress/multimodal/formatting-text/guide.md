@@ -1,41 +1,52 @@
 # Formatting Text (LibreOffice Impress 7.3)
 
-## Inserting Formatting Marks
-Go to **Insert > Formatting Mark** and select from:
-- **Non-breaking space**: Ctrl+Shift+Space (macOS ⌘+Shift+Space)
-- **Narrow no-break space**: Alt+Shift+Space (macOS ⌥+Shift+Space)
-- **No-width optional break**: Ctrl+/ (macOS ⌘+/)
-- **Soft hyphen**, **Non-breaking hyphen**, **Word Joiner**, **Left/Right-to-right mark** (CTL only)
-
-## Selecting Text
-- Click text box border → selects all text in the box
-- Click + drag → highlights range
-- Double-click → selects word; triple-click → selects paragraph
-- Click + Shift + arrow keys → keyboard selection
-
 ## Quick Font Resizing
 Select text, then:
-- **Increase Font Size**: Ctrl+] (macOS ⌘+])
-- **Decrease Font Size**: Ctrl+[ (macOS ⌘+[)
+- Increase: **Ctrl+]** (macOS **⌘+]**)
+- Decrease: **Ctrl+[** (macOS **⌘+[**)
+
+## Selecting Text
+- **Entire text box**: Click the text box border (selection handles appear)
+- **Partial text**: Click and drag, double-click (word), triple-click (paragraph), or Shift+arrow keys
 
 ## Styles
-- **Presentation Styles**: applied in AutoLayout text boxes; cannot be deleted/renamed. Change outline level with Tab / Shift+Tab.
-- **Drawing Styles**: applied in text boxes and graphic objects. Default Drawing Style is applied automatically. Custom styles can be created but are presentation-local.
+- **Presentation Styles**: Used in AutoLayout text boxes and master slides; cannot be deleted/renamed
+- **Drawing Styles**: Used in text boxes and graphic objects; Default Drawing Style applies automatically; custom styles can be created but are presentation-specific
+- Change outline level with **Tab** / **Shift+Tab**
 
-## Direct Text/Paragraph Formatting
-Apply via:
-1. **Text Formatting toolbar**
-2. **Format** menu → formatting option
-3. **Format > Paragraph** or right-click → **Paragraph**
-4. Sidebar: **Properties > Paragraph** panel
+## Direct Text Formatting
+1. Select text
+2. Apply formatting via one of:
+   - Text Formatting toolbar
+   - **Format** menu > formatting option
+   - **Paragraph** or **Character** dialog
+   - **Sidebar > Properties > Paragraph** or **Character** panel
+3. Click outside text box to deselect
 
-Read the screenshot `page091.png` in this directory — it shows the Paragraph panel in the Sidebar Properties deck.
+## Paragraph Dialog
+1. Select text or paragraph
+2. Open via: right-click > **Paragraph**, or **Format > Paragraph**
+3. Set options across tabbed pages
+4. Click **OK**
 
-Read the screenshot `page090.png` in this directory — it shows the Paragraph dialog (Indents & Spacing page).
+Read the screenshot `figure68.png` in this directory — it shows the Paragraph dialog (Indents & Spacing page).
+
+## Sidebar Paragraph Panel
+1. Click text box border to show selection handles
+2. **Sidebar > Properties > Paragraph**
+3. Format using panel tools; click **More Options** to open full Paragraph dialog
+
+Read the screenshot `figure69.png` in this directory — it shows the Paragraph panel in the Properties deck on the Sidebar.
 
 ## Character Formatting
-Apply via toolbar, **Format > Character**, Character dialog, or Sidebar **Properties > Character** panel.
+1. Select characters/words
+2. Apply via: Text Formatting toolbar, **Format** menu, **Character** dialog, or **Sidebar > Properties > Character** panel
+3. Click outside text box to deselect
 
-To open Character dialog: right-click selected text → **Character**, or **Format > Character**.
+### Character Dialog
+1. Open via: right-click > **Character**, or **Format > Character**
+2. Select characters/words
+3. Set options across tabbed pages
+4. Click **OK**
 
-Read the screenshot `page092.png` in this directory — it shows the Character dialog (Fonts page).
+Read the screenshot `figure70.png` in this directory — it shows the Character dialog (Fonts page).
