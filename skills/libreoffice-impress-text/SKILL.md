@@ -1,3 +1,8 @@
+---
+name: libreoffice-impress
+description: Step-by-step procedures for LibreOffice Impress 7.3 — formatting text, slides, images, lists, presentations, fields, and object positioning. Consult when performing any LibreOffice Impress task.
+---
+
 # LibreOffice Impress 7.3 — Text Skills
 
 Procedural guides extracted from the official LibreOffice Impress 7.3 Guide PDF.
