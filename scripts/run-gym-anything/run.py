@@ -218,11 +218,13 @@ def _run_claude_in_docker(
 
     Returns (stdout, stderr) from the container.
     """
+    max_turns = (args.max_steps or 50) * 2  # generous turn budget
     cli_args = [
         "--mcp-config", "/workspace/mcp_config.json",
         "--output-format", "stream-json",
         "--verbose",
         "--model", args.model,
+        "--max-turns", str(max_turns),
         "--no-session-persistence",
         "--dangerously-skip-permissions",
         # Block all tools except our MCP GUI tools + Skill tool
@@ -335,7 +337,7 @@ def run_task(
     # Start bridge on host (holds the env object, serves HTTP on unique port)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from bridge import start_bridge_server
-    bridge_server = start_bridge_server(env, port=bridge_port)
+    bridge_server = start_bridge_server(env, port=bridge_port, workspace=str(output_dir))
 
     try:
         # Load task description
@@ -378,11 +380,15 @@ def run_task(
 
         elapsed = (datetime.datetime.now() - start_time).total_seconds()
 
-        # Save outputs
-        (output_dir / "claude_output.txt").write_text(stdout, encoding="utf-8")
+        # Save container logs (entrypoint echo messages) separately.
+        # Claude's actual output is written by the entrypoint to
+        # /workspace/claude_output.txt and /workspace/claude_stderr.txt
+        # which map to output_dir — do NOT overwrite them.
+        (output_dir / "container_stdout.txt").write_text(stdout, encoding="utf-8")
         if stderr:
-            (output_dir / "claude_stderr.txt").write_text(stderr, encoding="utf-8")
-            logger.debug("Claude stderr: %s", stderr[:2000])
+            (output_dir / "container_stderr.txt").write_text(stderr, encoding="utf-8")
+        logger.debug("Container stdout: %s", stdout[:2000])
+        logger.debug("Container stderr: %s", stderr[:2000])
 
     finally:
         bridge_server.shutdown()

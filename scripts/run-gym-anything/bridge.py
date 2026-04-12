@@ -203,10 +203,12 @@ class BridgeHandler(BaseHTTPRequestHandler):
         pass
 
 
-def start_bridge_server(env, port: int = LISTEN_PORT) -> HTTPServer:
+def start_bridge_server(env, port: int = LISTEN_PORT, workspace: str | Path | None = None) -> HTTPServer:
     """Start the bridge in a daemon thread. Returns the server instance."""
-    global _step_counter
+    global _step_counter, WORKSPACE
     _step_counter = 0
+    if workspace is not None:
+        WORKSPACE = Path(workspace)
     set_env(env)
     server = HTTPServer(("0.0.0.0", port), BridgeHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
