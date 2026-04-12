@@ -238,8 +238,8 @@ def _run_claude_in_docker(
         "--model", args.model,
         "--no-session-persistence",
         "--dangerously-skip-permissions",
-        # Block all tools except our MCP GUI tools + Skill tool
-        "--disallowed-tools", "Bash,Edit,Write,Read,Glob,Grep,Agent,AskUserQuestion,NotebookEdit",
+        # Block all tools except our MCP GUI tools + Skill + Read (for viewing skill images)
+        "--disallowed-tools", "Bash,Edit,Write,Glob,Grep,Agent,AskUserQuestion,NotebookEdit",
     ]
     if args.skill_mode in PLUGIN_DIRS:
         cli_args.extend(["--plugin-dir", PLUGIN_DIRS[args.skill_mode]])
