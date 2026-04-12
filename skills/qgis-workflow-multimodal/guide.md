@@ -1,191 +1,203 @@
-Practical step-by-step workflows for QGIS 3.44 GUI tasks. Use these workflows whenever you need to perform GIS operations.
+Practical step-by-step workflows for QGIS 3.44 GUI tasks. Study the screenshots carefully — they show you exactly what each UI element looks like so you can find it on screen.
 
 ## QGIS Screen Layout
 
-Read the screenshot `fig01_qgis_layout.png` in this directory — it shows the complete QGIS interface with numbered regions:
-- **Region 1 (top, y≈25)**: Menu bar — Project, Edit, View, Layer, Settings, Plugins, Vector, Raster, Database, Web, Mesh, Processing, Help
-- **Region 2 (y≈50-80)**: Toolbars with icon buttons
-- **Region 3 (left panel)**: Browser panel (top) and Layers panel (bottom) — shows loaded layers
-- **Region 4 (center)**: Map canvas — the main map display area
-- **Region 5 (bottom, y≈700)**: Status bar with coordinates and scale
-- **Right panel**: Processing Toolbox (if open) — this is where you search and run algorithms
+Read the screenshot `fig01_qgis_layout.png` in this directory — it shows the complete QGIS interface with numbered annotations. Study this image to understand the layout:
 
-**CRITICAL**: The menu bar items are at the very top of the screen (y≈25). From left to right: Project, Edit, View, Layer, Settings, Plugins, Vector, Raster, Database, Web, Mesh, Processing, Help. Click precisely on the text.
+- **Menu bar** (top strip with text labels): Project, Edit, View, Layer, Settings, Plugins, Vector, Raster, Database, Web, Mesh, Processing, Help — these are plain text labels in a horizontal row at the very top of the window
+- **Toolbars** (below menu bar): rows of small icon buttons for common actions
+- **Browser panel** (left side, upper): filesystem tree for navigating to data files — expand Home or Desktop to find files
+- **Layers panel** (left side, lower): shows all loaded layers with checkboxes for visibility
+- **Map canvas** (large center area): the main map display
+- **Processing Toolbox** (right side, if open): panel with search bar at top and category tree below — this is where you find and run algorithms
+- **Status bar** (very bottom): shows coordinates, scale, and CRS info
 
 ## Workflow 1: Loading Data Files
 
-Data files for tasks are typically on the Desktop (`/home/user/Desktop/`) or in the home directory.
+Data files for tasks are typically on the Desktop or in the home directory.
 
-### Method A: Browser Panel (PREFERRED — most reliable)
-1. Look at the **left panel** — the Browser panel shows the filesystem
-2. Expand **Home** or **Desktop** folder in the Browser tree
-3. **Double-click** the data file (GeoJSON, Shapefile, GeoPackage) to add it as a layer
-4. The layer appears in the Layers panel below and on the map canvas
+### Method A: Browser Panel (RECOMMENDED — most reliable)
+1. Find the **Browser** panel on the left side of the screen — it's a tree view showing filesystem locations
+2. Look for **Home** or **Desktop** entries in the tree
+3. Click the triangle/arrow next to the folder name to expand it
+4. **Double-click** the data file (.geojson, .shp, .gpkg) to add it as a layer
+5. Confirm the layer appears in the **Layers** panel and features show on the map canvas
 
-### Method B: Layer Menu
-1. Click **Layer** in the menu bar (y≈25, approximately x≈175)
-2. Click **Add Layer** → **Add Vector Layer** (or Add Raster Layer)
-3. In the dialog, click the **...** button next to "Vector Dataset(s)"
+### Method B: Keyboard Shortcut (RELIABLE FALLBACK)
+1. Press **Ctrl+Shift+V** to open the Add Vector Layer dialog directly
+2. Or press **Ctrl+Shift+O** to open the Data Source Manager
 
-Read the screenshot `fig07_add_vector_dialog.png` in this directory — it shows the Add Vector Layer dialog with Source Type and file browser button
+Read the screenshot `fig06_data_source_manager.png` in this directory — it shows the Data Source Manager with Browser tab on the left sidebar and filesystem tree on the right
 
-4. Navigate to the file, select it, click **Open**
-5. Click **Add**, then **Close**
+Read the screenshot `fig07_add_vector_dialog.png` in this directory — it shows the Add Vector Layer dialog with a "Source Type" section (File/Directory/Database radio buttons), an Encoding dropdown, and a "Vector Dataset(s)" file browser with a **...** button to browse for files
 
-### Method C: Drag and Drop
-1. If the file manager is open, drag the file directly onto the map canvas
+### Method C: Layer Menu
+1. Click **Layer** in the menu bar — it's the 4th text label from the left in the top menu strip
+2. Hover over **Add Layer** to expand the submenu
+3. Click **Add Vector Layer** (or Add Raster Layer for raster data)
 
-## Workflow 2: Running a Processing Algorithm (MOST COMMON)
+## Workflow 2: Running a Processing Algorithm (MOST IMPORTANT)
 
-Almost all QGIS tasks require running Processing algorithms (Buffer, Clip, Join, Reproject, etc.).
+Almost ALL QGIS tasks require running Processing algorithms (Buffer, Clip, Join, Reproject, etc.). Master this workflow.
 
 ### Step 1: Open the Processing Toolbox
-- Click **Processing** in the menu bar (near the right end, y≈25, approximately x≈830)
-- Click **Toolbox** in the dropdown
-- OR use keyboard shortcut: **Ctrl+Alt+T**
-- The toolbox panel opens on the RIGHT side of the screen
+- **BEST**: Press **Ctrl+Alt+T** — this keyboard shortcut reliably opens/toggles the Processing Toolbox
+- Alternative: Click **Processing** in the menu bar (near the right end of the menu text labels), then click **Toolbox**
 
-Read the screenshot `fig02_toolbox_panel.png` in this directory — it shows the Processing Toolbox panel with categories like Cartography, Database, Vector analysis, Vector geometry, etc.
+Read the screenshot `fig02_toolbox_panel.png` in this directory — it shows what the Processing Toolbox panel looks like: a narrow panel with a search field at the top (magnifying glass icon) and a tree of algorithm categories below (Cartography, Database, Interpolation, Layer tools, Network analysis, Raster analysis, Raster tools, Vector analysis, Vector creation, Vector geometry, Vector overlay, Vector selection, Vector table)
 
 ### Step 2: Search for the Algorithm
-- At the TOP of the Processing Toolbox panel, there is a **search bar** (text field with magnifying glass icon)
-- **Click the search bar** and type the algorithm name (e.g., "buffer", "clip", "join")
-- Results filter as you type
+- The Processing Toolbox has a **search bar** at the very top — it's a text input field with a magnifying glass icon
+- Click in the search bar and type the algorithm name (e.g., "buffer", "clip", "simplify")
+- As you type, the tree below filters to show only matching algorithms
 
-Read the screenshot `fig03_toolbox_search.png` in this directory — it shows search results after typing "ag" in the search bar, with matching algorithms listed below
+Read the screenshot `fig03_toolbox_search.png` in this directory — it shows the toolbox after typing "ag" in the search bar, with filtered results showing matching algorithms from different categories. Notice the search bar at the top with the typed text, and the filtered category tree below.
 
 ### Step 3: Open the Algorithm Dialog
-- **Double-click** the algorithm name in the search results
-- A dialog window opens with parameters
+- **Double-click** the algorithm name in the filtered results
+- A dialog window opens with the algorithm name in the title bar
 
-Read the screenshot `fig04_algorithm_dialog.png` in this directory — it shows the algorithm dialog with Parameters tab, input fields, and Run button at the bottom
+Read the screenshot `fig04_algorithm_dialog.png` in this directory — it shows a typical algorithm dialog (Vector Geometry - Centroids). Key elements:
+- **Title bar**: shows the algorithm category and name
+- **Parameters tab** (left side): input fields for the algorithm — dropdowns for layer selection, checkboxes for options, text fields for output paths
+- **Description** (right side): explains what the algorithm does
+- **Input layer dropdown**: click to select from loaded layers
+- **Output field**: by default says "[Create temporary layer]" — click the **...** button to save to a specific file
+- **Run button**: at the bottom of the dialog — click this to execute
+- **Close button**: next to Run — click after execution completes
 
 ### Step 4: Set Parameters
-- **Input layer**: Click the dropdown to select from loaded layers
-- **Parameters**: Set values as needed (distance, field names, etc.)
-- **Output**: By default creates a temporary layer. To save to file, click the **...** button next to the output field and choose "Save to File..."
-- Set the output path (e.g., `/home/user/Desktop/output.geojson`)
+- **Input layer**: Click the dropdown to select from loaded layers in your project
+- **Parameters**: Fill in values as required (distances, field names, expressions)
+- **Output file**: To save results to a specific location:
+  1. Click the **...** button next to the output field
+  2. Choose "Save to File..."
+  3. Set the format (GeoJSON, GeoPackage, Shapefile) and file path
+  4. Common path: `/home/user/Desktop/output.geojson`
 
-### Step 5: Run the Algorithm
-- Click the **Run** button (bottom of dialog)
-- Wait for completion — the Log tab shows progress
+### Step 5: Run and Verify
+- Click the **Run** button at the bottom of the dialog
+- The dialog switches to the **Log** tab showing progress
 
-Read the screenshot `fig05_algorithm_log.png` in this directory — it shows the Log tab with execution details and "Algorithm completed" message
+Read the screenshot `fig05_algorithm_log.png` in this directory — it shows the Log tab after successful execution with "Algorithm 'Centroids' starting..." and "Execution completed" messages, plus the output file path
 
-- Click **Close** when done
-- The result layer is automatically added to the Layers panel
+- When complete, click **Close**
+- The result layer automatically appears in the Layers panel
 
-### Common Processing Algorithms
-| Task | Algorithm Name | Location |
+### Common Processing Algorithms Reference
+| What You Need To Do | Search For | Category |
 |------|---------------|----------|
-| Buffer | "Buffer" | Vector geometry → Buffer |
-| Clip | "Clip" | Vector overlay → Clip |
-| Intersect | "Intersection" | Vector overlay → Intersection |
-| Union | "Union" | Vector overlay → Union |
-| Dissolve | "Dissolve" | Vector geometry → Dissolve |
-| Join by location | "Join attributes by location" | Vector general |
-| Join by field | "Join attributes by field value" | Vector general |
-| Reproject | "Reproject layer" | Vector general |
-| Centroids | "Centroids" | Vector geometry |
-| Polygonize | "Polygonize" | Raster conversion |
-| Heatmap/KDE | "Heatmap (Kernel Density)" | Interpolation |
-| Field Calculator | "Field calculator" | Vector table |
+| Create buffer zones | "Buffer" | Vector geometry |
+| Clip one layer by another | "Clip" | Vector overlay |
+| Find intersection of layers | "Intersection" | Vector overlay |
+| Merge/union layers | "Union" | Vector overlay |
+| Dissolve features | "Dissolve" | Vector geometry |
+| Join layers by location | "Join attributes by location" | Vector general |
+| Join layers by field value | "Join attributes by field value" | Vector general |
+| Change coordinate system | "Reproject layer" | Vector general |
+| Get polygon centers | "Centroids" | Vector geometry |
+| Raster to vector | "Polygonize" | Raster conversion |
+| Create heatmap | "Heatmap (Kernel Density)" | Interpolation |
+| Add/calculate field | "Field calculator" | Vector table |
+| Filter by expression | "Extract by expression" | Vector selection |
 | Select by expression | "Select by expression" | Vector selection |
-| Extract by expression | "Extract by expression" | Vector selection |
-| Save selected | "Save selected features" | Vector general |
-| Multipart to singlepart | "Multipart to singleparts" | Vector geometry |
-| Distance matrix | "Distance matrix" | Vector analysis |
-| Hub lines | "Join by lines (hub lines)" | Vector analysis |
-| Simplify | "Simplify" | Vector geometry |
+| Split multipart features | "Multipart to singleparts" | Vector geometry |
+| Distance between features | "Distance matrix" | Vector analysis |
+| Connect points to hubs | "Join by lines (hub lines)" | Vector analysis |
+| Simplify geometry | "Simplify" | Vector geometry |
+| Calculate line lengths | "Add geometry attributes" | Vector geometry |
 
 ## Workflow 3: Attribute Table & Field Calculator
 
 ### Opening the Attribute Table
-1. **Right-click** the layer name in the Layers panel (left side)
-2. Click **Open Attribute Table**
-3. OR select the layer and press **F6**
+- Select the layer in the **Layers panel** (click its name), then press **F6**
+- Or: right-click the layer name → **Open Attribute Table**
 
-Read the screenshot `fig08_attribute_table.png` in this directory — it shows the attribute table with columns, rows, and the quick field calculation bar at top
+Read the screenshot `fig08_attribute_table.png` in this directory — it shows the attribute table window with column headers (id, name_2, type_2), rows of data, and a toolbar at the top. Note the quick field calculation bar at the top with a field dropdown, operator, and expression field.
 
 ### Using the Field Calculator
-1. In the attribute table, click the **Toggle editing** button (pencil icon, top-left toolbar)
-2. Click the **Field Calculator** button (abacus icon) — OR press **Ctrl+I**
-3. Choose "Create a new field" or "Update existing field"
-4. Set field name and type
-5. Write expression (e.g., `$area`, `$length`, `$x`, `$y`)
-6. Click **OK**
-7. Click **Toggle editing** again to save, confirm save
+1. First enable editing: click the **pencil icon** (Toggle Editing) in the attribute table toolbar — it's the leftmost icon
+2. Open Field Calculator: press **Ctrl+I** or click the **abacus icon** in the toolbar
+3. In the Field Calculator dialog:
+   - Choose "Create a new field" or "Update existing field"
+   - Set **Output field name** and **Output field type**
+   - Build expression in the expression editor (e.g., `$area`, `$length`, `$x`, `$y`, `length($geometry)`)
+   - Click **OK**
 
-Read the screenshot `fig09_field_calculator.png` in this directory — it shows the Field Calculator dialog with expression builder
+Read the screenshot `fig09_field_calculator.png` in this directory — it shows the Field Calculator with "Create a new field" option, output field name/type fields on the left, and the expression builder on the right with function categories
 
-### Alternative: Use Processing "Field Calculator" Algorithm
-- Open Processing Toolbox → search "Field calculator"
-- This is sometimes easier than the GUI field calculator
+4. Save edits: click the **pencil icon** again → confirm save
+5. Or use the **Quick Field Calculation Bar** at the top of the attribute table for simple calculations
+
+### Alternative: Processing Field Calculator (OFTEN EASIER)
+Instead of the GUI field calculator, search "Field calculator" in the Processing Toolbox — it works as a processing algorithm with input/output layer fields.
 
 ## Workflow 4: Exporting Layers
 
-### Method A: Right-click Export (PREFERRED)
-1. **Right-click** the layer in the Layers panel
+### Method A: Right-click Export (STANDARD)
+1. **Right-click** the layer name in the Layers panel
 2. Click **Export** → **Save Features As...**
-3. Set format (GeoJSON, GPKG, CSV, Shapefile)
-4. Set filename and path
-5. Set CRS if needed
-6. Click **OK**
+3. In the export dialog:
+   - Set **Format** (GeoJSON, GPKG, CSV, ESRI Shapefile)
+   - Set **File name** using the **...** browse button
+   - Set **CRS** if you need to reproject during export
+   - Click **OK**
 
-### Method B: Processing Algorithm
-- Use "Save vector features to file" algorithm
-- Or use "Package layers" to export multiple layers
+### Method B: From Processing Algorithm Output
+When running a Processing algorithm, set the output path directly in the algorithm dialog (see Workflow 2, Step 4).
 
 ## Workflow 5: Setting CRS / Reprojecting
 
 ### Reprojecting a Layer (creates new layer in target CRS)
-1. Open Processing Toolbox → search "Reproject"
-2. Double-click "Reproject layer"
-3. Set Input layer
-4. Set Target CRS (click the globe icon, type EPSG code like "4326", "3857", "32610")
-5. Click Run
+1. Open Processing Toolbox (**Ctrl+Alt+T**)
+2. Search for "Reproject"
+3. Double-click "Reproject layer"
+4. Set Input layer and Target CRS
+5. For CRS selection: click the **globe icon** next to the CRS field, then type the EPSG code (e.g., "4326", "3857", "32610") in the search/filter box
+6. Click Run
 
-### Setting Project CRS
-1. Click the CRS indicator in the bottom-right status bar (shows current EPSG code)
-2. Or go to **Project** → **Properties** → **CRS** tab
-3. Search for the desired CRS
+### Checking/Setting Project CRS
+- Look at the **bottom-right corner** of the status bar — it shows the current project CRS (e.g., "EPSG:4326")
+- Click it to change the project CRS
 
 ## Workflow 6: Saving the Project
-
-1. Press **Ctrl+S** or click **Project** → **Save As...**
-2. Navigate to desired location
-3. Enter filename
+1. Press **Ctrl+Shift+S** (Save As) or **Ctrl+S** (Save)
+2. Navigate to the desired location
+3. Enter the filename (saves as .qgz)
 4. Click **Save**
 
-## Key Keyboard Shortcuts
+## Essential Keyboard Shortcuts
 | Shortcut | Action |
 |----------|--------|
-| Ctrl+Alt+T | Open Processing Toolbox |
+| Ctrl+Alt+T | Toggle Processing Toolbox panel |
+| Ctrl+Shift+V | Add Vector Layer dialog |
+| Ctrl+Shift+R | Add Raster Layer dialog |
 | Ctrl+Shift+O | Open Data Source Manager |
-| F6 | Open Attribute Table |
-| Ctrl+I | Open Field Calculator (in edit mode) |
+| F6 | Open Attribute Table for selected layer |
+| Ctrl+I | Open Field Calculator (when editing) |
 | Ctrl+S | Save Project |
+| Ctrl+Shift+S | Save Project As |
 | Ctrl+Z | Undo |
-| V | Select tool |
-| Ctrl+Shift+E | Export as image |
+| Escape | Close current dialog/cancel operation |
+| Alt+Tab | Switch between windows |
 
-## Troubleshooting Common Issues
+## Troubleshooting
 
-### Can't find an algorithm
-- Make sure Processing Toolbox is open (Ctrl+Alt+T)
-- Try different search terms (e.g., "buffer" not "create buffer zone")
-- Check if the algorithm is under a different provider (QGIS vs GDAL)
+### If a menu click doesn't work
+- Try the keyboard shortcut instead (see table above)
+- Make sure no dialog is blocking — press Escape first
+- Click once on the map canvas to ensure QGIS has focus, then try again
 
-### Menu doesn't open
-- Click precisely on the menu text (y≈25 pixels from top)
-- If a dialog is open, close it first (click X or press Escape)
-- Click on the map canvas first to ensure QGIS has focus
+### If you get stuck repeating the same action
+- STOP and try a completely different approach
+- Use keyboard shortcuts instead of mouse clicks
+- If Processing Toolbox isn't visible, press Ctrl+Alt+T
 
-### Processing algorithm fails
-- Check that input layers are loaded and valid
-- Check that the CRS is appropriate for the operation
-- Read the Log tab for error messages
+### If a Processing algorithm fails
+- Check the Log tab for the specific error message
+- Common issues: wrong CRS for distance calculations, missing input layer, invalid field name
+- Try running with default output (temporary layer) first, then export separately
 
-### Layer not visible on map
-- Check the checkbox next to the layer name in Layers panel
-- Right-click layer → Zoom to Layer
+### If the QGIS window disappears
+- Press **Alt+Tab** to cycle through windows
+- Or click the QGIS icon in the taskbar at the bottom of the screen
