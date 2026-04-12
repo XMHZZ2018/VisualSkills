@@ -357,22 +357,48 @@ def run_task(
             task_data = json.loads(task_json_path.read_text(encoding="utf-8"))
             task_desc = task_data.get("description", "")
 
-        # Build prompt
-        skill_hint = ""
+        # Build prompt with optional skill content
+        skill_section = ""
         if args.skill_mode != "none":
-            # Determine the env-specific skill name
             env_name = Path(env_dir).name.removesuffix("_env")
-            skill_hint = (
-                f"\n\nCRITICAL — Before you do ANYTHING else, load the skill guide by calling:\n"
-                f"  Skill(\"gym-anything-{args.skill_mode}:{env_name}-workflow-{args.skill_mode}\")\n"
-                f"\nThis guide contains step-by-step workflows with screenshots showing exact "
-                f"button locations, menu paths, and dialog layouts. Study the screenshots carefully — "
-                f"they show you exactly where to click. Match what you see on screen with the "
-                f"reference screenshots in the guide.\n"
-                f"\nAfter loading the skill, take a screenshot, then follow the relevant workflow "
-                f"from the guide to complete the task."
-            )
-        prompt = f"{SYSTEM_PROMPT}{skill_hint}\n\nTask: {task_desc}"
+            skill_dir = MMSKILLS_ROOT / "skills" / f"{env_name}-workflow-{args.skill_mode}"
+            if not skill_dir.exists():
+                # Fallback to knowledge skill
+                skill_dir = MMSKILLS_ROOT / "skills" / f"{env_name}-knowledge-{args.skill_mode}"
+
+            guide_file = skill_dir / "guide.md" if skill_dir.exists() else None
+
+            if guide_file and guide_file.exists():
+                guide_text = guide_file.read_text(encoding="utf-8")
+
+                # Copy skill images into workspace so Claude can Read them
+                skill_images_dir = output_dir / "skill_images"
+                skill_images_dir.mkdir(exist_ok=True)
+                image_paths = []
+                for img in sorted(skill_dir.glob("*.png")):
+                    dest = skill_images_dir / img.name
+                    shutil.copy2(img, dest)
+                    # Path inside the Claude container (output_dir is mounted at /workspace)
+                    image_paths.append(f"/workspace/skill_images/{img.name}")
+
+                # Build skill section with guide text + image reading instructions
+                skill_section = "\n\n" + "=" * 60 + "\n"
+                skill_section += "SKILL GUIDE — Read this carefully before starting!\n"
+                skill_section += "=" * 60 + "\n\n"
+                skill_section += guide_text
+                if image_paths:
+                    skill_section += "\n\n" + "-" * 60 + "\n"
+                    skill_section += "IMPORTANT: The guide references screenshots. You MUST view them "
+                    skill_section += "using the Read tool to understand the UI layout. View ALL of these "
+                    skill_section += "images BEFORE taking any GUI action:\n\n"
+                    for p in image_paths:
+                        skill_section += f"  Read(\"{p}\")\n"
+                    skill_section += "\nStudy these screenshots carefully — they show you exactly what "
+                    skill_section += "each UI element looks like so you can find it on the actual screen.\n"
+            else:
+                logger.warning("Skill guide not found at %s", skill_dir)
+
+        prompt = f"{SYSTEM_PROMPT}{skill_section}\n\nTask: {task_desc}"
         (output_dir / "prompt.txt").write_text(prompt, encoding="utf-8")
 
         # Write MCP config for inside the Claude container
