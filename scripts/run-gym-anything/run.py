@@ -304,11 +304,17 @@ def run_task(
         sys.path.insert(0, str(ga_root / "src"))
     from gym_anything.api import from_config
 
-    # gym-anything's Docker runner resolves preset Dockerfile paths relative
-    # to CWD (e.g. "gym_anything/presets/.../Dockerfile"). We must chdir to
-    # the parent of the gym_anything package so those paths resolve correctly.
+    # gym-anything's Docker runner resolves paths relative to CWD:
+    # - Preset Dockerfiles: "gym_anything/presets/.../Dockerfile"
+    # - Env mounts: "benchmarks/cua_world/environments/.../scripts"
+    # Both resolve correctly when CWD = vendor/gym-anything/src/ IF we also
+    # symlink benchmarks there. Simpler: chdir to repo root and add a symlink.
     original_cwd = os.getcwd()
-    os.chdir(str(ga_root / "src"))
+    os.chdir(str(ga_root))
+    # Ensure gym_anything package is findable from this CWD
+    gapkg_link = ga_root / "gym_anything"
+    if not gapkg_link.exists():
+        os.symlink("src/gym_anything", str(gapkg_link))
 
     # Create and reset environment (Docker 1: desktop env)
     logger.info("Creating env for task: %s", task_id)
