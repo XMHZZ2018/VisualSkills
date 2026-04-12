@@ -12,9 +12,9 @@
       "name": "gym-anything-multimodal",
       "description": "Multimodal skills with visual guidance (screenshots + instructions) for gym-anything environments",
       "source": "./",
-      "strict": false,
+      "strict": true,
       "skills": [
-        "./skills/qgis-knowledge-multimodal"
+        "./skills/qgis-workflow-multimodal"
       ]
     }
   ]

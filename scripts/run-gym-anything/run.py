@@ -80,14 +80,21 @@ You have the following tools to interact with the desktop:
 - drag_to(start_x, start_y, end_x, end_y): click and drag
 - scroll(x, y, clicks): scroll up (positive) or down (negative)
 - type_text(text): type text
-- key_press(key): press a single key (e.g. "enter", "tab", "escape")
-- hotkey(keys): press a shortcut (e.g. ["ctrl", "c"], ["alt", "f4"])
+- key_press(key): press a single key (e.g. "Return", "Tab", "Escape")
+- hotkey(keys): press a shortcut (e.g. ["ctrl", "c"], ["alt", "F4"])
 
 Every action tool automatically returns a screenshot after execution.
 
-When you believe the task is complete, simply stop — do not call any signal tool.
+GUI INTERACTION TIPS:
+- The screen resolution is 1280x720. Menu bars are at y≈25.
+- After each action, CAREFULLY examine the returned screenshot before proceeding.
+- If a click doesn't work, try clicking more precisely — zoom in mentally on the target area.
+- If you get stuck in a loop (trying the same thing 3+ times), STOP and try a completely different approach.
+- Use keyboard shortcuts when menu clicks are unreliable.
+- Close any unexpected dialogs with Escape before retrying.
+- If the window disappears, press Alt+Tab to bring it back.
 
-Start by taking a screenshot to see the current state, then proceed step by step.\
+When you believe the task is complete, simply stop — do not call any signal tool.\
 """
 
 
@@ -353,11 +360,17 @@ def run_task(
         # Build prompt
         skill_hint = ""
         if args.skill_mode != "none":
+            # Determine the env-specific skill name
+            env_name = Path(env_dir).name.removesuffix("_env")
             skill_hint = (
-                "\n\nYou have access to skill guides via the Skill tool that document "
-                "exact procedures for the applications on this desktop. "
-                "Before attempting complex interactions, use the Skill tool to load "
-                "the relevant guide."
+                f"\n\nCRITICAL — Before you do ANYTHING else, load the skill guide by calling:\n"
+                f"  Skill(\"gym-anything-{args.skill_mode}:{env_name}-workflow-{args.skill_mode}\")\n"
+                f"\nThis guide contains step-by-step workflows with screenshots showing exact "
+                f"button locations, menu paths, and dialog layouts. Study the screenshots carefully — "
+                f"they show you exactly where to click. Match what you see on screen with the "
+                f"reference screenshots in the guide.\n"
+                f"\nAfter loading the skill, take a screenshot, then follow the relevant workflow "
+                f"from the guide to complete the task."
             )
         prompt = f"{SYSTEM_PROMPT}{skill_hint}\n\nTask: {task_desc}"
         (output_dir / "prompt.txt").write_text(prompt, encoding="utf-8")
