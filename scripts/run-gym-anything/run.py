@@ -117,10 +117,6 @@ def parse_args() -> argparse.Namespace:
         help="Which skill variant to inject (default: none = baseline)",
     )
     parser.add_argument(
-        "--max_steps", type=int, default=None,
-        help="Override max steps per task (default: from task.json or 50)",
-    )
-    parser.add_argument(
         "--task_timeout", type=int, default=1800,
         help="Max seconds for Claude to complete a single task (default: 1800)",
     )
@@ -218,13 +214,11 @@ def _run_claude_in_docker(
 
     Returns (stdout, stderr) from the container.
     """
-    max_turns = (args.max_steps or 50) * 2  # generous turn budget
     cli_args = [
         "--mcp-config", "/workspace/mcp_config.json",
         "--output-format", "stream-json",
         "--verbose",
         "--model", args.model,
-        "--max-turns", str(max_turns),
         "--no-session-persistence",
         "--dangerously-skip-permissions",
         # Block all tools except our MCP GUI tools + Skill tool
@@ -326,9 +320,8 @@ def run_task(
         logger.info("Resetting environment...")
         env.reset(use_cache=args.use_cache)
 
-        max_steps = args.max_steps or env.max_steps or 50
-        env.set_episode_limits(max_steps=max_steps, timeout_sec=args.task_timeout)
-        logger.info("Environment ready (max_steps=%d)", max_steps)
+        env.set_episode_limits(timeout_sec=args.task_timeout)
+        logger.info("Environment ready (timeout=%ds)", args.task_timeout)
     except Exception as exc:
         logger.error("Failed to set up environment: %s", exc)
         env.close()
