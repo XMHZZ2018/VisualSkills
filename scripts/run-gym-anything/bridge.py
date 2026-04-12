@@ -138,41 +138,26 @@ class BridgeHandler(BaseHTTPRequestHandler):
 
     def _handle_screenshot(self) -> None:
         global _step_counter
+        _step_counter += 1
         with _env_lock:
             try:
-                obs = _env.capture_observation()
-                screen = obs.get("screen") or obs.get("screenshot") or obs.get("image")
-                if screen is None:
-                    self._json({"error": "no screen in observation"}, status=500)
+                # Use runner.capture_screenshot() directly — it saves to a host-side
+                # path via ffmpeg inside the container, then we read the file.
+                screenshots_dir = WORKSPACE / "screenshots"
+                screenshots_dir.mkdir(parents=True, exist_ok=True)
+                host_path = screenshots_dir / f"step_{_step_counter:03d}.png"
+
+                ok = _env._runner.capture_screenshot(str(host_path))
+                if not ok:
+                    self._json({"error": "capture_screenshot returned False"}, status=500)
                     return
 
-                if isinstance(screen, (bytes, bytearray)):
-                    png = bytes(screen)
-                elif isinstance(screen, str):
-                    png = Path(screen).read_bytes()
-                else:
-                    # numpy array → encode to PNG
-                    import io
-                    from PIL import Image as PILImage
-                    img = PILImage.fromarray(screen)
-                    buf = io.BytesIO()
-                    img.save(buf, format="PNG")
-                    png = buf.getvalue()
+                png = host_path.read_bytes()
             except Exception as exc:
                 self._json({"error": str(exc)}, status=500)
                 return
 
         b64 = base64.b64encode(png).decode()
-
-        # Save step screenshot
-        _step_counter += 1
-        try:
-            screenshots_dir = WORKSPACE / "screenshots"
-            screenshots_dir.mkdir(parents=True, exist_ok=True)
-            (screenshots_dir / f"step_{_step_counter:03d}.png").write_bytes(png)
-        except Exception:
-            pass
-
         self._json({"data": b64, "mime": "image/png"})
 
     def _handle_execute_action(self, body: dict) -> None:
