@@ -161,12 +161,22 @@ def discover_tasks(env_dir: str, task: str | None, split: str | None) -> list[st
     if split:
         env_name = env_path.name
         splits_dir = env_path.parent.parent / "splits"
-        split_file = splits_dir / f"{env_name}_split.json"
-        if split_file.exists():
-            split_data = json.loads(split_file.read_text(encoding="utf-8"))
-            key = f"{split}_tasks" if split != "all" else "all_tasks"
-            if key in split_data:
-                return split_data[key]
+        # Try multiple naming conventions: qgis_env_split.json, qgis_split.json
+        candidates = [
+            splits_dir / f"{env_name}_split.json",
+            splits_dir / f"{env_name.removesuffix('_env')}_split.json",
+        ]
+        for split_file in candidates:
+            if split_file.exists():
+                split_data = json.loads(split_file.read_text(encoding="utf-8"))
+                key = f"{split}_tasks" if split != "all" else "all_tasks"
+                if key in split_data:
+                    # Only return tasks that actually exist locally
+                    task_ids = split_data[key]
+                    existing = [t for t in task_ids if (tasks_dir / t).is_dir()]
+                    if existing:
+                        return existing
+                break
 
     # Fallback: list all task directories
     if tasks_dir.is_dir():
