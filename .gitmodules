@@ -1,3 +1,6 @@
 [submodule "vendor/OSWorld"]
 	path = vendor/OSWorld
 	url = https://github.com/xlang-ai/OSWorld.git
+[submodule "vendor/gym-anything"]
+	path = vendor/gym-anything
+	url = https://github.com/cmu-l3/gym-anything.git
