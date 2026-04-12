@@ -386,8 +386,11 @@ def run_task(
     finally:
         bridge_server.shutdown()
 
-    # Save episode_dir BEFORE close() — close() clears it
+    # Save episode_dir BEFORE close() — close() clears it.
+    # Resolve to absolute path while CWD is still vendor/gym-anything/
     episode_dir = getattr(env, "episode_dir", None)
+    if episode_dir:
+        episode_dir = Path(episode_dir).resolve()
 
     # Close env — this triggers the verifier
     logger.info("Closing env (running verifier)...")
@@ -403,9 +406,15 @@ def run_task(
         summary_path = Path(episode_dir) / "summary.json"
         if summary_path.exists():
             try:
-                verifier_result = json.loads(summary_path.read_text(encoding="utf-8"))
-                score = verifier_result.get("score", verifier_result.get("reward", 0.0))
-                logger.info("Verifier score: %.4f", score)
+                summary = json.loads(summary_path.read_text(encoding="utf-8"))
+                verifier_result = summary.get("verifier", {})
+                passed = verifier_result.get("passed", False)
+                score = verifier_result.get("score", 100.0 if passed else 0.0)
+                # Normalize: gym-anything scores are 0-100, we store 0-1
+                if score > 1:
+                    score = score / 100.0
+                logger.info("Verifier: passed=%s score=%.4f feedback=%s",
+                            passed, score, verifier_result.get("feedback", "")[:200])
             except Exception as exc:
                 logger.warning("Failed to read summary.json: %s", exc)
 
