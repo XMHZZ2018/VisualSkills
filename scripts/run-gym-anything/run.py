@@ -304,6 +304,12 @@ def run_task(
         sys.path.insert(0, str(ga_root / "src"))
     from gym_anything.api import from_config
 
+    # gym-anything's Docker runner resolves preset Dockerfile paths relative
+    # to CWD (e.g. "gym_anything/presets/.../Dockerfile"). We must chdir to
+    # the parent of the gym_anything package so those paths resolve correctly.
+    original_cwd = os.getcwd()
+    os.chdir(str(ga_root / "src"))
+
     # Create and reset environment (Docker 1: desktop env)
     logger.info("Creating env for task: %s", task_id)
     env = from_config(env_dir, task_id=task_id)
@@ -378,6 +384,9 @@ def run_task(
     # Close env — this triggers the verifier
     logger.info("Closing env (running verifier)...")
     env.close()
+
+    # Restore CWD
+    os.chdir(original_cwd)
 
     # Read verification results from gym-anything's episode dir
     score = 0.0
