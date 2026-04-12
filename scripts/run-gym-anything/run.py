@@ -393,6 +393,9 @@ def run_task(
     finally:
         bridge_server.shutdown()
 
+    # Save episode_dir BEFORE close() — close() clears it
+    episode_dir = getattr(env, "episode_dir", None)
+
     # Close env — this triggers the verifier
     logger.info("Closing env (running verifier)...")
     env.close()
@@ -403,7 +406,6 @@ def run_task(
     # Read verification results from gym-anything's episode dir
     score = 0.0
     verifier_result = {}
-    episode_dir = getattr(env, "episode_dir", None)
     if episode_dir:
         summary_path = Path(episode_dir) / "summary.json"
         if summary_path.exists():
