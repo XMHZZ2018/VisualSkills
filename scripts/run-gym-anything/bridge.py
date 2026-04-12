@@ -141,11 +141,12 @@ class BridgeHandler(BaseHTTPRequestHandler):
         _step_counter += 1
         with _env_lock:
             try:
-                # Use runner.capture_screenshot() directly — it saves to a host-side
-                # path via ffmpeg inside the container, then we read the file.
-                screenshots_dir = WORKSPACE / "screenshots"
-                screenshots_dir.mkdir(parents=True, exist_ok=True)
-                host_path = screenshots_dir / f"step_{_step_counter:03d}.png"
+                # Save screenshot under the runner's artifacts dir so the host↔container
+                # path mapping works (runner mounts artifacts_host_root to container).
+                artifacts_root = Path(_env._runner.artifacts_host_root)
+                artifacts_root.mkdir(parents=True, exist_ok=True)
+                host_path = artifacts_root / "bridge_screenshots" / f"step_{_step_counter:03d}.png"
+                host_path.parent.mkdir(parents=True, exist_ok=True)
 
                 ok = _env._runner.capture_screenshot(str(host_path))
                 if not ok:
@@ -153,6 +154,14 @@ class BridgeHandler(BaseHTTPRequestHandler):
                     return
 
                 png = host_path.read_bytes()
+
+                # Also save a copy to our workspace for inspection
+                try:
+                    ws_screenshots = WORKSPACE / "screenshots"
+                    ws_screenshots.mkdir(parents=True, exist_ok=True)
+                    (ws_screenshots / f"step_{_step_counter:03d}.png").write_bytes(png)
+                except Exception:
+                    pass
             except Exception as exc:
                 self._json({"error": str(exc)}, status=500)
                 return
