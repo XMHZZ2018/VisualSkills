@@ -25,7 +25,7 @@ echo "Log: $LOG"
 python3 scripts/run-gym-anything/run.py \
     --env_dir "$ENV_DIR" \
     --split test \
-    --model claude-sonnet-4-6 \
+    --model claude-opus-4-6 \
     --skill_mode multimodal \
     --task_timeout 600 \
     --parallel 4 \
