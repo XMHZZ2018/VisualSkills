@@ -1,0 +1,21 @@
+{
+  "name": "gym-anything-text",
+  "owner": {
+    "name": "MMSkills"
+  },
+  "metadata": {
+    "description": "Text-only skills for gym-anything environments",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "gym-anything-text",
+      "description": "Text-only skills for gym-anything environments",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/qgis-knowledge-text"
+      ]
+    }
+  ]
+}

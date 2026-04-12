@@ -1,0 +1,36 @@
+app_name: "QGIS"
+app_version: "3.44"
+
+sources:
+  docs:
+    index_url: "https://docs.qgis.org/3.44/en/docs/user_manual/index.html"
+    base_url: "https://docs.qgis.org/3.44/en/docs/user_manual/"
+    # Only crawl sections relevant to GUI interaction (skip reference/appendix chapters)
+    include_sections:
+      - "introduction/qgis_gui.html"
+      - "introduction/browser.html"
+      - "introduction/general_tools.html"
+      - "introduction/qgis_configuration.html"
+      - "working_with_projections/working_with_projections.html"
+      - "map_views/map_view.html"
+      - "map_views/3d_map_view.html"
+      - "style_library/style_manager.html"
+      - "style_library/symbol_selector.html"
+      - "style_library/label_settings.html"
+      - "managing_data_source/opening_data.html"
+      - "managing_data_source/create_layers.html"
+      - "working_with_vector/vector_properties.html"
+      - "working_with_vector/attribute_table.html"
+      - "working_with_vector/editing_geometry_attributes.html"
+      - "working_with_raster/raster_properties.html"
+      - "working_with_raster/raster_analysis.html"
+      - "print_layout/overview_layout.html"
+      - "print_layout/create_output.html"
+      - "processing/toolbox.html"
+      - "processing/modeler.html"
+      - "processing/batch.html"
+      - "plugins/plugins.html"
+      - "plugins/python_console.html"
+
+# gym-anything environment name (for result directory naming)
+env_name: "qgis_env"
