@@ -1,6 +1,6 @@
 ---
 name: libreoffice-impress
-description: Step-by-step procedures for LibreOffice Impress 7.3 with visual screenshots — formatting text, slides, images, lists, presentations, fields, and object positioning. Consult when performing any LibreOffice Impress task.
+description: Step-by-step procedures for LibreOffice Impress 7.3 with visual screenshots — formatting text, slides, images, lists, presentations, fields, object positioning, drawing shapes, connectors, and alignment. Consult when performing any LibreOffice Impress task.
 ---
 
 # LibreOffice Impress 7.3 — Multimodal Skills
@@ -18,3 +18,6 @@ Each section contains identical text to the text-only version plus references to
 - [Positioning and Resizing Graphic Objects](positioning-and-resizing-graphic-objects/guide.md)
 - [Using Fields](using-fields/guide.md)
 - [Working with Slides](working-with-slides/guide.md)
+- [Creating Shapes](creating-shapes/guide.md)
+- [Connectors and Glue Points](connectors-and-glue-points/guide.md)
+- [Aligning and Arranging Objects](aligning-and-arranging-objects/guide.md)
