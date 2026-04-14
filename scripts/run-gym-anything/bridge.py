@@ -33,17 +33,6 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 LISTEN_PORT = int(os.environ.get("BRIDGE_PORT", "8766"))
-WORKSPACE = Path(os.environ.get("WORKSPACE", "/workspace"))
-
-_step_counter = 0
-_env = None          # set by run.py before starting the server
-_env_lock = threading.Lock()
-
-
-def set_env(env):
-    """Called by run.py to inject the live gym-anything env."""
-    global _env
-    _env = env
 
 
 def _translate_action(body: dict) -> list[dict]:
@@ -117,6 +106,11 @@ def _translate_action(body: dict) -> list[dict]:
 
 
 class BridgeHandler(BaseHTTPRequestHandler):
+    @property
+    def _bridge(self):
+        """Access per-server state (env, workspace, step_counter, lock)."""
+        return self.server
+
     def do_GET(self) -> None:
         if self.path == "/screenshot":
             self._handle_screenshot()
@@ -137,18 +131,19 @@ class BridgeHandler(BaseHTTPRequestHandler):
     # ── handlers ──────────────────────────────────────────────────────────
 
     def _handle_screenshot(self) -> None:
-        global _step_counter
-        _step_counter += 1
-        with _env_lock:
+        bridge = self._bridge
+        with bridge.env_lock:
+            bridge.step_counter += 1
+            step = bridge.step_counter
             try:
                 # Save screenshot under the runner's artifacts dir so the host↔container
                 # path mapping works (runner mounts artifacts_host_root to container).
-                artifacts_root = Path(_env._runner.artifacts_host_root)
+                artifacts_root = Path(bridge.env._runner.artifacts_host_root)
                 artifacts_root.mkdir(parents=True, exist_ok=True)
-                host_path = artifacts_root / "bridge_screenshots" / f"step_{_step_counter:03d}.png"
+                host_path = artifacts_root / "bridge_screenshots" / f"step_{step:03d}.png"
                 host_path.parent.mkdir(parents=True, exist_ok=True)
 
-                ok = _env._runner.capture_screenshot(str(host_path))
+                ok = bridge.env._runner.capture_screenshot(str(host_path))
                 if not ok:
                     self._json({"error": "capture_screenshot returned False"}, status=500)
                     return
@@ -157,9 +152,9 @@ class BridgeHandler(BaseHTTPRequestHandler):
 
                 # Also save a copy to our workspace for inspection
                 try:
-                    ws_screenshots = WORKSPACE / "screenshots"
+                    ws_screenshots = bridge.workspace / "screenshots"
                     ws_screenshots.mkdir(parents=True, exist_ok=True)
-                    (ws_screenshots / f"step_{_step_counter:03d}.png").write_bytes(png)
+                    (ws_screenshots / f"step_{step:03d}.png").write_bytes(png)
                 except Exception:
                     pass
             except Exception as exc:
@@ -171,10 +166,11 @@ class BridgeHandler(BaseHTTPRequestHandler):
 
     def _handle_execute_action(self, body: dict) -> None:
         """Translate MCP action and execute on gym-anything env."""
-        with _env_lock:
+        bridge = self._bridge
+        with bridge.env_lock:
             try:
                 ga_actions = _translate_action(body)
-                obs, reward, done, info = _env.step(ga_actions)
+                obs, reward, done, info = bridge.env.step(ga_actions)
                 action_result = info.get("action_result", {
                     "action": body.get("action", "unknown"),
                     "output": "Executed",
@@ -198,13 +194,17 @@ class BridgeHandler(BaseHTTPRequestHandler):
 
 
 def start_bridge_server(env, port: int = LISTEN_PORT, workspace: str | Path | None = None) -> HTTPServer:
-    """Start the bridge in a daemon thread. Returns the server instance."""
-    global _step_counter, WORKSPACE
-    _step_counter = 0
-    if workspace is not None:
-        WORKSPACE = Path(workspace)
-    set_env(env)
+    """Start the bridge in a daemon thread. Returns the server instance.
+
+    Each server gets its own env, workspace, step_counter, and lock so that
+    multiple parallel workers don't clobber each other's state.
+    """
     server = HTTPServer(("0.0.0.0", port), BridgeHandler)
+    # Per-server instance state (accessed by handlers via self.server)
+    server.env = env
+    server.workspace = Path(workspace) if workspace is not None else Path(os.environ.get("WORKSPACE", "/workspace"))
+    server.step_counter = 0
+    server.env_lock = threading.Lock()
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     print(f"Bridge listening on :{port}", flush=True)

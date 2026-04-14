@@ -1,0 +1,496 @@
+"""
+Run a single gym-anything task end-to-end, or perform utility operations.
+
+This is the atomic unit of execution. Each invocation handles exactly one task
+with its own bridge port, Docker containers, and result directory.
+
+Usage:
+    # Run a single task
+    python3 run_task.py --config config.yaml --task fix_broken_test --bridge_port 8766
+
+    # List tasks from config
+    python3 run_task.py --config config.yaml --discover-tasks
+
+    # Write summary of all results
+    python3 run_task.py --config config.yaml --summarize
+"""
+
+from __future__ import annotations
+
+import argparse
+import datetime
+import json
+import logging
+import os
+import shutil
+import sys
+from pathlib import Path
+
+import docker
+import yaml
+
+MMSKILLS_ROOT = Path(__file__).resolve().parents[2]
+MCP_SERVER_PATH = "/opt/mmskills/tools/gym-anything-controller/server.py"
+
+PLUGIN_DIRS = {
+    "text": "/opt/mmskills/plugins/gym-anything-text",
+    "multimodal": "/opt/mmskills/plugins/gym-anything-multimodal",
+}
+
+SYSTEM_PROMPT = """\
+You are utilising an Ubuntu virtual machine to complete a task autonomously.
+The screen resolution is 1280x720.
+
+You MUST interact with applications through their GUI only. \
+Do NOT open a terminal, run shell commands, edit config files, or use any programmatic workaround.
+
+You have the following MCP tools to interact with the desktop:
+- screenshot(): take a screenshot to see the current desktop state
+- click(x, y, button): click at pixel coordinates ("left"/"right"/"middle")
+- double_click(x, y): double-click at coordinates
+- move_to(x, y): move the mouse without clicking
+- drag_to(start_x, start_y, end_x, end_y): click and drag
+- scroll(x, y, clicks): scroll up (positive) or down (negative)
+- type_text(text): type text
+- key_press(key): press a single key (e.g. "Return", "Tab", "Escape")
+- hotkey(keys): press a shortcut (e.g. ["ctrl", "c"], ["alt", "F4"])
+
+Every action tool automatically returns a screenshot after execution.
+
+After each action, carefully evaluate the returned screenshot to confirm you \
+achieved the right outcome before moving on. If not correct, try again.
+
+When you believe the task is complete, simply stop — do not call any signal tool.\
+"""
+
+
+# ── config ──────────────────────────────────────────────────────────────────
+
+DEFAULTS = {
+    "model": "claude-opus-4-6",
+    "skill_mode": "none",
+    "task_timeout": 1800,
+    "bridge_port_base": 8766,
+    "result_dir": "scripts/run-gym-anything/workspaces",
+    "claude_cli_image": "ga-claude-cli",
+    "max_tasks": 0,
+    "rerun": False,
+    "use_cache": False,
+    "log_level": "INFO",
+    "num_parallel": 1,
+}
+
+
+def load_config(config_path: str) -> dict:
+    """Load YAML config with defaults applied."""
+    with open(config_path) as f:
+        cfg = yaml.safe_load(f) or {}
+
+    for k, v in DEFAULTS.items():
+        cfg.setdefault(k, v)
+
+    # Resolve relative paths against MMSKILLS_ROOT
+    for key in ("env_dir", "result_dir"):
+        if key in cfg and not Path(cfg[key]).is_absolute():
+            cfg[key] = str(MMSKILLS_ROOT / cfg[key])
+
+    return cfg
+
+
+# ── task discovery ──────────────────────────────────────────────────────────
+
+def discover_tasks(cfg: dict) -> list[str]:
+    """Return list of task IDs based on config."""
+    # Explicit task_list takes priority
+    if cfg.get("task_list"):
+        return cfg["task_list"]
+
+    env_path = Path(cfg["env_dir"])
+    tasks_dir = env_path / "tasks"
+
+    if cfg.get("split"):
+        env_name = env_path.name
+        splits_dir = env_path.parent.parent / "splits"
+        candidates = [
+            splits_dir / f"{env_name}_split.json",
+            splits_dir / f"{env_name.removesuffix('_env')}_split.json",
+        ]
+        for split_file in candidates:
+            if split_file.exists():
+                split_data = json.loads(split_file.read_text(encoding="utf-8"))
+                split = cfg["split"]
+                key = f"{split}_tasks" if split != "all" else "all_tasks"
+                if key in split_data:
+                    task_ids = split_data[key]
+                    existing = [t for t in task_ids if (tasks_dir / t).is_dir()]
+                    if existing:
+                        return existing
+                break
+
+    # Fallback: all task directories
+    if tasks_dir.is_dir():
+        return sorted(d.name for d in tasks_dir.iterdir() if d.is_dir())
+    return []
+
+
+# ── MCP config ──────────────────────────────────────────────────────────────
+
+def _write_mcp_config(output_dir: Path, bridge_port: int) -> None:
+    config = {
+        "mcpServers": {
+            "gym-anything-controller": {
+                "command": "python3",
+                "args": [MCP_SERVER_PATH],
+                "env": {"GA_BRIDGE_URL": f"http://host.docker.internal:{bridge_port}"},
+            }
+        }
+    }
+    (output_dir / "mcp_config.json").write_text(
+        json.dumps(config, indent=2), encoding="utf-8"
+    )
+
+
+# ── Claude Docker container ────────────────────────────────────────────────
+
+def _run_claude_in_docker(
+    docker_client: docker.DockerClient,
+    output_dir: Path,
+    bridge_port: int,
+    cfg: dict,
+    logger: logging.Logger,
+) -> tuple[str, str]:
+    """Run Claude CLI in an isolated Docker container. Returns (stdout, stderr)."""
+    cli_args = [
+        "--mcp-config", "/workspace/mcp_config.json",
+        "--output-format", "stream-json",
+        "--verbose",
+        "--model", cfg["model"],
+        "--no-session-persistence",
+        "--dangerously-skip-permissions",
+        "--disallowed-tools", "Bash,Edit,Write,Glob,Grep,Agent,AskUserQuestion,NotebookEdit",
+    ]
+    if cfg["skill_mode"] in PLUGIN_DIRS:
+        cli_args.extend(["--plugin-dir", PLUGIN_DIRS[cfg["skill_mode"]]])
+
+    env_vars = {
+        "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
+        "GA_BRIDGE_URL": f"http://host.docker.internal:{bridge_port}",
+    }
+
+    container_name = f"ga-claude-{output_dir.name[:12]}-p{bridge_port}"
+    try:
+        old = docker_client.containers.get(container_name)
+        old.remove(force=True)
+    except docker.errors.NotFound:
+        pass
+
+    logger.info("Starting Claude container: %s (bridge port %d)", container_name, bridge_port)
+
+    credentials_path = os.path.expanduser("~/.claude/.credentials.json")
+    container = docker_client.containers.run(
+        cfg["claude_cli_image"],
+        command=cli_args,
+        name=container_name,
+        environment=env_vars,
+        extra_hosts={"host.docker.internal": "host-gateway"},
+        volumes={
+            str(output_dir): {"bind": "/workspace", "mode": "rw"},
+            str(MMSKILLS_ROOT): {"bind": "/opt/mmskills", "mode": "ro"},
+            credentials_path: {
+                "bind": "/home/node/.claude/.credentials.json", "mode": "ro",
+            },
+        },
+        detach=True,
+    )
+
+    try:
+        result = container.wait(timeout=cfg["task_timeout"])
+        stdout = container.logs(stdout=True, stderr=False).decode(errors="replace")
+        stderr = container.logs(stdout=False, stderr=True).decode(errors="replace")
+        exit_code = result.get("StatusCode", -1)
+        logger.info("Claude container exited with code %d", exit_code)
+    except Exception as exc:
+        logger.warning("Claude container timed out or errored: %s", exc)
+        try:
+            container.kill()
+        except Exception:
+            pass
+        stdout = container.logs(stdout=True, stderr=False).decode(errors="replace")
+        stderr = container.logs(stdout=False, stderr=True).decode(errors="replace")
+    finally:
+        try:
+            container.remove(force=True)
+        except Exception:
+            pass
+
+    return stdout, stderr
+
+
+# ── single task runner ──────────────────────────────────────────────────────
+
+def run_single_task(cfg: dict, task_id: str, bridge_port: int) -> int:
+    """Run one task end-to-end. Returns 0 on success, 1 on failure."""
+    logger = logging.getLogger(f"task.{task_id}")
+
+    env_name = Path(cfg["env_dir"]).name
+    output_dir = Path(cfg["result_dir"]) / cfg["model"] / f"skill-{cfg['skill_mode']}" / env_name / task_id
+
+    # Check existing result
+    score_file = output_dir / "score.txt"
+    if not cfg["rerun"] and score_file.exists():
+        prev = score_file.read_text().strip()
+        logger.info("Skipping (existing score=%s)", prev)
+        return 0
+
+    # Fresh output dir
+    if output_dir.exists():
+        shutil.rmtree(output_dir)
+    output_dir.mkdir(parents=True)
+
+    # ── Phase 1: Environment setup ──
+    ga_root = MMSKILLS_ROOT / "vendor" / "gym-anything"
+    if str(ga_root / "src") not in sys.path:
+        sys.path.insert(0, str(ga_root / "src"))
+    from gym_anything.api import from_config
+
+    original_cwd = os.getcwd()
+    os.chdir(str(ga_root))
+    gapkg_link = ga_root / "gym_anything"
+    if not gapkg_link.exists():
+        os.symlink("src/gym_anything", str(gapkg_link))
+
+    logger.info("Creating env for task: %s", task_id)
+    env = from_config(cfg["env_dir"], task_id=task_id)
+
+    try:
+        logger.info("Resetting environment...")
+        env.reset(use_cache=cfg["use_cache"])
+        env.set_episode_limits(timeout_sec=cfg["task_timeout"])
+        logger.info("Environment ready (timeout=%ds)", cfg["task_timeout"])
+    except Exception as exc:
+        logger.error("Failed to set up environment: %s", exc)
+        env.close()
+        os.chdir(original_cwd)
+        result = {"task_id": task_id, "error": str(exc), "score": 0.0}
+        (output_dir / "result.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
+        (output_dir / "score.txt").write_text("0.0\n", encoding="utf-8")
+        return 1
+
+    # ── Phase 2: Bridge + Claude ──
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from bridge import start_bridge_server
+    bridge_server = start_bridge_server(env, port=bridge_port, workspace=str(output_dir))
+
+    elapsed = 0.0
+    try:
+        # Build prompt
+        task_json_path = Path(cfg["env_dir"]) / "tasks" / task_id / "task.json"
+        task_desc = ""
+        if task_json_path.exists():
+            task_data = json.loads(task_json_path.read_text(encoding="utf-8"))
+            task_desc = task_data.get("description", "")
+
+        skill_section = _build_skill_section(cfg, output_dir)
+        prompt = f"{SYSTEM_PROMPT}{skill_section}\n\nTask: {task_desc}"
+        (output_dir / "prompt.txt").write_text(prompt, encoding="utf-8")
+
+        _write_mcp_config(output_dir, bridge_port)
+
+        start_time = datetime.datetime.now()
+        docker_client = docker.from_env()
+
+        # Run Claude with retry on 500 errors
+        max_retries = 3
+        stdout, stderr = "", ""
+        for attempt in range(1, max_retries + 1):
+            stdout, stderr = _run_claude_in_docker(
+                docker_client, output_dir, bridge_port, cfg, logger,
+            )
+            if "API Error: 500" in stdout or "API Error: 500" in stderr:
+                logger.warning("API 500 on attempt %d/%d, retrying...", attempt, max_retries)
+                continue
+            break
+
+        elapsed = (datetime.datetime.now() - start_time).total_seconds()
+
+        (output_dir / "container_stdout.txt").write_text(stdout, encoding="utf-8")
+        if stderr:
+            (output_dir / "container_stderr.txt").write_text(stderr, encoding="utf-8")
+
+    except Exception as exc:
+        logger.error("Claude execution failed: %s", exc)
+    finally:
+        bridge_server.shutdown()
+
+    # ── Phase 3: Verification ──
+    episode_dir = getattr(env, "episode_dir", None)
+    if episode_dir:
+        episode_dir = Path(episode_dir).resolve()
+
+    logger.info("Closing env (running verifier)...")
+    env.close()
+    os.chdir(original_cwd)
+
+    # Collect results
+    score = 0.0
+    verifier_result = {}
+    if episode_dir:
+        summary_path = Path(episode_dir) / "summary.json"
+        if summary_path.exists():
+            try:
+                summary = json.loads(summary_path.read_text(encoding="utf-8"))
+                verifier_result = summary.get("verifier", {})
+                score = verifier_result.get("score", 100.0 if verifier_result.get("passed") else 0.0)
+                if score > 1:
+                    score = score / 100.0
+                logger.info("Verifier: passed=%s score=%.4f feedback=%s",
+                            verifier_result.get("passed"), score,
+                            verifier_result.get("feedback", "")[:200])
+            except Exception as exc:
+                logger.warning("Failed to read summary.json: %s", exc)
+
+    result = {
+        "task_id": task_id,
+        "score": score,
+        "elapsed_seconds": round(elapsed, 1),
+        "model": cfg["model"],
+        "skill_mode": cfg["skill_mode"],
+        "timestamp": datetime.datetime.now().isoformat(),
+        "verifier_result": verifier_result,
+        "episode_dir": str(episode_dir) if episode_dir else None,
+    }
+    (output_dir / "result.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
+    (output_dir / "score.txt").write_text(f"{score}\n", encoding="utf-8")
+
+    logger.info("Task %s done: score=%.4f", task_id, score)
+    return 0 if score > 0 else 1
+
+
+def _build_skill_section(cfg: dict, output_dir: Path) -> str:
+    """Build the skill guide section for the prompt."""
+    if cfg["skill_mode"] == "none":
+        return ""
+
+    env_name = Path(cfg["env_dir"]).name.removesuffix("_env")
+    skill_dir = MMSKILLS_ROOT / "skills" / f"{env_name}-workflow-{cfg['skill_mode']}"
+    if not skill_dir.exists():
+        skill_dir = MMSKILLS_ROOT / "skills" / f"{env_name}-knowledge-{cfg['skill_mode']}"
+
+    guide_file = skill_dir / "guide.md" if skill_dir.exists() else None
+    if not guide_file or not guide_file.exists():
+        return ""
+
+    guide_text = guide_file.read_text(encoding="utf-8")
+
+    # Copy skill images into workspace
+    skill_images_dir = output_dir / "skill_images"
+    skill_images_dir.mkdir(exist_ok=True)
+    image_paths = []
+    for img in sorted(skill_dir.glob("*.png")):
+        dest = skill_images_dir / img.name
+        shutil.copy2(img, dest)
+        image_paths.append(f"/workspace/skill_images/{img.name}")
+
+    section = "\n\n" + "=" * 60 + "\n"
+    section += "SKILL GUIDE — Read this carefully before starting!\n"
+    section += "=" * 60 + "\n\n"
+    section += guide_text
+    if image_paths:
+        section += "\n\n" + "-" * 60 + "\n"
+        section += "IMPORTANT: The guide references screenshots. You MUST view them "
+        section += "using the Read tool to understand the UI layout. View ALL of these "
+        section += "images BEFORE taking any GUI action:\n\n"
+        for p in image_paths:
+            section += f'  Read("{p}")\n'
+        section += "\nStudy these screenshots carefully — they show you exactly what "
+        section += "each UI element looks like so you can find it on the actual screen.\n"
+
+    return section
+
+
+# ── summarize ───────────────────────────────────────────────────────────────
+
+def write_summary(cfg: dict) -> int:
+    """Collect all result.json files and write a summary."""
+    env_name = Path(cfg["env_dir"]).name
+    base = Path(cfg["result_dir"]) / cfg["model"] / f"skill-{cfg['skill_mode']}" / env_name
+
+    per_task = {}
+    for result_file in sorted(base.glob("*/result.json")):
+        try:
+            r = json.loads(result_file.read_text(encoding="utf-8"))
+            per_task[r["task_id"]] = r["score"]
+        except Exception:
+            per_task[result_file.parent.name] = 0.0
+
+    scores = list(per_task.values())
+    avg = sum(scores) / len(scores) if scores else 0.0
+
+    summary = {
+        "model": cfg["model"],
+        "skill_mode": cfg["skill_mode"],
+        "env": env_name,
+        "num_tasks": len(scores),
+        "avg_score": round(avg, 4),
+        "per_task": per_task,
+        "timestamp": datetime.datetime.now().isoformat(),
+    }
+
+    summary_dir = Path(cfg["result_dir"]) / cfg["model"] / f"skill-{cfg['skill_mode']}"
+    summary_dir.mkdir(parents=True, exist_ok=True)
+    summary_path = summary_dir / f"summary_{env_name}.json"
+    summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+
+    print(f"\n{'='*60}")
+    print(f"Summary: {env_name} | {cfg['model']} | skill={cfg['skill_mode']}")
+    print(f"Tasks: {len(scores)} | Avg score: {avg:.4f}")
+    print(f"{'='*60}")
+    for task_id, score in sorted(per_task.items()):
+        status = "PASS" if score > 0 else "FAIL"
+        print(f"  {status}  {score:.2f}  {task_id}")
+    print(f"\nSaved to: {summary_path}")
+
+    return 0
+
+
+# ── main ────────────────────────────────────────────────────────────────────
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Run a single gym-anything task")
+    parser.add_argument("--config", required=True, help="Path to YAML config file")
+    parser.add_argument("--task", help="Task ID to run")
+    parser.add_argument("--bridge_port", type=int, help="Bridge port for this task")
+    parser.add_argument("--discover-tasks", action="store_true", help="Print task IDs and exit")
+    parser.add_argument("--summarize", action="store_true", help="Write summary and exit")
+    args = parser.parse_args()
+
+    cfg = load_config(args.config)
+
+    logging.basicConfig(
+        level=getattr(logging, cfg["log_level"]),
+        format="[%(asctime)s %(levelname)s %(name)s] %(message)s",
+    )
+
+    if args.discover_tasks:
+        tasks = discover_tasks(cfg)
+        if cfg["max_tasks"] > 0:
+            tasks = tasks[:cfg["max_tasks"]]
+        for t in tasks:
+            print(t)
+        return 0
+
+    if args.summarize:
+        return write_summary(cfg)
+
+    if not args.task:
+        print("ERROR: --task is required (or use --discover-tasks / --summarize)", file=sys.stderr)
+        return 1
+    if not args.bridge_port:
+        print("ERROR: --bridge_port is required", file=sys.stderr)
+        return 1
+
+    return run_single_task(cfg, args.task, args.bridge_port)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,16 @@
+# LibreOffice Impress baseline (no skill) — 4 verified tasks
+model: claude-opus-4-6
+skill_mode: none
+env_dir: vendor/gym-anything/benchmarks/cua_world/environments/libreoffice_impress_env
+result_dir: scripts/run-gym-anything/workspaces
+task_timeout: 900   # 15 minutes
+
+task_list:
+  - change_slide_dimensions
+  - convert_list_to_process_diagram
+  - create_architecture_diagram
+  - create_basic_presentation
+
+num_parallel: 4
+rerun: true
+log_level: INFO
