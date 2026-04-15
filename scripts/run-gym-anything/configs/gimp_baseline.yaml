@@ -1,0 +1,16 @@
+# GIMP baseline (no skill) — 4 test tasks
+model: claude-opus-4-6
+skill_mode: none
+env_dir: vendor/gym-anything/benchmarks/cua_world/environments/gimp_env_all_fast
+result_dir: scripts/run-gym-anything/workspaces
+task_timeout: 600   # 10 minutes
+
+task_list:
+  - gradient_fill
+  - image_rotation
+  - layer_opacity
+  - new_image
+
+num_parallel: 4
+rerun: true
+log_level: INFO
