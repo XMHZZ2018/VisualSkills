@@ -44,95 +44,51 @@ docker build -t ga-claude-cli -f scripts/run-gym-anything/Dockerfile.claude-cli 
 
 ## Quick Start
 
-### Run a single task
-
-```bash
-cd /home/ziyan/MMSkills
-
-python3 scripts/run-gym-anything/run.py \
-    --env_dir vendor/gym-anything/benchmarks/cua_world/environments/gimp_env_all_fast \
-    --task add_border \
-    --model claude-opus-4-6 \
-    --task_timeout 600 \
-    --log_level INFO
-```
-
-### Run a split (train or test)
-
-```bash
-python3 scripts/run-gym-anything/run.py \
-    --env_dir vendor/gym-anything/benchmarks/cua_world/environments/qgis_env \
-    --split test \
-    --model claude-opus-4-6 \
-    --task_timeout 600 \
-    --parallel 4 \
-    --log_level INFO
-```
-
-### Run with a skill guide
-
-```bash
-# Text skill (text-only guide)
-python3 scripts/run-gym-anything/run.py \
-    --env_dir vendor/gym-anything/benchmarks/cua_world/environments/qgis_env \
-    --task create_new_project \
-    --skill_mode text \
-    --model claude-opus-4-6
-
-# Multimodal skill (guide + screenshots)
-python3 scripts/run-gym-anything/run.py \
-    --env_dir vendor/gym-anything/benchmarks/cua_world/environments/qgis_env \
-    --task create_new_project \
-    --skill_mode multimodal \
-    --model claude-opus-4-6
-```
-
-### Run with a YAML config
-
 ```bash
 bash scripts/run-gym-anything/run.sh --config scripts/run-gym-anything/configs/impress_baseline.yaml
 ```
 
-Config format:
+Use `--rebuild` to force-rebuild the Claude CLI Docker image.
+
+## Config Format
 
 ```yaml
 model: claude-opus-4-6
 skill_mode: none            # none | text | multimodal
 env_dir: vendor/gym-anything/benchmarks/cua_world/environments/gimp_env_all_fast
 result_dir: scripts/run-gym-anything/workspaces
-task_timeout: 900
-task_list:                  # optional — omit to run all tasks
+task_timeout: 900           # seconds per task
+
+task_list:                  # optional — omit to run all tasks in the environment
   - add_border
   - brightness_contrast
-num_parallel: 4
+
+num_parallel: 4             # parallel workers, each gets its own env + bridge port
 rerun: true                 # re-run even if results exist
 log_level: INFO
 ```
 
-## CLI Reference
+### Config fields
 
-```
-python3 scripts/run-gym-anything/run.py [OPTIONS]
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `model` | no | `claude-opus-4-6` | Claude model ID |
+| `skill_mode` | no | `none` | `none`, `text`, or `multimodal` |
+| `env_dir` | **yes** | — | Path to gym-anything environment (contains env.json) |
+| `result_dir` | no | `scripts/run-gym-anything/workspaces` | Output directory |
+| `task_timeout` | no | `1800` | Max seconds per task |
+| `task_list` | no | all tasks | List of specific task IDs to run |
+| `num_parallel` | no | `1` | Number of parallel workers |
+| `rerun` | no | `false` | Re-run tasks even if results exist |
+| `log_level` | no | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` |
 
-Required:
-  --env_dir PATH          Path to gym-anything environment (contains env.json)
+### Example configs
 
-Task selection (pick one):
-  --task TASK_ID          Run a single task
-  --split {train,test,all}  Run all tasks in a split
-  (neither)               Run all tasks in the environment
+See `scripts/run-gym-anything/configs/` for examples:
 
-Options:
-  --model MODEL           Claude model (default: claude-opus-4-6)
-  --skill_mode MODE       none | text | multimodal (default: none)
-  --task_timeout SECS     Max seconds per task (default: 1800)
-  --result_dir DIR        Output directory (default: scripts/run-gym-anything/workspaces)
-  --max_tasks N           Limit number of tasks (0 = all)
-  --parallel N            Parallel workers, each gets its own env + bridge port (default: 1)
-  --rerun                 Re-run tasks even if results exist
-  --use_cache             Use Docker checkpoint cache for faster env init
-  --log_level LEVEL       DEBUG | INFO | WARNING | ERROR
-```
+- `impress_baseline.yaml` — LibreOffice Impress, no skill, 4 tasks
+- `impress_baseline_text_skill.yaml` — same with text skill guide
+- `impress_baseline_multimodal_skill.yaml` — same with multimodal skill guide
 
 ## Available Environments
 
@@ -147,17 +103,6 @@ Options:
 
 See all environments: `ls vendor/gym-anything/benchmarks/cua_world/environments/`
 See all splits: `ls vendor/gym-anything/benchmarks/cua_world/splits/`
-
-## Existing Run Scripts
-
-Pre-configured shell scripts for common runs:
-
-```bash
-bash scripts/run-gym-anything/run_gimp_dev.sh           # 7 GIMP tasks, sanity check
-bash scripts/run-gym-anything/run_qgis_test.sh           # QGIS test split, 4 parallel
-bash scripts/run-gym-anything/run_qgis_test_multimodal.sh # QGIS test split with multimodal skill
-bash scripts/run-gym-anything/run_qgis_official.sh       # QGIS via official gym-anything harness
-```
 
 ## Result Structure
 
