@@ -37,8 +37,9 @@ docker info | grep -i runtime  # should show sysbox-runc
 # Claude CLI Docker image
 docker build -t ga-claude-cli -f scripts/run-gym-anything/Dockerfile.claude-cli scripts/run-gym-anything/
 
-# Anthropic API key
-export ANTHROPIC_API_KEY="sk-ant-..."
+# Claude CLI authentication (OAuth — NOT an API key)
+# Run `claude login` on the host first, then the credentials file
+# (~/.claude/.credentials.json) is mounted into the Claude container.
 ```
 
 ## Quick Start
