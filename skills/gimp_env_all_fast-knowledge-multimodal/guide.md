@@ -120,7 +120,11 @@ The Neon filter detects edges and renders them as bright, glowing colored lines 
 
 Read the screenshot `neon-before.png` — it shows a sample image before applying the neon edges filter (a cityscape scene with buildings, mountains, and a tree).
 
-Read the screenshot `neon-after.png` — it shows the same image after applying Filters > Edge-Detect > Neon.
+Read the screenshot `neon-after.png` — it shows the same image after applying Filters > Edge-Detect > Neon. Notice:
+- The background is **completely black**
+- Object edges appear as **bright, vivid colored lines** (cyan, magenta, yellow, green, white)
+- The effect is **dramatic** — the image should look entirely different from the original
+- Windows and small details create bright spots against the dark background
 
 ### How to apply
 
