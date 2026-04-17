@@ -13,4 +13,5 @@ task_list:
 
 num_parallel: 4
 rerun: true
+use_cache: false
 log_level: INFO
