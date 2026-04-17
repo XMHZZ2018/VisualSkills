@@ -1,4 +1,4 @@
-# GIMP baseline (no skill) — 14 tasks for multimodal skill assessment
+# GIMP baseline (no skill) — 4 multimodal-skill-promising test tasks
 model: claude-opus-4-6
 skill_mode: none
 env_dir: vendor/gym-anything/benchmarks/cua_world/environments/gimp_env_all_fast
@@ -6,22 +6,10 @@ result_dir: scripts/run-gym-anything/workspaces
 task_timeout: 600   # 10 minutes
 
 task_list:
-  # Complex multi-step / spatial (high multimodal potential)
-  - graphic_designer_photo_retouch
-  - perspective_painting_extraction
-  - clone_stamp
-  - object_erase
-  - remove_background
-  - lens_flare
-  - round_corners
-  # Dialog-based filters (medium multimodal potential)
-  - motion_blur
-  - levels_adjust
-  - color_balance
-  - sepia_tone
-  - shadows_highlights
-  - vignette
-  - color_to_alpha
+  - lens_flare          # Filters → Light and Shadow → Lens Flare (nested menu, visual positioning)
+  - pattern_fill        # Visual pattern picker, selection, fill (multi-step)
+  - gradient_fill       # Gradient tool from toolbox, drag interaction
+  - shear_horizontal    # Shear tool in toolbox, transform dialog
 
 num_parallel: 4
 rerun: true
