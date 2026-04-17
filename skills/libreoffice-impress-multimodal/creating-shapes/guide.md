@@ -16,11 +16,29 @@ The Drawing toolbar provides access to these regular shape categories (click the
 | Stars and Banners | Multi-point stars, scrolls, doorplates |
 | 3D-Objects | Cubes, spheres, cones, cylinders, etc. |
 
+Read the screenshot `toolbar_category_buttons.png` in this directory — it shows the Drawing toolbar category button icons (Basic Shapes, Symbol Shapes, Callouts, Block Arrows, Stars and Banners, Lines and Arrows, 3D Objects, Connectors) so you can identify which button to click.
+
 Read the screenshot `figure122.png` in this directory — it shows the Basic Shapes sub-toolbar
 
 Read the screenshot `figure124.png` in this directory — it shows the Block Arrows sub-toolbar
 
 Read the screenshot `figure125.png` in this directory — it shows the Flowchart sub-toolbar
+
+### Shape reference images
+
+Read the following reference images to see the exact shapes available in each category and their names:
+
+Read the screenshot `basic_shapes_ref.png` in this directory — it shows all Basic Shapes: Rectangle, Rectangle Rounded, Trapezoid, Ellipse, Circle Pie, Diamond, Redstone, Hexagon, Isosceles Triangle, Right Triangle, Regular Pentagon, Octagon, Cross, Frame, Cylinder, Cube.
+
+Read the screenshot `symbol_shapes_ref.png` in this directory — it shows all Symbol Shapes: Smiley Face, Heart, Sun, Moon, Cloud, Lightning Bolt, Flower, Prohibited, Puzzle, Left Bracket, Left Brace, Right Brace.
+
+Read the screenshot `block_arrows_shapes_ref.png` in this directory — it shows all Block Arrows: Right Arrow, Left Arrow, Up Arrow, Down Arrow, Chevron, Pentagon, Notched Right Arrow, 4-way Arrow, Circular Arrow, S-shaped Arrow.
+
+Read the screenshot `flowchart_shapes_ref.png` in this directory — it shows all Flowchart shapes: Process, Decision, Terminator, Document, Data, Predefined Process, Manual Input, Preparation, Manual Operation.
+
+Read the screenshot `callouts_ref.png` in this directory — it shows all Callout Shapes: Rectangular Callout, Rounded Rectangular Callout, Round Callout, Cloud Callout, Line Callout 1, Line Callout 2, Line Callout 3.
+
+Read the screenshot `stars_banners_ref.png` in this directory — it shows all Stars and Banners: 4-Point Star, 5-Point Star, 6-Point Star, 8-Point Star, 12-Point Star, 24-Point Star, Explosion, Vertical Scroll, Horizontal Scroll, Signet, Doorplate.
 
 ---
 
