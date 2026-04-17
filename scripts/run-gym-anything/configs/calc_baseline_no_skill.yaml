@@ -1,0 +1,31 @@
+# LibreOffice Calc baseline (no skills) — formatting/UI-heavy test tasks
+model: claude-opus-4-6
+skill_mode: none
+env_dir: vendor/gym-anything/benchmarks/cua_world/environments/libreoffice_calc_env
+result_dir: scripts/run-gym-anything/workspaces
+task_timeout: 900   # 15 minutes
+
+task_list:
+  # Data cleaning / formatting
+  - spreadsheet_cleanup
+  - running_pace_analyzer
+  - soccer_snack_scheduler
+  - wildlife_log_cleanup
+  - wine_tasting_organizer
+  - raffle_ticket_validator
+  - version_diff_highlighter
+  - vintage_computer_organizer
+  - recipe_optimizer
+  - sleep_pattern_optimizer
+  - symptom_pattern_analyzer
+  - transaction_anomaly_detector
+  # Layout / formatting heavy
+  - science_fair_scoresheet
+  # Constraint / logic (slow GUI interaction)
+  - wedding_seating
+  - secret_santa_fixer
+
+num_parallel: 4
+rerun: true
+use_cache: false
+log_level: INFO

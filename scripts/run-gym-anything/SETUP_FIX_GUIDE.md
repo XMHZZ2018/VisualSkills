@@ -157,12 +157,14 @@ maximize_window
 
 ## Cache Considerations
 
-When `use_cache: true` is set, gym-anything creates Docker checkpoints after hooks:
-- `pre_start` checkpoint = after `install_<software>.sh`
-- Subsequent runs skip install and restore from checkpoint
+**Do NOT use `use_cache: true` for systemd/desktop environments.** Docker checkpoint/restore breaks the X11 display session — GDM doesn't restart properly after restore, so the container has no working display. All screenshot/interaction will fail silently.
 
-**Important**: If you change `setup_<software>.sh` or `task_utils.sh` (which are mounted read-only from the host), the changes take effect immediately — no need to clear checkpoints. But if you change `install_<software>.sh`, you must delete the old checkpoint:
+Set `use_cache: false` in your eval config for any environment that uses a desktop (LibreOffice, GIMP, LibreCAD, diagrams.net, etc.). The extra ~1-2 min for `install_<software>.sh` on each run is worth having a working display.
+
+If you already have a broken checkpoint, delete it:
 
 ```bash
 docker rmi ga-checkpoint/<env_name>:0.1-pre_start
 ```
+
+Note: Read-only mounted scripts (`setup_<software>.sh`, `task_utils.sh`) always reflect host changes regardless of cache — they are not part of the checkpoint.
