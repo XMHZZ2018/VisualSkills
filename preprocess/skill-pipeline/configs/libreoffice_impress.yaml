@@ -1,0 +1,21 @@
+app_name: "LibreOffice Impress"
+app_version: "7.3.7"
+domain: "libreoffice_impress"
+
+sources:
+  pdf_guide:
+    url: "https://documentation.libreoffice.org/assets/Uploads/Documentation/en/IG7.3/IG73-ImpressGuide.pdf"
+
+tasks:
+  # gym-anything (cua_world) task source.
+  # Default: enumerate every subfolder of <env_dir>/tasks/ that has a valid task.json.
+  env_dir: "vendor/gym-anything/benchmarks/cua_world/environments/libreoffice_impress_env"
+
+  # Optional: restrict to a split subset. Leave unset to use all on-disk tasks.
+  # split: "vendor/gym-anything/benchmarks/cua_world/splits/libreoffice_impress_split.json"
+  # use: "test_tasks"
+
+  # Optional: exact override (bypasses both disk enumeration and split).
+  # task_list:
+  #   - convert_list_to_process_diagram
+  #   - create_flowchart
