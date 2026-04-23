@@ -35,3 +35,12 @@ node_modules/
 # Env / secrets
 .env
 .env.*
+
+# Slides — meeting decks and their one-off generator/fix scripts
+*.pptx
+/make_slides*.py
+scripts/fix_slide*.py
+scripts/rebuild_slide*.py
+scripts/split_slide*.py
+scripts/update_slides*.py
+scripts/make_chevron_reference_fig.py

@@ -1,0 +1,42 @@
+# LibreOffice Impress — multimodal-skill run over all 28 gym-anything tasks.
+# Exposes skills/libreoffice_impress-knowledge-multimodal-v1/ via a runtime
+# per-task plugin dir (see _build_plugin_dir in scripts/run-gym-anything/run_task.py).
+model: claude-opus-4-6
+skill_mode: multimodal
+env_dir: vendor/gym-anything/benchmarks/cua_world/environments/libreoffice_impress_env
+result_dir: scripts/run-gym-anything/workspaces
+task_timeout: 900   # 15 minutes per task
+
+num_parallel: 4
+rerun: false        # skip tasks whose score.txt already exists (resume-friendly)
+log_level: INFO
+
+task_list:
+  - add_animations
+  - align_and_distribute_images
+  - apply_distinct_master_slides
+  - bcp_training_deck
+  - bulk_text_replace
+  - change_slide_dimensions
+  - convert_list_to_process_diagram
+  - create_academic_poster_from_slides
+  - create_agenda_summary_slide
+  - create_architecture_diagram
+  - create_basic_presentation
+  - create_flowchart
+  - create_interactive_menu
+  - create_polaroid_photo_stack
+  - create_presentation_from_outline
+  - create_product_comparison_table
+  - create_sales_funnel_diagram
+  - create_vertical_digital_signage
+  - customize_bullet_style
+  - duplicate_regional_slides
+  - embed_linked_images
+  - export_pdf
+  - fix_typos_and_language
+  - format_code_block_slide
+  - insert_data_table
+  - insert_math_equations
+  - recolor_shapes_brand_palette
+  - rotate_shapes_precise
