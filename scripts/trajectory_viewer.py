@@ -21,16 +21,18 @@ VM_NAME = os.environ.get("VM_NAME", "osworld")
 VM_ZONE = os.environ.get("VM_ZONE", "us-west1-c")
 WORKSPACE_ROOT = "/home/ziyan/MMSkills/scripts/run-gym-anything/workspaces"
 
-SKILL_MODES = ["skill-none", "skill-text", "skill-multimodal"]
+SKILL_MODES = ["skill-none", "skill-text", "skill-multimodal", "skill-multimodal-v2"]
 SKILL_LABELS = {
     "skill-none": "No Skill",
-    "skill-text": "Text Skill",
-    "skill-multimodal": "Multimodal Skill",
+    "skill-text": "Text Skill (v1)",
+    "skill-multimodal": "Multimodal Skill (v1)",
+    "skill-multimodal-v2": "Multimodal Skill (v2)",
 }
 MODE_COLORS = {
     "skill-none": "#ff6b6b",
     "skill-text": "#4ecdc4",
     "skill-multimodal": "#45b7d1",
+    "skill-multimodal-v2": "#2a9d8f",
 }
 
 

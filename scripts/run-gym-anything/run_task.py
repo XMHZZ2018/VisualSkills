@@ -32,10 +32,88 @@ import yaml
 MMSKILLS_ROOT = Path(__file__).resolve().parents[2]
 MCP_SERVER_PATH = "/opt/mmskills/tools/gym-anything-controller/server.py"
 
-PLUGIN_DIRS = {
-    "text": "/opt/mmskills/plugins/gym-anything-text",
-    "multimodal": "/opt/mmskills/plugins/gym-anything-multimodal",
-}
+# Where MMSKILLS_ROOT is mounted inside the Claude CLI container.
+CONTAINER_MMSKILLS_ROOT = "/opt/mmskills"
+# Where the per-task output_dir is mounted inside the Claude CLI container.
+CONTAINER_WORKSPACE = "/workspace"
+
+
+def _resolve_skill_dir(env_name: str, skill_mode: str) -> Path | None:
+    """Find the on-disk skill directory for this env + mode.
+
+    Tries, in order:
+      skills/<env>-knowledge-<mode>-v1     (current v1 layout)
+      skills/<env>-knowledge-<mode>        (legacy layout)
+      skills/<env>-workflow-<mode>         (workflow-style skills, e.g. qgis)
+    """
+    candidates = [
+        MMSKILLS_ROOT / "skills" / f"{env_name}-knowledge-{skill_mode}-v1",
+        MMSKILLS_ROOT / "skills" / f"{env_name}-knowledge-{skill_mode}",
+        MMSKILLS_ROOT / "skills" / f"{env_name}-workflow-{skill_mode}",
+    ]
+    for p in candidates:
+        if p.is_dir():
+            return p
+    return None
+
+
+def _build_plugin_dir(
+    env_name: str,
+    skill_mode: str,
+    output_dir: Path,
+    logger: logging.Logger,
+) -> str | None:
+    """Build a per-task plugin dir that exposes exactly one skill.
+
+    Layout created under `output_dir/plugin/`:
+        .claude-plugin/marketplace.json   # lists only this domain's skill
+        skills/<skill_name>               # symlink → /opt/mmskills/skills/<skill_name>
+
+    The symlink target is the container-mount path (CONTAINER_MMSKILLS_ROOT),
+    which the Claude CLI resolves inside its container. Returns the path Claude
+    should see via --plugin-dir, or None if no matching skill is on disk.
+    """
+    skill_dir = _resolve_skill_dir(env_name, skill_mode)
+    if skill_dir is None:
+        logger.warning(
+            "No skill directory found for env=%s mode=%s — running without plugin",
+            env_name, skill_mode,
+        )
+        return None
+
+    skill_name = skill_dir.name
+    plugin_root = output_dir / "plugin"
+    (plugin_root / ".claude-plugin").mkdir(parents=True, exist_ok=True)
+    (plugin_root / "skills").mkdir(parents=True, exist_ok=True)
+
+    link_path = plugin_root / "skills" / skill_name
+    if link_path.exists() or link_path.is_symlink():
+        link_path.unlink()
+    link_path.symlink_to(f"{CONTAINER_MMSKILLS_ROOT}/skills/{skill_name}")
+
+    manifest = {
+        "name": f"gym-anything-{skill_mode}",
+        "owner": {"name": "MMSkills"},
+        "metadata": {
+            "description": f"{skill_mode.capitalize()} skill for {env_name}",
+            "version": "1.0.0",
+        },
+        "plugins": [
+            {
+                "name": f"gym-anything-{env_name}-{skill_mode}",
+                "description": f"{skill_mode.capitalize()} skill for {env_name}",
+                "source": "./",
+                "strict": False,
+                "skills": [f"./skills/{skill_name}"],
+            }
+        ],
+    }
+    (plugin_root / ".claude-plugin" / "marketplace.json").write_text(
+        json.dumps(manifest, indent=2), encoding="utf-8",
+    )
+
+    logger.info("Built plugin dir for skill %s at %s", skill_name, plugin_root)
+    return f"{CONTAINER_WORKSPACE}/plugin"
 
 SYSTEM_PROMPT = """\
 You are utilising an Ubuntu virtual machine to complete a task autonomously.
@@ -158,6 +236,7 @@ def _run_claude_in_docker(
     bridge_port: int,
     cfg: dict,
     logger: logging.Logger,
+    plugin_dir: str | None = None,
 ) -> tuple[str, str]:
     """Run Claude CLI in an isolated Docker container. Returns (stdout, stderr)."""
     cli_args = [
@@ -169,8 +248,8 @@ def _run_claude_in_docker(
         "--dangerously-skip-permissions",
         "--disallowed-tools", "Bash,Edit,Write,Glob,Grep,Agent,AskUserQuestion,NotebookEdit",
     ]
-    if cfg["skill_mode"] in PLUGIN_DIRS:
-        cli_args.extend(["--plugin-dir", PLUGIN_DIRS[cfg["skill_mode"]]])
+    if plugin_dir:
+        cli_args.extend(["--plugin-dir", plugin_dir])
 
     env_vars = {
         "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
@@ -290,8 +369,18 @@ def run_single_task(cfg: dict, task_id: str, bridge_port: int) -> int:
             task_data = json.loads(task_json_path.read_text(encoding="utf-8"))
             task_desc = task_data.get("description", "")
 
-        skill_section = _build_skill_section(cfg, output_dir)
-        prompt = f"{SYSTEM_PROMPT}{skill_section}\n\nTask: {task_desc}"
+        # Skills are exposed to Claude via a per-task plugin dir (no inline
+        # prompt injection). When skill_mode != "none", we build a
+        # single-skill plugin dir scoped to the current env so cross-domain
+        # skills don't leak in.
+        plugin_dir = None
+        if cfg["skill_mode"] != "none":
+            env_name_for_skill = Path(cfg["env_dir"]).name.removesuffix("_env")
+            plugin_dir = _build_plugin_dir(
+                env_name_for_skill, cfg["skill_mode"], output_dir, logger,
+            )
+
+        prompt = f"{SYSTEM_PROMPT}\n\nTask: {task_desc}"
         (output_dir / "prompt.txt").write_text(prompt, encoding="utf-8")
 
         _write_mcp_config(output_dir, bridge_port)
@@ -305,6 +394,7 @@ def run_single_task(cfg: dict, task_id: str, bridge_port: int) -> int:
         for attempt in range(1, max_retries + 1):
             stdout, stderr = _run_claude_in_docker(
                 docker_client, output_dir, bridge_port, cfg, logger,
+                plugin_dir=plugin_dir,
             )
             if "API Error: 500" in stdout or "API Error: 500" in stderr:
                 logger.warning("API 500 on attempt %d/%d, retrying...", attempt, max_retries)
@@ -366,46 +456,6 @@ def run_single_task(cfg: dict, task_id: str, bridge_port: int) -> int:
     return 0 if score > 0 else 1
 
 
-def _build_skill_section(cfg: dict, output_dir: Path) -> str:
-    """Build the skill guide section for the prompt."""
-    if cfg["skill_mode"] == "none":
-        return ""
-
-    env_name = Path(cfg["env_dir"]).name.removesuffix("_env")
-    skill_dir = MMSKILLS_ROOT / "skills" / f"{env_name}-workflow-{cfg['skill_mode']}"
-    if not skill_dir.exists():
-        skill_dir = MMSKILLS_ROOT / "skills" / f"{env_name}-knowledge-{cfg['skill_mode']}"
-
-    guide_file = skill_dir / "guide.md" if skill_dir.exists() else None
-    if not guide_file or not guide_file.exists():
-        return ""
-
-    guide_text = guide_file.read_text(encoding="utf-8")
-
-    # Copy skill images into workspace
-    skill_images_dir = output_dir / "skill_images"
-    skill_images_dir.mkdir(exist_ok=True)
-    image_paths = []
-    for img in sorted(skill_dir.glob("*.png")):
-        dest = skill_images_dir / img.name
-        shutil.copy2(img, dest)
-        image_paths.append(f"/workspace/skill_images/{img.name}")
-
-    section = "\n\n" + "=" * 60 + "\n"
-    section += "SKILL GUIDE — Read this carefully before starting!\n"
-    section += "=" * 60 + "\n\n"
-    section += guide_text
-    if image_paths:
-        section += "\n\n" + "-" * 60 + "\n"
-        section += "IMPORTANT: The guide references screenshots. You MUST view them "
-        section += "using the Read tool to understand the UI layout. View ALL of these "
-        section += "images BEFORE taking any GUI action:\n\n"
-        for p in image_paths:
-            section += f'  Read("{p}")\n'
-        section += "\nStudy these screenshots carefully — they show you exactly what "
-        section += "each UI element looks like so you can find it on the actual screen.\n"
-
-    return section
 
 
 # ── summarize ───────────────────────────────────────────────────────────────
