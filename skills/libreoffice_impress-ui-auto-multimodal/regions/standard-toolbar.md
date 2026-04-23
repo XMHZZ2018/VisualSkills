@@ -1,30 +1,30 @@
 ---
 region: standard-toolbar
-worker_source: [worker_05]
+worker_source: [worker_04]
 ---
 
-# Standard Toolbar (First Icon Row)
+# Standard Toolbar
 
-The standard toolbar runs horizontally across the top of the window (y~77). It contains ~33 icon buttons covering file operations, clipboard, undo/redo, search, view, presentation, and insert tools. Many buttons have dropdown arrows for additional options.
+The first icon row below the menu bar provides quick access to file operations, clipboard actions, undo/redo, search, and grid controls.
 
 ## Screenshot
 
-![overall](../images/standard-toolbar-overall.png)
+![Standard toolbar row cropped from left edge to grid toggles](../images/standard-toolbar.png)
 
-## Elements (left to right)
+## Elements (left → right)
 
-**File operations:** **New** (Ctrl+N, dropdown: document types), **Open** (Ctrl+O, dropdown: recent files), **Save** (Ctrl+S, dropdown: save variants), **Export Directly as PDF**, **Print** (Ctrl+P)
-
-**Clipboard:** **Cut** (Ctrl+X), **Copy** (Ctrl+C), **Paste** (Ctrl+V, dropdown: paste special), **Clone Formatting** (double-click to lock for multi-selection)
-
-**History:** **Undo** (Ctrl+Z, dropdown: undo history), **Redo** (Ctrl+Y, dropdown: redo history)
-
-**Find & Spelling:** **Find and Replace** (Ctrl+H), **Spelling** (F7)
-
-**Canvas controls:** **Display Grid** (toggle), **Snap to Grid** (toggle), **Display Views** (dropdown: Normal/Outline/Slide Sorter/Notes), **Master Slide** (switch to master edit)
-
-**Presentation:** **Start from First Slide** (F5), **Start from Current Slide** (Shift+F5)
-
-**Insert tools:** **Table** (dropdown: row/column grid picker), **Insert Image**, **Insert Audio or Video**, **Insert Chart**, **Insert Text Box** (F2, double-click for multi), **Insert Special Characters**, **Insert Fontwork Text**, **Insert Hyperlink** (Ctrl+K)
-
-**Drawing & Slides:** **Show Draw Functions** (toggle drawing toolbar), **New Slide** (Ctrl+M, dropdown: layout picker), **Duplicate Slide**, **Delete Slide**, **Slide Layout** (dropdown: layout thumbnails)
+- **New** (Ctrl+N) — opens Select a Template dialog
+- **Open** (Ctrl+O) — file-open dialog
+- **Save** (Ctrl+S)
+- **Export Directly as PDF** — one-click PDF export
+- **Print** (Ctrl+P) — opens Print dialog
+- | separator |
+- **Cut** (Ctrl+X), **Copy** (Ctrl+C), **Paste** (Ctrl+V)
+- **Clone Formatting** — single-click copies formatting; double-click locks mode for multiple targets
+- | separator |
+- **Undo** (Ctrl+Z), **Redo** (Ctrl+Y)
+- | separator |
+- **Find and Replace** (Ctrl+H) — opens Find & Replace dialog
+- **Spelling** (F7) — runs spell-checker
+- **Display Grid** (toggle) — grid overlay visibility
+- **Snap to Grid** (toggle) — object snapping to grid

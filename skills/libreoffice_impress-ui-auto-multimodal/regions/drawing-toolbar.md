@@ -1,39 +1,51 @@
 ---
 region: drawing-toolbar
-worker_source: [worker_06]
+worker_source: [worker_05]
 ---
 
-# Drawing Toolbar (Second Icon Row)
+# Drawing Toolbar
 
-The drawing toolbar runs horizontally at y~104, providing selection, drawing, shape-insertion, color, rotation, alignment, and editing tools. Most shape buttons are split: click to draw with the current sub-type, or click the dropdown arrow to open a shape palette.
+The second icon row provides drawing tools, shape insertion, colour pickers, object arrangement, and editing mode toggles.
 
 ## Screenshot
 
-![overall](../images/drawing-toolbar-overall.png)
+![Drawing toolbar row from Select through Toggle Extrusion](../images/drawing-toolbar.png)
 
-## Elements (left to right)
+## Elements (left → right)
 
-**Selection & Zoom:** **Select** (arrow tool), **Zoom & Pan** (Ctrl to zoom out, Shift to pan)
+**Selection & Navigation**:
+- **Select** — pointer/selection mode
+- **Zoom & Pan** — click to zoom in, Ctrl+click to zoom out, Shift+click to pan
 
-**Colors (split buttons):** **Line Color** (current: Dark Blue 1, dropdown: color picker), **Fill Color** (current: Light Blue 2, dropdown: color picker)
+**Colour Pickers**:
+- **Line Color** (swatch + dropdown arrow) — applies/changes line/border colour
+- **Fill Color** (swatch + dropdown arrow) — applies/changes fill colour
 
-**Drawing tools (split buttons with shape palettes):**
-- **Insert Line** (straight line; double-click for multi-selection)
-- **Rectangle** (hold Shift for square)
-- **Ellipse** (hold Shift for circle)
-- **Lines and Arrows** (dropdown: ~11 arrow/line variants)
-- **Curves and Polygons** (dropdown: curve/polygon sub-types)
-- **Connectors** (dropdown: straight/curved/elbow styles)
+**Drawing Tools** (double-click any to lock mode for multiple draws):
+- **Insert Line** — straight line
+- **Rectangle** (Shift = square)
+- **Ellipse** (Shift = circle)
+- **Lines and Arrows** (+ dropdown with ~12 arrow/line variants)
+- **Curves and Polygons** — freehand curves
 
-**Shape categories (split buttons with palettes):**
-- **Basic Shapes** (triangles, pentagons, etc.)
-- **Symbol Shapes** (smileys, hearts, etc.)
-- **Block Arrows** (directional arrows)
-- **Flowchart** (process, decision, terminator, etc.)
-- **Callout Shapes** (speech bubbles)
-- **Stars and Banners**
-- **3D Objects** (cube, sphere, cylinder, etc.)
+**Shape Palettes** (each has dropdown arrow for full picker):
+- **Connectors** — lines that snap to shape glue points
+- **Basic Shapes** — rectangle, triangle, trapezoid, rhombus, etc.
+- **Symbol Shapes** — hearts, smiley faces, music notes, etc.
+- **Block Arrows** — filled directional arrows
+- **Flowchart** — process, decision, terminator symbols
+- **Callout Shapes** — speech bubbles with tails
+- **Stars and Banners** — decorative star/scroll shapes
+- **3D Objects** (+ dropdown) — cube, sphere, cylinder, cone, etc.
 
-**Object operations:** **Rotate**, **Align Objects** (dropdown: left/center/right/top/middle/bottom), **Arrange** (dropdown: z-order), **Distribute** (requires 3+ objects)
-
-**Effects & editing:** **Shadow** (toggle), **Crop Image**, **Filter** (dropdown: image filters), **Toggle Point Edit Mode** (F8), **Show Gluepoint Functions**, **Toggle Extrusion** (3D effect on 2D objects)
+**Editing & Effects**:
+- **Rotate** — toggle rotation handles on selected object
+- **Align Objects** — left/center/right/top/middle/bottom alignment
+- **Arrange** — z-order (Bring to Front, Send to Back, etc.)
+- **Distribute Objects** — even spacing (requires 3+ objects)
+- **Shadow** (toggle) — drop shadow effect
+- **Crop Image** — cropping handles on images
+- **Filter** — image filter/effects
+- **Toggle Point Edit Mode** (F8) — Bézier node editing
+- **Show Gluepoint Functions** — connector attachment points
+- **Toggle Extrusion** — 3D depth effect on 2D shapes

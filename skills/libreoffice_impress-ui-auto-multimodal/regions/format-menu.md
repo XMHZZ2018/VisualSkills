@@ -1,95 +1,62 @@
 ---
 region: format-menu
-worker_source: [worker_03]
+worker_source: [worker_02]
 ---
 
-# Format Menu
+# Format Menu and Text Formatting Dialogs
 
-The Format menu provides text formatting, object manipulation, and slide-layout controls. It contains 24 top-level items, many with submenus, and opens several multi-tab dialogs for detailed formatting.
+The Format menu controls text styling, paragraph layout, object arrangement, and opens key formatting dialogs.
 
 ## Screenshot
 
-![overall](../images/format-menu-overall.png)
+![Format menu with Text submenu expanded showing text style and case options](../images/format-menu-open.png)
 
 ## Elements
 
-### Text (submenu)
+- **Text** → Bold (Ctrl+B), Italic (Ctrl+I), Single/Double Underline, Strikethrough, Overline, Superscript (Shift+Ctrl+P), Subscript (Shift+Ctrl+B), Shadow, Outline Font Effect, Increase/Decrease Size (Ctrl+]/[), case transforms (UPPERCASE, lowercase, Cycle Case, Sentence case, Capitalize Every Word, tOGGLE cASE, Small capitals)
+- **Spacing** → Line Spacing 1/1.5/2 (Ctrl+1/5/2), Increase/Decrease Paragraph Spacing, Increase/Decrease Indent
+- **Align Text** → Left (Ctrl+L), Center (Ctrl+E), Right (Ctrl+R), Justified (Ctrl+J); vertical: Top, Center, Bottom
+- **Lists** → Unordered List, Ordered List, Demote/Promote (Shift+Alt+Right/Left), Move Down/Up (Shift+Alt+Down/Up)
+- **Clear Direct Formatting** (Shift+Ctrl+M)
+- **Styles** → Edit Style (Alt+P), Update Selected Style, New Style from Selection, Manage Styles (F11)
+- **Character...** — opens Character dialog
+- **Paragraph...** — opens Paragraph dialog
+- **Bullets and Numbering...** — opens Bullets dialog
+- **Theme...** — slide theme/color-scheme manager
+- **Table** → row/column operations, Merge Cells, Split Cells, Properties
+- **Image**, **Text Box and Shape** — context-dependent submenus
+- **Shadow** (toggle), Interaction..., Name..., Alt Text... (object-dependent)
+- **Distribute Selection** → horizontal/vertical distribution
+- **Rotate**, **Flip** → orientation commands
+- **Convert** → shape conversion options
+- **Align Objects** → Left, Center, Right, Top, Middle, Bottom
+- **Arrange** → Bring to Front (Shift+Ctrl++), Bring Forward (Ctrl++), Send Backward (Ctrl+-), Send to Back (Shift+Ctrl+-), In Front of/Behind Object, Reverse
+- **Group** → group/ungroup operations
 
-Inline text toggles and case commands:
-- **Bold** (Ctrl+B), **Italic** (Ctrl+I), Single Underline, Double Underline, Strikethrough, Overline, Superscript (Shift+Ctrl+P), Subscript (Shift+Ctrl+B), Shadow, Outline Font Effect
-- **Increase Size** (Ctrl+]), **Decrease Size** (Ctrl+[)
-- Case changes: UPPERCASE, lowercase, Cycle Case, Sentence case, Capitalize Every Word, tOGGLE cASE, Small capitals
+## Key Dialogs
 
-### Spacing (submenu)
+### Character Dialog
 
-Line Spacing: 1 (Ctrl+1), 1.5 (Ctrl+5), 2 (Ctrl+2). Increase/Decrease Paragraph Spacing. Increase/Decrease Indent.
+![Character dialog – Fonts tab with Family, Style, Size, Language, and preview](../images/character-dialog.png)
 
-### Align Text (submenu)
+Four tabs: **Fonts**, Font Effects, Position, Highlighting.
 
-Horizontal: Left (Ctrl+L), Center (Ctrl+E), Right (Ctrl+R), Justified (Ctrl+J). Vertical: Top, Center, Bottom.
+- **Fonts**: Family list, Style dropdown, Size, Language, Features button, live preview
+- **Font Effects**: Font Color + Transparency, Overlining, Strikethrough, Underlining (each with color), Case, Relief, Outline/Shadow toggles
+- **Position**: Superscript/Subscript/Normal, Spacing (expanded/condensed), Pair kerning
+- **Highlighting**: Background highlight color
 
-### Lists (submenu)
+### Paragraph Dialog
 
-Unordered List, Ordered List, Demote (Shift+Alt+Right), Promote (Shift+Alt+Left), Move Down/Up.
+![Paragraph dialog – Indents & Spacing tab with Indent, Spacing, and Line Spacing controls](../images/paragraph-dialog.png)
 
-### Clear Direct Formatting (Shift+Ctrl+M)
+Three tabs: **Indents & Spacing**, Tabs, Alignment.
 
-Removes all manually applied formatting, reverting to style defaults.
+- **Indent**: Before text, After text, First line (+ Automatic checkbox)
+- **Spacing**: Above/Below paragraph, "Do not add space between paragraphs of the same style"
+- **Line Spacing**: Single / 1.5 / Double / Proportional / At least / Leading / Fixed
+- Live paragraph preview on right
 
-### Styles (submenu)
+### Bullets and Numbering Dialog
 
-Edit Style (Alt+P), Update Selected Style, New Style from Selection, Manage Styles (F11).
-
-### Character / Paragraph / Bullets and Numbering
-
-These open complex multi-tab dialogs. See [Character & Paragraph Dialogs](character-paragraph-dialogs.md) for full details.
-
-### Theme
-
-Opens a color-theme picker: LibreOffice (light/dark), Rainbow, Beach, Sunset, Ocean, Forest, Breeze. Add button for custom themes.
-
-### Table (submenu)
-
-Row/column/cell operations (active only when a table is selected): Minimal/Optimal Row Height, Distribute Rows Evenly, Select/Insert/Delete Rows, Minimal/Optimal Column Width, Distribute Columns Evenly, Select/Insert/Delete Columns, Merge Cells, Split Cells, Select, Properties.
-
-### Image (submenu)
-
-Crop, Original Size, Edit with External Tool, Replace, Compress, Save, Filter (submenu), Color, Crop Dialog, Graphic Size Check. Most require an image selection.
-
-### Text Box and Shape (submenu)
-
-Position and Size (F4), Text Attributes, Line, Area.
-
-### Object operations
-
-| Item | Behaviour |
-|------|-----------|
-| Shadow | Toggle drop shadow on selected object |
-| Interaction | Set click-action for selected object |
-| Name | Assign a name to selected object |
-| Alt Text | Set accessibility text for selected object |
-| Rotate | Activate rotation handles |
-
-### Distribute Selection (submenu)
-
-Distributes 3+ selected objects evenly: Horizontally (Left/Center/Spacing/Right), Vertically (Top/Center/Spacing/Bottom).
-
-### Flip (submenu)
-
-Vertically, Horizontally.
-
-### Convert (submenu)
-
-To Curve, To Polygon, To Contour, To 3D, To 3D Rotation Object, To Bitmap, To Metafile.
-
-### Align Objects (submenu)
-
-Left, Centered, Right, Top, Center, Bottom.
-
-### Arrange (submenu)
-
-Bring to Front (Shift+Ctrl++), Bring Forward (Ctrl++), Send Backward (Ctrl+-), Send to Back (Shift+Ctrl+-), In Front of Object, Behind Object, Reverse.
-
-### Group (submenu)
-
-Group (Shift+Ctrl+G), Ungroup (Shift+Ctrl+Alt+G), Enter Group (F3), Exit Group (Ctrl+F3).
+Opened via **Format > Bullets and Numbering...**. Controls: Level list (1–10 + all), Properties (Type, Character, Color, Relative size), Position (Indent, Width, Alignment), Scope (Slide/Selection), Apply to Master button, live preview.
