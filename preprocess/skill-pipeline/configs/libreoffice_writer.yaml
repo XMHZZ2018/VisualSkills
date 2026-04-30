@@ -1,0 +1,18 @@
+app_name: "LibreOffice Writer"
+app_version: "7.3.7"
+domain: "libreoffice_writer"
+
+sources:
+  pdf_guide:
+    url: "https://documentation.libreoffice.org/assets/Uploads/Documentation/en/WG7.3/WG73-WriterGuide.pdf"
+
+# Full-PDF mode (default): the taxonomy comes from the PDF guide's table of contents.
+# To switch to task-filtered mode, uncomment the `tasks:` block below.
+#
+# tasks:
+#   env_dir: "vendor/gym-anything/benchmarks/cua_world/environments/libreoffice_writer_env"
+#   split:   "vendor/gym-anything/benchmarks/cua_world/splits/libreoffice_writer_split.json"
+#   use:     "test_tasks"
+#   # task_list:
+#   #   - chem_inventory_formatting
+#   #   - policy_style_standardization

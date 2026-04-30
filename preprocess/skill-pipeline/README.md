@@ -1,158 +1,159 @@
-# Skill Pipeline
+# Skill Pipeline (v1)
 
-Generate domain-specific skills from YouTube tutorials using a taxonomy-driven approach.
-
-## Pipeline Overview
-
-```
-discover.py → taxonomy.json → generate.py → skills/
-                                   ↓
-                              evolve.py (future)
-```
-
-## Quick Start
+Generate domain-specific skills (text and/or multimodal) for a desktop
+application from one of three knowledge sources, all driven by a single YAML
+config and one Python entry point.
 
 ```bash
-cd preprocess/skill-pipeline
-
-# 1. Build taxonomy for a domain
-python3 discover.py --domain chrome
-
-# 2. Generate skills (text + multimodal)
-python3 generate.py --domain chrome --mode both
+./run.sh --config configs/<domain>.yaml --mode multimodal --parallel 4
 ```
 
-## Phase 1+2: Discover & Organize (`discover.py`)
+## Three modes
 
-Builds a hierarchical taxonomy for a domain using two sources:
+The pipeline auto-detects which mode to run based on what's in the YAML:
 
-1. **Claude's knowledge** — drafts an initial taxonomy with 20-40 leaf topics
-2. **YouTube validation** — searches multiple query variants per topic, attaches best video
+| Mode | Trigger | Taxonomy comes from | Per-topic content |
+|------|---------|--------------------|-------------------|
+| **Full-PDF** | `sources.pdf_guide.url` | The PDF's printed Table of Contents | Page renders cropped from the PDF |
+| **HTML docs** | `sources.html_guide.root_url` | Crawl from a root page (acts as the ToC) | Full-page playwright screenshots + `<img>` tags |
+| **Task-filtered** | A `tasks:` block | Cluster gym-anything tasks into topics | Pages of a PDF mapped to each topic via Claude |
 
-Each leaf gets 2-3 `search_queries` (different phrasings users would type). All variants are searched, results deduplicated, and the best video is selected by view count (preferring ≤10 min).
+All three converge on the same downstream pipeline.
 
-A broad YouTube search also catches topics Claude may have missed.
+## Pipeline phases
+
+| Phase | What it does | Output |
+|-------|--------------|--------|
+| 1 — Taxonomy | Build a 2-layer category → topic structure | `workspace/<domain>/taxonomy.json` |
+| 2 — Per-topic pages | Render the source pages for each topic (PDF crop @ 300 DPI, or playwright full-page PNG) | `workspace/<domain>/{pdf,html}_pages/<topic>/page_NNNN.png` |
+| 3 — Figures | PDF: extract bitmap xrefs, fall back to LLM-bbox detection. HTML: download `<img>` tags. | `workspace/<domain>/{pdf,html}_figures/<topic>/fig_NNN.png` |
+| 4 — Text guide | Concise prose `guide.md` per topic from page images | `skills/<domain>-knowledge-text-v1/<cat>/<topic>/guide.md` |
+| 5 — Multimodal guide | Same prose with `Read the screenshot figNN.png` paragraphs spliced in + figure files copied | `skills/<domain>-knowledge-multimodal-v1/<cat>/<topic>/{guide.md,figNN.png}` |
+| 6 — Index | Per-modality `SKILL.md` listing all topics | `skills/<domain>-knowledge-{text,multimodal}-v1/SKILL.md` |
+
+Every phase caches its output. Re-running skips completed work; delete the
+relevant cache file to force regeneration.
+
+## Config examples
+
+**Full-PDF mode** (`configs/libreoffice_writer.yaml`):
+```yaml
+app_name: "LibreOffice Writer"
+app_version: "7.3.7"
+domain: "libreoffice_writer"
+sources:
+  pdf_guide:
+    url: "https://documentation.libreoffice.org/.../WG73-WriterGuide.pdf"
+```
+
+**HTML-docs mode** (`configs/zotero.yaml`):
+```yaml
+app_name: "Zotero"
+app_version: "7"
+domain: "zotero"
+sources:
+  html_guide:
+    root_url: "https://www.zotero.org/support/start"
+    crawl_depth: 2
+```
+
+`crawl_depth` controls how many link-hops we follow from the root when
+harvesting structure. Depth 1 = the root page only (its links become topics).
+Depth 2 = also walk each linked page's headings to discover sub-topics.
+Content for each topic is always fetched in Phase 2 regardless of depth.
+
+**Task-filtered mode** (`configs/libreoffice_impress.yaml`):
+```yaml
+app_name: "LibreOffice Impress"
+app_version: "7.3.7"
+domain: "libreoffice_impress"
+sources:
+  pdf_guide:
+    url: "https://documentation.libreoffice.org/.../IG73-ImpressGuide.pdf"
+tasks:
+  env_dir: "vendor/gym-anything/.../libreoffice_impress_env"
+  # Optional: restrict to a split subset
+  # split: "vendor/gym-anything/.../libreoffice_impress_split.json"
+  # use:   "test_tasks"
+  # Optional: exact override list of task ids
+  # task_list: ["create_flowchart", ...]
+```
+
+## Usage
 
 ```bash
-python3 discover.py --domain chrome
-python3 discover.py --domain chrome --skip-youtube  # Claude-only, no validation
+# Full pipeline, both modalities, 4 topics in parallel
+./run.sh --config configs/libreoffice_writer.yaml --mode both --parallel 4
+
+# Multimodal only — drafts the prose internally, only writes multimodal-v1
+./run.sh --config configs/zotero.yaml --mode multimodal --parallel 4
+
+# Text only
+./run.sh --config configs/libreoffice_impress.yaml --mode text
+
+# Task mode with a specific subset
+./run.sh --config configs/libreoffice_impress.yaml --task_ids create_flowchart
 ```
 
-Output: `data/<domain>/taxonomy.json`
+`--mode multimodal` does **not** require `text-v1` to exist — it drafts the
+prose internally and caches it at `workspace/<domain>/text_drafts/<cat>/<topic>.md`,
+so a later `--mode both` reuses that draft for free.
 
-### Taxonomy structure
-
-Max depth = 3 (root → category → leaf topic):
-
-```
-Chrome (depth 0)
-├── Privacy & Security (depth 1)
-│   ├── safe-browsing (depth 2, leaf)
-│   ├── clear-cache-cookies (leaf)
-│   └── ...
-├── Tabs & Windows (depth 1)
-│   └── ...
-└── ...
-```
-
-## Phase 3: Generate Skills (`generate.py`)
-
-For each leaf topic in the taxonomy:
-
-### Text skills
-1. Download video + transcript (via yt-dlp)
-2. Claude generates a step-by-step `guide.md` from the transcript
-
-### Multimodal skills (coarse-to-fine frame selection)
+## Output layout
 
 ```
-Pass 1 (coarse):
-  Extract frames at adaptive interval → Claude sees transcript + coarse frames
-  Claude outputs: guide steps + "step 3 needs screenshot at ~45s"
-
-Pass 2 (fine):
-  Extract frames every 1s within ±3s of each key timestamp
-  Claude picks the best frame per step
-
-Pass 3 (assemble):
-  guide.md with step text + embedded PNGs
+skills/
+├── <domain>-knowledge-text-v1/
+│   ├── SKILL.md
+│   └── <category>/<topic>/guide.md
+└── <domain>-knowledge-multimodal-v1/
+    ├── SKILL.md
+    └── <category>/<topic>/
+        ├── guide.md          # same prose, with figure-reference paragraphs
+        ├── fig01.png         # selected figures, renumbered in insertion order
+        ├── fig02.png
+        └── ...
 ```
 
-Adaptive coarse interval based on video duration:
+The multimodal `guide.md` is the text guide byte-for-byte, plus paragraphs of
+the form *"Read the screenshot `figNN.png` in this directory — you will see
+&lt;short description&gt;."* spliced in at the spots Claude judged most useful.
 
-| Duration | Interval | ~Frames |
-|----------|----------|---------|
-| <1 min | 2s | ~30 |
-| 1-2 min | 3s | ~40 |
-| 2-5 min | 5s | ~60 |
-| 5-10 min | 10s | ~60 |
-| 10-20 min | 20s | ~60 |
-
-Videos over 20 minutes are skipped.
-
-```bash
-# Generate both text and multimodal
-python3 generate.py --domain chrome --mode both
-
-# Text only (no video download needed beyond transcript)
-python3 generate.py --domain chrome --mode text
-
-# Multimodal only
-python3 generate.py --domain chrome --mode multimodal
-
-# Single topic
-python3 generate.py --domain chrome --node safe-browsing
-```
-
-### Output structure
+## Workspace cache
 
 ```
-skills/os-world/text/chrome-knowledge/
-├── SKILL.md                              # Auto-generated index
-├── tabs-windows/
-│   ├── open-close-tabs/guide.md
-│   └── pin-tabs/guide.md
-└── privacy-security/
-    └── safe-browsing/guide.md
-
-skills/os-world/multimodal/chrome-knowledge/
-├── SKILL.md
-├── tabs-windows/
-│   ├── open-close-tabs/
-│   │   ├── guide.md
-│   │   ├── step01.png
-│   │   ├── step03.png
-│   │   └── step05.png
-│   └── ...
-└── ...
+workspace/<domain>/
+├── official-guide.pdf          # PDF mode: downloaded once
+├── html_cache/                 # HTML mode: per-URL HTML cache
+├── toc_raw.json                # PDF mode: raw outline from PyMuPDF
+├── toc_pages/                  # PDF mode: rendered ToC pages + per-page OCR JSON
+├── html_outline_raw.json       # HTML mode: harvested headings + links
+├── taxonomy.json               # Phase 1 output (delete to regenerate)
+├── pdf_pages/<topic>/          # PDF mode: 300-DPI page renders
+├── html_pages/<topic>/         # HTML mode: playwright full-page screenshots
+├── pdf_figures/<topic>/        # PDF mode: cropped figures + figures.json
+├── html_figures/<topic>/       # HTML mode: downloaded <img> + figures.json
+└── text_drafts/<cat>/<topic>.md # In-memory prose cache (shared by both modalities)
 ```
 
-## Phase 4: Evolve (`evolve.py`) — planned
+## Requirements
 
-Incrementally update the taxonomy as new tasks arrive. Uses COBWEB-style operations:
+- Python 3.10+ (uses `X | Y` type unions)
+- `claude` CLI authenticated (model: `claude-opus-4-6`)
+- `PyMuPDF`, `Pillow`, `PyYAML` — for PDFs
+- `requests`, `beautifulsoup4`, `playwright` (with `chromium` installed) — for HTML mode
 
-| Operation | When |
-|-----------|------|
-| **ABSORB** | Task fits an existing leaf |
-| **CREATE** | No leaf matches → add new leaf |
-| **SPLIT** | A leaf is too broad → break into sub-leaves |
-| **MERGE** | Two siblings overlap → combine |
+## Architecture notes
 
-See [DESIGN.md](DESIGN.md) for full details.
-
-## Data layout
-
-```
-preprocess/skill-pipeline/
-├── README.md
-├── DESIGN.md           # Full design document
-├── discover.py         # Phase 1+2
-├── generate.py         # Phase 3
-├── taxonomy.py         # Shared tree data structure
-├── evolve.py           # Phase 4 (planned)
-└── data/
-    └── chrome/
-        ├── taxonomy.json       # Living taxonomy
-        ├── evolution_log.json  # Phase 4 audit trail (planned)
-        └── videos/             # Downloaded videos + frames (gitignored)
-```
+- **Single script**: `generate_skill_from_knowledge_source.py`. The runner
+  dispatches on the YAML config. There used to be `generate_from_docs.py` and
+  `generate_from_tasks.py`; they're unified.
+- **All LLM calls** route through a thin `call_claude()` wrapper that shells
+  out to the `claude` CLI. The CLI is run from `cwd=/tmp` because the project
+  directory's `.claude/`/`.mcp.json` configuration confuses non-interactive
+  invocations.
+- **Parallelism** is at the topic level in Phases 4/5 (`--parallel N`). Phase 1
+  ToC OCR is intentionally serial — parallel cold-start of `claude -p` can
+  trip the OAuth `client_data` rate limit.
+- **Caching is aggressive**: every phase keys its outputs into `workspace/`
+  and skips on hit. Delete a specific cache file to force that phase only.

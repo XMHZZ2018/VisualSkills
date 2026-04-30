@@ -63,7 +63,7 @@ cd "$SCRIPT_DIR"
 
 export PYTHONUNBUFFERED=1
 
-exec python3 -u generate_from_tasks.py \
+exec python3 -u generate_skill_from_knowledge_source.py \
     --config "$CONFIG" \
     --mode "$MODE" \
     --parallel "$PARALLEL" \
