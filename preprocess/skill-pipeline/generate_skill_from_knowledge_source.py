@@ -50,6 +50,7 @@ import argparse
 import json
 import re
 import shutil
+import tempfile
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -68,13 +69,22 @@ CLAUDE_MODEL = "claude-opus-4-6"
 PDF_DPI = 300            # page render DPI — high enough for clean figure crops
 TOC_DPI = 200            # ToC pages render DPI — text-legibility is enough
 TOC_RENDER_CAP = 25      # max ToC pages to attach to a Phase 1 prompt
-FIG_CROP_PADDING_PX = 8  # pixel padding around detected figure bboxes
-MIN_BITMAP_PT = 60       # min figure side in PDF points (72pt = 1in) — skip tiny icons
-MIN_VECTOR_FRAC = 0.08   # min figure area fraction of page for LLM-bbox fallback
+MIN_FIG_FRAC = 0.05      # min figure area fraction of page (skip decorative icons)
+MIN_BITMAP_PT = 60       # min embedded-bitmap side length (PDF points) to be a figure
+FIG_CROP_PADDING_PX = 8  # pixel padding around bitmap-rect crops
+SPLIT_GAP_PT = 12        # max gap between bitmap rects to call them split panels of one figure
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Config & workspace
 # ═══════════════════════════════════════════════════════════════════════════════
+
+# Default parallelism per phase. Configs can override under a `parallel:` block.
+DEFAULT_PARALLEL = {
+    "phase_2": 8,  # page rendering — local I/O, safe to run high
+    "phase_3": 8,  # figure extraction — pure bitmap-xref, no LLM (local I/O)
+    "phase_4": 4,  # guide generation — Claude calls per topic, keep modest for rate limits
+}
+
 
 def load_config(config_path: Path) -> dict:
     if not config_path.exists():
@@ -83,6 +93,9 @@ def load_config(config_path: Path) -> dict:
     cfg = yaml.safe_load(config_path.read_text())
     if "domain" not in cfg:
         cfg["domain"] = config_path.stem
+    # Resolve per-phase parallelism, falling back to defaults.
+    user_parallel = cfg.get("parallel") or {}
+    cfg["parallel"] = {k: int(user_parallel.get(k, v)) for k, v in DEFAULT_PARALLEL.items()}
     return cfg
 
 
@@ -827,149 +840,185 @@ def phase_pdf_pages(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Phase 3: Figure extraction (bitmap xrefs + LLM-bbox fallback)
+# Phase 3: Figure extraction (deterministic, bitmap-xref only — no LLM)
 # ═══════════════════════════════════════════════════════════════════════════════
+#
+# Strategy:
+#   1. Use PyMuPDF `page.get_images(full=True)` + `get_image_rects(xref)` to
+#      locate every embedded bitmap rectangle on the page (in PDF points).
+#   2. Cluster rects that look like split panels of one logical figure
+#      (adjacent on one axis, overlapping on the other). Each cluster's
+#      union bbox = one figure.
+#   3. For each cluster, crop the union bbox from the rendered 300-DPI page
+#      PNG, extend the bottom to the matching "Figure N: ..." caption block,
+#      and widen the X range to cover any text blocks (legend/key) sitting
+#      between the bitmap and the caption.
+#
+# Pages with no embedded bitmaps contribute no figures. No LLM call is ever
+# made — coordinates come straight from the PDF's image-object rects, so
+# body-text bleed is structurally impossible.
 
-FIGURE_BBOX_PROMPT = """\
-The attached image is a single page from a software user guide (LibreOffice / similar). \
-Identify rectangular figure regions — screenshots, dialogs, diagrams, illustrations. \
-Ignore body paragraphs, headings, page numbers, and tables of text.
-
-Return normalized bounding boxes where each value is a fraction of the image's width \
-or height in the range 0.0-1.0.
-
-Output ONLY this JSON:
-{{
-    "figures": [
-        {{"bbox": [x0, y0, x1, y1], "description": "short description of what's shown"}}
-    ]
-}}
-
-Rules:
-- Skip decorative icons and figures smaller than ~10% of the page area
-- If the page has no figures, return {{"figures": []}}
-- Use tight bounding boxes — exclude surrounding body text
-"""
+_FIG_CAPTION_RE = re.compile(r"^\s*Figure\s+(\d+)\b[:.\s\-]*(.*)$", re.IGNORECASE)
 
 
-def _find_caption(page: fitz.Page, rect: fitz.Rect) -> str:
-    """Look for a caption block directly below rect."""
+def _bitmap_rects_for_page(page) -> list:
+    """Embedded-image rectangles on the page, deduped, in PDF points."""
+    try:
+        infos = page.get_images(full=True)
+    except Exception:
+        return []
+    rects: list = []
+    for info in infos:
+        xref = info[0]
+        try:
+            page_rects = page.get_image_rects(xref)
+        except Exception:
+            continue
+        for r in page_rects:
+            if r.width < MIN_BITMAP_PT or r.height < MIN_BITMAP_PT:
+                continue
+            if any(
+                abs(s.x0 - r.x0) < 2 and abs(s.y0 - r.y0) < 2
+                and abs(s.x1 - r.x1) < 2 and abs(s.y1 - r.y1) < 2
+                for s in rects
+            ):
+                continue
+            rects.append(fitz.Rect(r))
+    return rects
+
+
+def _are_split_panels(a, b) -> bool:
+    """True if two bitmap rects look like adjacent panels of one figure."""
+    y_overlap = min(a.y1, b.y1) - max(a.y0, b.y0)
+    x_gap = max(a.x0, b.x0) - min(a.x1, b.x1)
+    if x_gap <= SPLIT_GAP_PT and y_overlap > 0.5 * min(a.height, b.height):
+        return True
+    x_overlap = min(a.x1, b.x1) - max(a.x0, b.x0)
+    y_gap = max(a.y0, b.y0) - min(a.y1, b.y1)
+    if y_gap <= SPLIT_GAP_PT and x_overlap > 0.5 * min(a.width, b.width):
+        return True
+    return False
+
+
+def _cluster_split_panels(rects: list) -> list:
+    """Group rects into clusters where members are pairwise split-panel-adjacent
+    (transitively). Returns one union `fitz.Rect` per cluster.
+
+    A figure stored as N adjacent strips ends up as one rect; truly separate
+    figures stay separate.
+    """
+    n = len(rects)
+    if n == 0:
+        return []
+    parent = list(range(n))
+
+    def find(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    def union(i: int, j: int) -> None:
+        ri, rj = find(i), find(j)
+        if ri != rj:
+            parent[ri] = rj
+
+    for i in range(n):
+        for j in range(i + 1, n):
+            if _are_split_panels(rects[i], rects[j]):
+                union(i, j)
+
+    groups: dict[int, list] = {}
+    for i, r in enumerate(rects):
+        groups.setdefault(find(i), []).append(r)
+
+    merged = []
+    for members in groups.values():
+        u = fitz.Rect(members[0])
+        for m in members[1:]:
+            u |= m
+        merged.append(u)
+    # Stable order: top-to-bottom, then left-to-right.
+    merged.sort(key=lambda r: (r.y0, r.x0))
+    return merged
+
+
+def _find_caption(page, rect) -> tuple:
+    """Return (figure_number, caption_text, caption_block_y1) for a bitmap rect.
+
+    Searches text blocks immediately below (or above) the bitmap for a line
+    matching `^Figure N: ...`. Returns (None, "", None) if no caption found.
+    """
     try:
         blocks = page.get_text("blocks")
     except Exception:
-        return ""
-    best_text = ""
+        return None, "", None
+    best = None
     best_dist = 1e9
     for b in blocks:
         if len(b) < 5:
             continue
         x0, y0, x1, y1, text = b[0], b[1], b[2], b[3], b[4]
-        if not isinstance(text, str) or not text.strip():
+        if not isinstance(text, str):
             continue
-        if y0 < rect.y1 - 2:
-            continue
-        h_overlap = min(x1, rect.x1) - max(x0, rect.x0)
-        if h_overlap <= 0:
-            continue
-        dist = y0 - rect.y1
-        if dist < 80 and dist < best_dist:
-            best_dist = dist
-            best_text = text.strip()
-    if not best_text:
-        return ""
-    first_line = best_text.split("\n")[0].strip()
-    return first_line[:200]
+        for line in text.split("\n"):
+            m = _FIG_CAPTION_RE.match(line)
+            if not m:
+                continue
+            if y0 >= rect.y1 - 2:
+                dist = y0 - rect.y1
+            elif y1 <= rect.y0 + 2:
+                dist = rect.y0 - y1
+            else:
+                continue
+            if min(x1, rect.x1) - max(x0, rect.x0) <= 0:
+                continue
+            if dist < 120 and dist < best_dist:
+                best_dist = dist
+                best = (int(m.group(1)), line.strip()[:300], float(y1))
+    if best is None:
+        return None, "", None
+    return best
 
 
 def _extract_bitmap_figures(
-    page: fitz.Page, page_image: Path, out_dir: Path, start_idx: int,
+    page, rects: list, page_image: Path, out_dir: Path, start_idx: int,
 ) -> tuple[list[dict], int]:
-    """Crop embedded bitmap figures from page_image using PDF xref rects."""
-    results: list[dict] = []
-    idx = start_idx
+    """Crop each bitmap rect from the rendered page image; extend to caption."""
+    if not rects:
+        return [], start_idx
+    page_img = Image.open(page_image)
+    W, H = page_img.size
+    scale = PDF_DPI / 72.0  # PDF points → rendered pixels
     try:
-        img_infos = page.get_images(full=True)
+        all_blocks = page.get_text("blocks")
     except Exception:
-        img_infos = []
-    if not img_infos:
-        return results, idx
-
-    page_img = Image.open(page_image)
-    W, H = page_img.size
-    scale = PDF_DPI / 72.0
-
-    seen_rects: list[fitz.Rect] = []
-    for info in img_infos:
-        xref = info[0]
-        try:
-            rects = page.get_image_rects(xref)
-        except Exception:
-            rects = []
-        for rect in rects:
-            if rect.width < MIN_BITMAP_PT or rect.height < MIN_BITMAP_PT:
-                continue
-            # Skip near-duplicates (same image drawn twice)
-            dup = False
-            for s in seen_rects:
-                if abs(s.x0 - rect.x0) < 2 and abs(s.y0 - rect.y0) < 2 \
-                   and abs(s.x1 - rect.x1) < 2 and abs(s.y1 - rect.y1) < 2:
-                    dup = True
-                    break
-            if dup:
-                continue
-            seen_rects.append(rect)
-
-            x0 = max(0, int(rect.x0 * scale) - FIG_CROP_PADDING_PX)
-            y0 = max(0, int(rect.y0 * scale) - FIG_CROP_PADDING_PX)
-            x1 = min(W, int(rect.x1 * scale) + FIG_CROP_PADDING_PX)
-            y1 = min(H, int(rect.y1 * scale) + FIG_CROP_PADDING_PX)
-            if x1 - x0 < 80 or y1 - y0 < 80:
-                continue
-            idx += 1
-            out = out_dir / f"raw_{idx:03d}.png"
-            page_img.crop((x0, y0, x1, y1)).save(out)
-            results.append({
-                "path": str(out),
-                "page": page.number + 1,
-                "source": "bitmap",
-                "caption": _find_caption(page, rect),
-                "description": "",
-            })
-    return results, idx
-
-
-def _extract_vector_figures(
-    page: fitz.Page, page_image: Path, out_dir: Path, start_idx: int,
-) -> tuple[list[dict], int]:
-    """LLM-bbox fallback for pages without embedded bitmaps (vector figures)."""
-    resp = call_claude(FIGURE_BBOX_PROMPT, images=[page_image], timeout=120)
-    if not resp:
-        return [], start_idx
-    data = parse_json_response(resp)
-    figs = (data or {}).get("figures", []) if isinstance(data, dict) else []
-    if not figs:
-        return [], start_idx
-
-    page_img = Image.open(page_image)
-    W, H = page_img.size
+        all_blocks = []
     results: list[dict] = []
     idx = start_idx
-    for f in figs:
-        bbox = f.get("bbox")
-        if not (isinstance(bbox, list) and len(bbox) == 4):
-            continue
-        try:
-            x0n, y0n, x1n, y1n = (float(v) for v in bbox)
-        except (TypeError, ValueError):
-            continue
-        x0 = max(0, int(min(x0n, x1n) * W))
-        y0 = max(0, int(min(y0n, y1n) * H))
-        x1 = min(W, int(max(x0n, x1n) * W))
-        y1 = min(H, int(max(y0n, y1n) * H))
+    for r in rects:
+        fig_num, caption, cap_y1 = _find_caption(page, r)
+        x0_pt, x1_pt = r.x0, r.x1
+        y0_pt, y1_pt = r.y0, r.y1
+        # Extend bottom to caption line; widen X to cover any text (legend/key)
+        # between the bitmap rect and the caption.
+        if cap_y1 is not None and cap_y1 > r.y1:
+            y1_pt = cap_y1
+            for b in all_blocks:
+                if len(b) < 5:
+                    continue
+                bx0, by0, bx1, by1, btext = b[0], b[1], b[2], b[3], b[4]
+                if not isinstance(btext, str) or not btext.strip():
+                    continue
+                if by0 < r.y1 - 2 or by1 > cap_y1 + 2:
+                    continue
+                x0_pt = min(x0_pt, bx0)
+                x1_pt = max(x1_pt, bx1)
+        x0 = max(0, int(x0_pt * scale) - FIG_CROP_PADDING_PX)
+        y0 = max(0, int(y0_pt * scale) - FIG_CROP_PADDING_PX)
+        x1 = min(W, int(x1_pt * scale) + FIG_CROP_PADDING_PX)
+        y1 = min(H, int(y1_pt * scale) + FIG_CROP_PADDING_PX)
         if x1 - x0 < 100 or y1 - y0 < 100:
-            continue
-        area_frac = ((x1 - x0) * (y1 - y0)) / float(W * H)
-        if area_frac < MIN_VECTOR_FRAC:
             continue
         idx += 1
         out = out_dir / f"raw_{idx:03d}.png"
@@ -977,9 +1026,8 @@ def _extract_vector_figures(
         results.append({
             "path": str(out),
             "page": page.number + 1,
-            "source": "vector",
-            "caption": "",
-            "description": (f.get("description") or "").strip()[:200],
+            "figure_number": fig_num,
+            "caption": caption,
         })
     return results, idx
 
@@ -990,10 +1038,12 @@ def phase_figures(
     ws: Path,
     parallel: int = 1,
 ) -> dict[str, list[dict]]:
-    """Extract figure crops per topic. Returns {topic_id: [figure dict, ...]}.
+    """Extract figure crops per topic, deterministically.
 
-    Parallelized across topics. Each worker opens its own `fitz.Document` so
-    we never share a Document across threads (PyMuPDF requires this).
+    For each page: get embedded-bitmap rects, cluster split panels into one
+    rect per logical figure, then crop the union from the rendered 300-DPI
+    PNG with caption-driven Y-extension and X-widening for legends.
+    Pages with no embedded bitmaps contribute no figures.
     """
     root = ws / "pdf_figures"
 
@@ -1005,18 +1055,19 @@ def phase_figures(
         if cache.exists():
             return topic_id, json.loads(cache.read_text())
 
+        # Each worker opens its own fitz.Document — PyMuPDF is not thread-safe.
         doc = fitz.open(str(pdf_path))
         try:
             idx = 0
             topic_figs: list[dict] = []
             for page_num, page_image in pairs:
                 page = doc[page_num]
-                bmp, idx = _extract_bitmap_figures(page, page_image, topic_dir, idx)
-                if bmp:
-                    topic_figs.extend(bmp)
-                else:
-                    vec, idx = _extract_vector_figures(page, page_image, topic_dir, idx)
-                    topic_figs.extend(vec)
+                rects = _bitmap_rects_for_page(page)
+                merged = _cluster_split_panels(rects)
+                figs, idx = _extract_bitmap_figures(
+                    page, merged, page_image, topic_dir, idx,
+                )
+                topic_figs.extend(figs)
         finally:
             doc.close()
         cache.write_text(json.dumps(topic_figs, indent=2) + "\n")
@@ -1513,33 +1564,34 @@ def generate_text_guide(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Phase 4 (multimodal path): one-shot prose + inline figure references
+# Phase 4 (multimodal path): two-call design — prose-with-placeholders + anchor
 # ═══════════════════════════════════════════════════════════════════════════════
 #
-# The multimodal path is *independent* from the text path. It does not read or
-# share `text_drafts/`. Instead, it issues a single Claude call given both the
-# topic's page images and the candidate figure crops, and asks Claude to write
-# the full markdown guide with `Read the screenshot ...` paragraphs inlined at
-# the spots where a figure genuinely helps. After we get the markdown back, we
-# extract which raw figures Claude actually referenced (in order of appearance),
+# Independent from the text path. Two Claude calls per topic:
+#
+#   Call A (prose): pages → markdown body. Where a figure would help, Claude
+#     inserts a placeholder line of the form
+#         <!-- figure: <short description> -->
+#     immediately after the relevant sentence. No filenames yet.
+#
+#   Call B (anchors): the placeholder-marked prose + a small thumbnail per
+#     candidate figure (filename + caption attached). For each placeholder,
+#     Claude either replaces it with `See \`raw_NNN.png\`.` (or `(see ...)`)
+#     using a candidate filename, or deletes the line if no thumbnail matches.
+#
+# After Call B we extract which raw figures were actually anchored (in order),
 # copy them into the topic dir as fig01.png, fig02.png, ..., and rewrite the
-# markdown so the references use the renumbered names.
+# markdown so refs use the renumbered names. Any leftover unresolved
+# placeholders are stripped as a safety net.
 
-MULTIMODAL_PROMPT = """\
+MULTIMODAL_PROSE_PROMPT = """\
 Write a practical reference guide for {app_name} {app_version}.
 
 Topic: {topic_name}
 Description: {topic_description}
 
 I'm attaching the relevant pages from the official {app_name} {app_version} guide \
-as images — use them as the primary source of truth.
-
-A reader of this guide will also have access to a set of figure files in the \
-same directory. You won't see those figures here; pick them by their filename + \
-caption. Each figure was cropped from one of the pages above.
-
-Candidate figures (filename : caption):
-{figure_list}
+as images. Use them as the primary source of truth.
 
 Write in a casual, readable style — like a colleague explaining over your shoulder. \
 Use natural prose with clear actions, not rigid numbered steps.
@@ -1552,74 +1604,184 @@ Rules:
 - Around 15-25 lines of prose total — concise and scannable
 - No "Step 1, Step 2" phrasing — flowing prose with transitions
 
-Figure references:
-- Where a candidate figure clearly illustrates what the prose just described, \
-add a *short* pointer in one of these forms (the image carries the content; \
-do NOT verbalize what's in it):
-    See `<FILENAME>`.
-    (see `<FILENAME>`)
-    ... See `<FILENAME>` for the <brief noun phrase>.
-- `<FILENAME>` MUST be one of the candidate filenames above (e.g. `raw_004.png`), used exactly as given.
-- Reference each figure at most once.
-- Only reference figures that materially help — many candidates will be redundant or generic. \
-0-3 references is typical; it is fine to reference none.
-- Do NOT invent filenames; do NOT reference figures using markdown image syntax.
+Figure placeholders:
+- Where a figure from the attached pages would clearly help the reader \
+understand what the prose just described, insert a SINGLE LINE of the form:
+
+    <!-- figure: <short description of what the figure shows> -->
+
+  immediately after the relevant sentence or paragraph. The description is \
+your note about which visual was useful (the dialog name, the screenshot \
+content, etc.) — keep it short, under ~15 words.
+- 0-3 placeholders is typical; "none" is fine if no figure clearly helps.
+- Do NOT pick filenames or use any other format. Only the comment syntax above.
+- Do NOT verbalize the figure's content in the prose itself — the figure carries it.
 
 Output ONLY the markdown guide.
 """
 
 
-# Matches both `See \`raw_004.png\``, `(see \`raw_004.png\`)`, and `See \`raw_004.png\` for ...`.
+MULTIMODAL_ANCHOR_PROMPT = """\
+Below is a draft reference guide that contains placeholder lines of the form:
+
+    <!-- figure: <description> -->
+
+You also have a list of candidate figure thumbnails. Each row of the list \
+corresponds to one image attached to this message, in the SAME ORDER.
+
+For EACH placeholder in the guide, decide whether any candidate thumbnail \
+clearly matches its description (the same dialog, screenshot, or diagram).
+- If a thumbnail matches, REPLACE the placeholder line with one of:
+      See `<FILENAME>`.
+      (see `<FILENAME>`)
+      ... See `<FILENAME>` for the <brief noun phrase>.
+  Use the candidate filename EXACTLY as listed (e.g. `raw_004.png`).
+- If no thumbnail clearly matches the placeholder, DELETE the placeholder \
+  line entirely (and the blank line it leaves, if any).
+
+Strict rules:
+- Do NOT modify any other text. Only the placeholder lines change.
+- A given filename may only be used once across the whole document.
+- Do NOT invent filenames. Do NOT use markdown image syntax.
+- Do NOT add new figure references at sentences without a placeholder.
+- Use the candidate filenames EXACTLY as listed in the text below \
+  (they end in `.png`). Do NOT use the attached thumbnail filenames.
+
+Output ONLY the resolved markdown — start with the `# Title` line. \
+Do NOT add any preamble, summary of thumbnails, or commentary before or \
+after the guide. The first character of your reply must be `#`.
+
+--- Guide with placeholders ---
+{prose}
+
+--- Candidate figures (in same order as attached thumbnails) ---
+{figure_list}
+"""
+
+
+# Matches `See \`raw_004.png\``, `(see \`raw_004.png\`)`, `See \`raw_004.png\` for ...`.
 _FIG_REF_PATTERN = re.compile(
     r"\bsee\s+`([A-Za-z0-9_./-]+\.png)`",
     re.IGNORECASE,
 )
+# Matches Call A's placeholder lines (so Call B can be cleaned up after the fact).
+_FIG_PLACEHOLDER_PATTERN = re.compile(
+    r"^\s*<!--\s*figure:[^>]*-->\s*\n?",
+    re.MULTILINE | re.IGNORECASE,
+)
+THUMBNAIL_MAX_SIDE = 256
+THUMBNAIL_QUALITY = 75
 
 
-def _draft_multimodal_prose(
-    topic: dict, cat: dict, config: dict,
-    page_images: list[Path], figures: list[dict],
+def _make_thumbnail(src: Path, dst_dir: Path, max_side: int = THUMBNAIL_MAX_SIDE) -> Path:
+    """Downscale src image to fit within max_side, JPEG output, for cheap LLM input."""
+    img = Image.open(src)
+    img.thumbnail((max_side, max_side), Image.LANCZOS)
+    out = dst_dir / (src.stem + ".jpg")
+    if img.mode != "RGB":
+        img = img.convert("RGB")
+    img.save(out, "JPEG", quality=THUMBNAIL_QUALITY, optimize=True)
+    return out
+
+
+def _multimodal_drafts_dir(config: dict, cat: dict) -> Path:
+    return WORKSPACE_DIR / config["domain"] / "multimodal_drafts" / cat["id"]
+
+
+def _draft_multimodal_prose_only(
+    topic: dict, cat: dict, config: dict, page_images: list[Path],
 ) -> str | None:
-    """Single-call multimodal prose draft (raw figure filenames inlined).
-
-    Cached at `workspace/<domain>/multimodal_drafts/<cat>/<topic>.md`. The cached
-    markdown still references figures by their original `raw_NNN.png` names; the
-    renumber-to-figXX step happens in `generate_multimodal_guide`.
-    """
+    """Call A: pages → prose with `<!-- figure: ... -->` placeholders. Cached."""
     if not page_images:
         return None
-    cache = (
-        WORKSPACE_DIR / config["domain"] / "multimodal_drafts"
-        / cat["id"] / f"{topic['id']}.md"
-    )
+    cache = _multimodal_drafts_dir(config, cat) / f"{topic['id']}.prose.md"
     if cache.exists() and cache.stat().st_size > 0:
         return cache.read_text()
-
-    if figures:
-        fig_lines = []
-        for f in figures:
-            fname = Path(f["path"]).name
-            caption = (f.get("caption") or f.get("description") or "").strip()
-            fig_lines.append(f"  - {fname} : {caption}" if caption else f"  - {fname}")
-        fig_list = "\n".join(fig_lines)
-    else:
-        fig_list = "  (no candidate figures — write prose without figure references)"
-
-    prompt = MULTIMODAL_PROMPT.format(
+    prompt = MULTIMODAL_PROSE_PROMPT.format(
         app_name=config["app_name"],
         app_version=config["app_version"],
         topic_name=topic["name"],
         topic_description=topic.get("description", ""),
-        figure_list=fig_list,
     )
-    # Caption-only figure selection: send pages as images, figures as text list only.
-    result = call_claude(prompt, images=list(page_images), timeout=600)
+    result = call_claude(prompt, images=list(page_images), timeout=300)
     if not result:
         return None
     text = result.strip() + "\n"
     cache.parent.mkdir(parents=True, exist_ok=True)
     cache.write_text(text)
     return text
+
+
+def _splice_figure_anchors(
+    topic: dict, cat: dict, config: dict, prose: str, figures: list[dict],
+) -> str | None:
+    r"""Call B: prose-with-placeholders + thumbnails → prose with `See \`X.png\`` anchors.
+
+    If the prose has no placeholders, returns it unchanged (no Claude call).
+    If there are placeholders but zero candidate figures, strips them and returns.
+    Cached at .md (final draft) — `_FIG_REF_PATTERN` post-processing happens later.
+    """
+    cache = _multimodal_drafts_dir(config, cat) / f"{topic['id']}.md"
+    if cache.exists() and cache.stat().st_size > 0:
+        return cache.read_text()
+
+    has_placeholders = bool(_FIG_PLACEHOLDER_PATTERN.search(prose))
+    if not has_placeholders:
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text(prose)
+        return prose
+    if not figures:
+        # Placeholders but nothing to anchor to — strip them.
+        stripped = _FIG_PLACEHOLDER_PATTERN.sub("", prose)
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text(stripped)
+        return stripped
+
+    # Build thumbnail list in a temp dir; order matches the figure_list lines.
+    fig_lines = []
+    with tempfile.TemporaryDirectory(prefix="mm_thumbs_") as tmp:
+        tmp_path = Path(tmp)
+        thumbs: list[Path] = []
+        for f in figures:
+            fname = Path(f["path"]).name
+            caption = (f.get("caption") or f.get("description") or "").strip()
+            fig_lines.append(f"  - {fname} : {caption}" if caption else f"  - {fname}")
+            thumbs.append(_make_thumbnail(Path(f["path"]), tmp_path))
+        fig_list = "\n".join(fig_lines)
+        prompt = MULTIMODAL_ANCHOR_PROMPT.format(
+            prose=prose, figure_list=fig_list,
+        )
+        result = call_claude(prompt, images=thumbs, timeout=300)
+    if not result:
+        return None
+
+    text = result.strip() + "\n"
+    # Safety net: trim any preamble before the first `# ` heading.
+    h = text.find("\n# ")
+    if text.startswith("# "):
+        pass
+    elif h != -1:
+        text = text[h + 1:]
+    # Safety net: strip any placeholders Call B left behind.
+    text = _FIG_PLACEHOLDER_PATTERN.sub("", text)
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text(text)
+    return text
+
+
+def _draft_multimodal_prose(
+    topic: dict, cat: dict, config: dict,
+    page_images: list[Path], figures: list[dict],
+) -> str | None:
+    """Two-call multimodal draft: (pages → prose+placeholders) → (splice anchors).
+
+    Both calls are cached independently. The .md cache holds the final
+    placeholder-resolved markdown; subsequent rebuilds reuse it.
+    """
+    prose = _draft_multimodal_prose_only(topic, cat, config, page_images)
+    if prose is None:
+        return None
+    return _splice_figure_anchors(topic, cat, config, prose, figures)
 
 
 def generate_multimodal_guide(
@@ -1741,16 +1903,6 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Task-driven skill generation (v1)")
     parser.add_argument("--config", required=True, help="Path to domain YAML config")
     parser.add_argument("--mode", choices=["text", "multimodal", "both"], default="both")
-    parser.add_argument(
-        "--parallel-pages", type=int, default=8,
-        help="Topic-level parallelism for phases 2 (page rendering) and 3 (figure extraction). "
-             "Mostly local I/O / cheap PyMuPDF — 8 is safe.",
-    )
-    parser.add_argument(
-        "--parallel-guides", type=int, default=4,
-        help="Topic-level parallelism for phase 4 (guide generation). "
-             "Each topic issues Claude calls — keep modest (4) to avoid rate limits.",
-    )
     parser.add_argument("--task_ids", nargs="*", help="Filter to specific task id prefixes")
     parser.add_argument(
         "--phase", type=int, choices=[1, 2, 3, 4, 5], default=None,
@@ -1803,9 +1955,10 @@ def main() -> None:
         src_label = "Source: HTML docs"
     else:
         src_label = "Source: full PDF"
+    p = config["parallel"]
     print(
         f"Domain: {domain} | {src_label} | Mode: {args.mode} | "
-        f"Parallel: pages={args.parallel_pages}, guides={args.parallel_guides}"
+        f"Parallel: phase_2={p['phase_2']}, phase_3={p['phase_3']}, phase_4={p['phase_4']}"
     )
     print()
 
@@ -1841,7 +1994,7 @@ def main() -> None:
         _, topic_pages = phase_html_pages(config, taxonomy, ws)
     else:
         pdf_path, topic_pages = phase_pdf_pages(
-            config, taxonomy, ws, parallel=args.parallel_pages,
+            config, taxonomy, ws, parallel=config["parallel"]["phase_2"],
         )
     if target is None or target == 2:
         print()
@@ -1857,7 +2010,7 @@ def main() -> None:
             figures_by_topic = phase_html_figures(taxonomy, ws)
         elif pdf_path:
             figures_by_topic = phase_figures(
-                pdf_path, topic_pages, ws, parallel=args.parallel_pages,
+                pdf_path, topic_pages, ws, parallel=config["parallel"]["phase_3"],
             )
         if target is None or target == 3:
             print()
@@ -1882,8 +2035,9 @@ def main() -> None:
             figs = figures_by_topic.get(topic["id"], [])
             return process_topic(topic, cat, config, domain, args.mode, images, figs)
 
+        phase4_parallel = config["parallel"]["phase_4"]
         success = 0
-        if args.parallel_guides <= 1:
+        if phase4_parallel <= 1:
             for item in all_topics:
                 try:
                     if _one(item):
@@ -1891,7 +2045,7 @@ def main() -> None:
                 except Exception as e:
                     print(f"    [{item[0]['name']}] ERROR: {e}")
         else:
-            with ThreadPoolExecutor(max_workers=args.parallel_guides) as executor:
+            with ThreadPoolExecutor(max_workers=phase4_parallel) as executor:
                 futures = {executor.submit(_one, item): item for item in all_topics}
                 for f in as_completed(futures):
                     try:

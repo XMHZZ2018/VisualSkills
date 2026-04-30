@@ -8,12 +8,14 @@ config and one Python entry point.
 ./run.sh --config configs/<domain>.yaml --mode multimodal
 ```
 
-The runner uses two parallelism knobs (defaults shown):
-- `--parallel-pages 8`  — topic-level parallelism for phases 2 (page rendering)
-  and 3 (figure extraction). Mostly local I/O / cheap PyMuPDF — 8 is safe.
-- `--parallel-guides 4` — topic-level parallelism for phase 4 (guide
-  generation). Each topic issues Claude calls — keep modest to avoid hitting
-  rate limits.
+Per-phase parallelism is set in the YAML config (defaults shown):
+```yaml
+parallel:
+  phase_2: 8     # page rendering — local I/O, safe to run high
+  phase_3: 8     # figure extraction — pure bitmap-xref, deterministic (local I/O)
+  phase_4: 4     # guide generation — Claude calls per topic, rate-limit bound
+```
+Any key that's omitted falls back to the default. Phases 1 and 5 are serial.
 
 ## Three modes
 
@@ -61,7 +63,7 @@ Render the source pages for every topic so phase 4 has visual context.
 
 - **PDF/Task:** for each topic, render its `pdf_pages` from the PDF at
   300 DPI using PyMuPDF. Skips pages already on disk. Topics are rendered
-  in parallel (`--parallel-pages N`); each worker opens its own `fitz.Document`
+  in parallel (config `parallel.phase_2`, default 8); each worker opens its own `fitz.Document`
   so PyMuPDF's thread restrictions are respected.
 - **HTML:** for each topic's URL, take a full-page screenshot via
   Playwright (chromium). Skips topics already screenshotted.
@@ -71,40 +73,60 @@ Collect figures used in phase 4 (multimodal). Skipped for `--mode text`.
 **Output:** `workspace/<domain>/{pdf,html}_figures/<topic>/raw_NNN.png`
 plus `figures.json` describing each crop.
 
-- **PDF:** first try PyMuPDF's bitmap-xref extraction (cheap and exact);
-  for topics where xrefs miss, fall back to a Claude bounding-box pass that
-  proposes figure regions on each page and crops them. Topics run in
-  parallel (`--parallel-pages N`); each worker opens its own `fitz.Document`.
-  The Claude fallback is rate-limited only by `--parallel-pages`, so keep N
-  modest (4–8 is safe).
+- **PDF:** for each rendered page, use PyMuPDF
+  `page.get_images(full=True)` + `get_image_rects(xref)` to locate every
+  embedded bitmap rectangle (in PDF points). When one logical figure is
+  stored as multiple adjacent strips, those rects are clustered (via
+  union-find on a "close together on one axis, overlapping on the other"
+  adjacency) into one union bbox per figure. For each cluster, search the
+  page's text blocks for a matching `Figure N: ...` caption (strict regex
+  so body prose can't match), extend the crop bottom to the caption
+  block, and widen the X range to encompass any text blocks (legends/keys)
+  sitting between the bitmap and the caption. Python crops the result
+  from the rendered 300-DPI page PNG and writes `raw_NNN.png` plus a
+  `figures.json` carrying `{path, page, figure_number, caption}`. Pages
+  with no embedded bitmaps contribute no figures — Phase 3 never calls
+  Claude, so coordinates come straight from the PDF's own image-object
+  rects and body-text bleed is structurally impossible. Topics run in
+  parallel (config `parallel.phase_3`, default 8 — purely local I/O).
 - **HTML:** download every `<img>` from the page (deduplicated by URL),
   resolving relative URLs and respecting the page's content scope.
 
 ### Phase 4 — Per-topic guides
-Generate a `guide.md` per topic. Text and multimodal are produced by **two
-independent Claude calls** — multimodal does not derive from the text draft.
-**Output:**
+Generate a `guide.md` per topic. Text and multimodal are independent code
+paths with their own Claude calls and caches — multimodal does not derive
+from the text draft. **Output:**
 - `skills/<domain>-knowledge-text-v1/<cat>/<topic>/guide.md`
 - `skills/<domain>-knowledge-multimodal-v1/<cat>/<topic>/{guide.md, figNN.png}`
 
 - **Text:** ask Claude to read all of a topic's page images and write
   concise prose (no figure references). Cached at
   `workspace/<domain>/text_drafts/<cat>/<topic>.md`.
-- **Multimodal:** ask Claude — in a *single call* given the page images plus
-  a *text list* of `filename : caption` for the candidate figures (the figure
-  pixels are NOT sent; selection is caption-based) — to write a fresh
-  markdown guide and add short pointers like `See \`raw_004.png\`.` or
-  `(see \`raw_004.png\`)` at spots where a figure genuinely helps. The image
-  carries the content; the pointer does NOT verbalize what's in the figure
-  (that's text-v1's job).
-  After Claude responds, we extract the filenames it actually referenced
-  (in order of first appearance), copy those crops into the topic dir as
-  `fig01.png`, `fig02.png`, ..., and rewrite the markdown to use the
-  renumbered names. Cached at
-  `workspace/<domain>/multimodal_drafts/<cat>/<topic>.md`.
-- Topics run in parallel with `--parallel-guides N` (thread pool over topics).
-  Each topic issues 1–2 Claude calls (text + multimodal), so keep this
-  modest — default is 4. The two modalities share neither prompts nor caches.
+- **Multimodal:** two Claude calls per topic:
+  1. **Prose call** — pages → markdown body. Where a figure would help,
+     Claude inserts a placeholder line `<!-- figure: <short description> -->`
+     immediately after the relevant sentence. No filenames at this stage.
+     Cached at `workspace/<domain>/multimodal_drafts/<cat>/<topic>.prose.md`.
+  2. **Anchor call** — placeholder-marked prose + a small (~256px JPEG)
+     thumbnail per candidate figure (filename + caption attached, in the
+     same order). For each placeholder, Claude either replaces it with
+     `See \`raw_NNN.png\`.` (or `(see \`raw_NNN.png\`)`) using a candidate
+     filename, or deletes the placeholder line if no thumbnail clearly
+     matches. The image carries the content; the pointer does not verbalize
+     what's in it. Cached at
+     `workspace/<domain>/multimodal_drafts/<cat>/<topic>.md`.
+
+  After the anchor call returns, we extract the filenames it actually
+  referenced (in order of first appearance), copy those crops into the
+  topic dir as `fig01.png`, `fig02.png`, ..., and rewrite the markdown to
+  use the renumbered names. Any leftover unresolved placeholders are
+  stripped as a safety net.
+- Topics run in parallel with the config value `parallel.phase_4` (thread
+  pool over topics). Each topic issues 1 Claude call for text and up to 2
+  for multimodal (prose + anchor); the anchor call is skipped if the prose
+  has no placeholders or the topic has no candidate figures. Keep
+  `phase_4` modest because of Claude rate limits — default is 4. The text
+  and multimodal paths share neither prompts nor caches.
 
 ### Phase 5 — Index
 Write the per-modality `SKILL.md` summary that lists every topic.
@@ -164,7 +186,7 @@ tasks:
 ## Usage
 
 ```bash
-# Full pipeline, both modalities (defaults: pages=8, guides=4)
+# Full pipeline, both modalities (parallelism set in the YAML config)
 ./run.sh --config configs/libreoffice_writer.yaml --mode both
 
 # Multimodal only
@@ -173,8 +195,7 @@ tasks:
 # Text only
 ./run.sh --config configs/libreoffice_impress.yaml --mode text
 
-# Override parallelism (e.g. very tight rate limit → guides=2)
-./run.sh --config configs/libreoffice_writer.yaml --parallel-guides 2
+# Override parallelism for one run: edit the `parallel:` block in the YAML config.
 
 # Task mode with a specific subset
 ./run.sh --config configs/libreoffice_impress.yaml --task_ids create_flowchart
@@ -243,9 +264,9 @@ workspace/<domain>/
   out to the `claude` CLI. The CLI is run from `cwd=/tmp` because the project
   directory's `.claude/`/`.mcp.json` configuration confuses non-interactive
   invocations.
-- **Parallelism** is at the topic level. Phases 2/3 use `--parallel-pages N`
-  (default 8 — local I/O bound) and phase 4 uses `--parallel-guides N`
-  (default 4 — Claude rate-limit bound). Phase 1
+- **Parallelism** is set per-phase in the YAML config under a `parallel:` block:
+  `phase_2` (page rendering, default 8), `phase_3` (figure extraction, default 4),
+  `phase_4` (guide generation, default 4 — Claude rate-limit bound). Phase 1
   ToC OCR is intentionally serial — parallel cold-start of `claude -p` can
   trip the OAuth `client_data` rate limit.
 - **Caching is aggressive**: every phase keys its outputs into `workspace/`
