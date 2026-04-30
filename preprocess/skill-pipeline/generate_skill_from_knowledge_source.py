@@ -350,20 +350,22 @@ Below is the printed Table of Contents from the official {app_name} {app_version
 user guide, transcribed entry by entry. Turn it into a 2-layer skill taxonomy:
 category → topic.
 
-Each chapter (level-1 entry) usually becomes a category. Level-2 entries become
-topics. The list has noise — drop or merge as needed:
+Each numbered chapter (level-1 entry) usually becomes a category. Level-2
+entries become topics. The list has noise — drop or merge as needed:
 
-- DROP filler sections: front matter (Copyright, Preface, Acknowledgements,
-  Foreword, About this Guide, Contributors, License, Feedback), back matter
-  (Index, Glossary unless useful, Appendices that are reference-only).
+- DROP only pure filler: front matter (Copyright, Preface, Acknowledgements,
+  Foreword, About this Guide, Contributors, License, Feedback) and back
+  matter (Index, Glossary unless useful).
+- KEEP every numbered chapter from the guide, even if it looks advanced or
+  conceptual. Chapters like "Master Documents", "Fields", "Forms", and
+  application-integration chapters all teach concrete workflows and must
+  appear as their own category.
 - MERGE over-fragmented sub-sections that describe ONE coherent skill.
   Example: "Inserting a table", "Editing a table", "Formatting a table" can
   collapse into a single topic "Working with tables" if they share pages.
-- KEEP topics that map to a concrete user action a person would want to know
-  how to do (e.g. "Creating styles", "Inserting a header", "Adjusting page
-  margins"). Skip pure-conceptual sections that don't teach an action.
 - Use kebab-case slugs for ids.
-- Aim for 4-12 categories, 2-10 topics per category.
+- No upper cap on categories — aim for one category per numbered chapter.
+  Topics: 2-10 per category.
 
 For each topic, set `pdf_pages` to the inclusive page range it spans. The end
 page is one before the next entry's start page (or the last page of the
@@ -1720,6 +1722,14 @@ def main() -> None:
     parser.add_argument("--mode", choices=["text", "multimodal", "both"], default="both")
     parser.add_argument("--parallel", type=int, default=1)
     parser.add_argument("--task_ids", nargs="*", help="Filter to specific task id prefixes")
+    parser.add_argument(
+        "--phase", type=int, choices=[1, 2, 3, 4, 5], default=None,
+        help=(
+            "Run only phase N (1=taxonomy, 2=pages, 3=figures, 4=guides, 5=index). "
+            "Earlier phases must already be cached; later phases are skipped. "
+            "Default: run all phases."
+        ),
+    )
     args = parser.parse_args()
 
     config_path = Path(args.config)
@@ -1766,78 +1776,104 @@ def main() -> None:
     print(f"Domain: {domain} | {src_label} | Mode: {args.mode} | Parallel: {args.parallel}")
     print()
 
-    pdf_path: Path | None = None
-    if task_mode:
-        print("Phase 1: Taxonomy (from gym-anything tasks)")
-        taxonomy = phase_taxonomy(config, tasks, ws)
-        print()
+    target = args.phase  # None = run all; otherwise run only this phase.
 
-        print(f"Phase 2: PDF pages ({PDF_DPI} DPI)")
-        pdf_path, topic_pages = phase_pdf_pages(config, taxonomy, ws)
-        print()
+    def header(n: int, label: str) -> None:
+        if target is None or target == n:
+            print(label)
+
+    pdf_path: Path | None = None
+
+    # --- Phase 1: Taxonomy (always needed for downstream) ---
+    header(1, "Phase 1: Taxonomy")
+    if task_mode:
+        taxonomy = phase_taxonomy(config, tasks, ws)
     elif has_pdf:
-        print("Phase 1+2: Taxonomy from PDF ToC + page rendering")
         pdf_path = _download_pdf(config, ws)
         if not pdf_path:
             print("  PDF mode requires sources.pdf_guide.url in the config.")
             sys.exit(1)
         taxonomy = phase_taxonomy_from_pdf_toc(config, pdf_path, ws)
-        pdf_path, topic_pages = phase_pdf_pages(config, taxonomy, ws)
-        print()
     else:  # has_html
-        print("Phase 1+2: Taxonomy from HTML root + page screenshots")
         taxonomy = phase_taxonomy_from_html_root(config, ws)
-        _, topic_pages = phase_html_pages(config, taxonomy, ws)
+    if target is None or target == 1:
         print()
+    if target == 1:
+        print("Done (phase 1 only).")
+        return
 
+    # --- Phase 2: Per-topic pages (always needed for downstream) ---
+    header(2, "Phase 2: Per-topic pages")
+    if has_html:
+        _, topic_pages = phase_html_pages(config, taxonomy, ws)
+    else:
+        pdf_path, topic_pages = phase_pdf_pages(config, taxonomy, ws)
+    if target is None or target == 2:
+        print()
+    if target == 2:
+        print("Done (phase 2 only).")
+        return
+
+    # --- Phase 3: Figures (only needed for multimodal) ---
     figures_by_topic: dict[str, list[dict]] = {}
     if topic_pages and args.mode in ("multimodal", "both"):
+        header(3, "Phase 3: Figures")
         if has_html:
-            print("Phase 3: Figures (download <img> from HTML)")
             figures_by_topic = phase_html_figures(taxonomy, ws)
         elif pdf_path:
-            print("Phase 3: Figures (crop from PDF)")
             figures_by_topic = phase_figures(pdf_path, topic_pages, ws)
-        print()
+        if target is None or target == 3:
+            print()
+    if target == 3:
+        print("Done (phase 3 only).")
+        return
 
     all_topics = [
         (topic, cat)
         for cat in taxonomy["categories"]
         for topic in cat["topics"]
     ]
-    print(f"Phase 4/5: Generate ({len(all_topics)} topics)")
 
-    def _one(item):
-        topic, cat = item
-        pairs = topic_pages.get(topic["id"], [])
-        images = [p for _, p in pairs]
-        figs = figures_by_topic.get(topic["id"], [])
-        return process_topic(topic, cat, config, domain, args.mode, images, figs)
+    # --- Phase 4: Generate per-topic guides ---
+    if target is None or target == 4:
+        print(f"Phase 4: Generate guides ({len(all_topics)} topics)")
 
-    success = 0
-    if args.parallel <= 1:
-        for item in all_topics:
-            try:
-                if _one(item):
-                    success += 1
-            except Exception as e:
-                print(f"    [{item[0]['name']}] ERROR: {e}")
-    else:
-        with ThreadPoolExecutor(max_workers=args.parallel) as executor:
-            futures = {executor.submit(_one, item): item for item in all_topics}
-            for f in as_completed(futures):
+        def _one(item):
+            topic, cat = item
+            pairs = topic_pages.get(topic["id"], [])
+            images = [p for _, p in pairs]
+            figs = figures_by_topic.get(topic["id"], [])
+            return process_topic(topic, cat, config, domain, args.mode, images, figs)
+
+        success = 0
+        if args.parallel <= 1:
+            for item in all_topics:
                 try:
-                    if f.result():
+                    if _one(item):
                         success += 1
                 except Exception as e:
-                    topic, _cat = futures[f]
-                    print(f"    [{topic['name']}] ERROR: {e}")
-    print(f"\n  Generated: {success}/{len(all_topics)} topics")
-    print()
+                    print(f"    [{item[0]['name']}] ERROR: {e}")
+        else:
+            with ThreadPoolExecutor(max_workers=args.parallel) as executor:
+                futures = {executor.submit(_one, item): item for item in all_topics}
+                for f in as_completed(futures):
+                    try:
+                        if f.result():
+                            success += 1
+                    except Exception as e:
+                        topic, _cat = futures[f]
+                        print(f"    [{topic['name']}] ERROR: {e}")
+        print(f"\n  Generated: {success}/{len(all_topics)} topics")
+        print()
+        if target == 4:
+            print("Done (phase 4 only).")
+            return
 
-    print("Phase 6: Index")
-    phase_index(config, domain, taxonomy, args.mode)
-    print()
+    # --- Phase 5: SKILL.md index ---
+    if target is None or target == 5:
+        print("Phase 5: Index")
+        phase_index(config, domain, taxonomy, args.mode)
+        print()
 
     print("Done.")
 

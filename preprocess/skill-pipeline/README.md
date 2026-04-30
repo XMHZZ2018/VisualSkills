@@ -22,17 +22,76 @@ All three converge on the same downstream pipeline.
 
 ## Pipeline phases
 
-| Phase | What it does | Output |
-|-------|--------------|--------|
-| 1 — Taxonomy | Build a 2-layer category → topic structure | `workspace/<domain>/taxonomy.json` |
-| 2 — Per-topic pages | Render the source pages for each topic (PDF crop @ 300 DPI, or playwright full-page PNG) | `workspace/<domain>/{pdf,html}_pages/<topic>/page_NNNN.png` |
-| 3 — Figures | PDF: extract bitmap xrefs, fall back to LLM-bbox detection. HTML: download `<img>` tags. | `workspace/<domain>/{pdf,html}_figures/<topic>/fig_NNN.png` |
-| 4 — Text guide | Concise prose `guide.md` per topic from page images | `skills/<domain>-knowledge-text-v1/<cat>/<topic>/guide.md` |
-| 5 — Multimodal guide | Same prose with `Read the screenshot figNN.png` paragraphs spliced in + figure files copied | `skills/<domain>-knowledge-multimodal-v1/<cat>/<topic>/{guide.md,figNN.png}` |
-| 6 — Index | Per-modality `SKILL.md` listing all topics | `skills/<domain>-knowledge-{text,multimodal}-v1/SKILL.md` |
+The pipeline has 5 phases. Use `--phase N` to run only one phase (assumes
+earlier phases' outputs are cached). Default: run all phases end-to-end.
 
-Every phase caches its output. Re-running skips completed work; delete the
-relevant cache file to force regeneration.
+### Phase 1 — Taxonomy
+Build a 2-layer `category → topic` structure with page ranges.
+**Output:** `workspace/<domain>/taxonomy.json`
+
+- **PDF mode** — three steps:
+  1. Locate the *printed* Table-of-Contents pages in the PDF (using the
+     embedded outline as a hint, plus a heuristic that scans front-matter
+     pages for lines ending in a page number).
+  2. Render those ToC pages as PNGs and send each one to Claude with a
+     transcription prompt — Claude acts as a structure-aware OCR and returns
+     `{level, title, page}` entries (one Claude call per ToC page, cached as
+     `toc_NNNN.json`). Merged into `toc_transcribed.json`.
+  3. Send the merged entry list to Claude with the synthesis prompt. Claude
+     promotes L1 entries to categories, L2s to topics, drops front/back
+     matter, merges over-fragmented sub-sections, and computes each topic's
+     `pdf_pages` range. Result is `taxonomy.json`.
+- **HTML mode** — fetch the root page, recursively harvest headings and
+  in-scope links up to `crawl_depth`, then ask Claude to collapse them into
+  a category → topic taxonomy.
+- **Task mode** — cluster the gym-anything task descriptions with Claude
+  into topics, then ask Claude to map each topic onto a page range of the
+  PDF guide.
+
+### Phase 2 — Per-topic pages
+Render the source pages for every topic so phase 4 has visual context.
+**Output:** `workspace/<domain>/{pdf,html}_pages/<topic>/page_NNNN.png`
+
+- **PDF/Task:** for each topic, render its `pdf_pages` from the PDF at
+  300 DPI using PyMuPDF. Skips pages already on disk.
+- **HTML:** for each topic's URL, take a full-page screenshot via
+  Playwright (chromium). Skips topics already screenshotted.
+
+### Phase 3 — Figures
+Collect figures used in phase 5 (multimodal). Skipped for `--mode text`.
+**Output:** `workspace/<domain>/{pdf,html}_figures/<topic>/fig_NNN.png`
+
+- **PDF:** first try PyMuPDF's bitmap-xref extraction (cheap and exact);
+  for topics where xrefs miss, fall back to a Claude bounding-box pass that
+  proposes figure regions on each page and crops them.
+- **HTML:** download every `<img>` from the page (deduplicated by URL),
+  resolving relative URLs and respecting the page's content scope.
+
+### Phase 4 — Per-topic guides
+Generate a `guide.md` per topic. Both modalities are produced here.
+**Output:**
+- `skills/<domain>-knowledge-text-v1/<cat>/<topic>/guide.md`
+- `skills/<domain>-knowledge-multimodal-v1/<cat>/<topic>/{guide.md, figNN.png}`
+
+- **Text:** ask Claude to read all of a topic's page images and write
+  concise prose. Cached at `workspace/<domain>/text_drafts/<cat>/<topic>.md`.
+- **Multimodal:** start from the text draft, then ask Claude to splice in
+  *"Read the screenshot `figNN.png` in this directory — you will see &lt;short
+  description&gt;."* paragraphs at the most useful spots and copy the chosen
+  figures into the topic directory, renumbered in insertion order.
+- Topics run in parallel with `--parallel N` (thread pool over topics).
+  `--mode multimodal` does **not** require the text-v1 directory to exist —
+  it drafts the prose internally on the fly and reuses the draft cache.
+
+### Phase 5 — Index
+Write the per-modality `SKILL.md` summary that lists every topic.
+**Output:** `skills/<domain>-knowledge-{text,multimodal}-v1/SKILL.md`
+
+---
+
+Every phase caches its outputs aggressively. Re-running skips completed
+work; delete the relevant cache file or directory to force regeneration of
+just that step.
 
 ## Config examples
 
@@ -93,6 +152,10 @@ tasks:
 
 # Task mode with a specific subset
 ./run.sh --config configs/libreoffice_impress.yaml --task_ids create_flowchart
+
+# Run a single phase (earlier phases must already be cached, later phases skipped)
+./run.sh --config configs/libreoffice_writer.yaml --phase 1   # just (re)build taxonomy
+./run.sh --config configs/libreoffice_writer.yaml --phase 4 --mode multimodal --parallel 4
 ```
 
 `--mode multimodal` does **not** require `text-v1` to exist — it drafts the
