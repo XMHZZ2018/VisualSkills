@@ -14,8 +14,11 @@ parallel:
   phase_2: 8     # page rendering — local I/O, safe to run high
   phase_3: 8     # figure extraction — pure bitmap-xref, deterministic (local I/O)
   phase_4: 4     # guide generation — Claude calls per topic, rate-limit bound
+  phase_5: 4     # use-when routing hints — Claude calls per guide, rate-limit bound
 ```
-Any key that's omitted falls back to the default. Phases 1 and 5 are serial.
+Any key that's omitted falls back to the default. Phase 1 is serial; the
+SKILL.md write at the end of phase 5 is also serial (the use-when calls
+that precede it use `phase_5` parallelism).
 
 ## Three modes
 
@@ -128,8 +131,36 @@ from the text draft. **Output:**
   `phase_4` modest because of Claude rate limits — default is 4. The text
   and multimodal paths share neither prompts nor caches.
 
-### Phase 5 — Index
-Write the per-modality `SKILL.md` summary that lists every topic.
+### Phase 5 — Routing hints + Index
+
+Phase 5 runs in two sub-steps:
+
+**Phase 5a — Use-when routing hints.** For every existing `guide.md` we
+make one Claude call (text-only, the guide's own markdown is the input)
+asking for a single comma-separated line of concrete user-task keywords —
+dialog names, formats, settings, action verbs. The line is cached and
+NEVER mutates the guide itself. A downstream agent uses these phrases to
+pick the right topic guide for a given task description, without having
+to scan all 100+ guides.
+
+- **Output:** `workspace/<domain>/use_when/<modality>/<cat>/<topic>.txt`
+- **Idempotent:** topics with a non-empty cache file are skipped, so
+  partial / failed runs resume cleanly.
+- **Parallelism:** `phase_5` (default 4 — same Claude rate-limit constraint
+  as phase 4).
+
+**Phase 5b — Index.** Walk the taxonomy and write the per-modality
+`SKILL.md`. Each generated topic gets its taxonomy description plus a
+`**Use when:** ...` sub-bullet read from the Phase 5a cache:
+
+```markdown
+- [Saving and Protecting Documents](.../guide.md) — Saving in various formats, password protection, ...
+  - **Use when:** saving with a password, encrypting with GPG key, saving to .docx, configuring AutoRecovery, ...
+```
+
+Topics whose guides aren't generated yet appear as
+`*(not yet generated)*` and have no use-when bullet.
+
 **Output:** `skills/<domain>-knowledge-{text,multimodal}-v1/SKILL.md`
 
 ---
@@ -265,9 +296,10 @@ workspace/<domain>/
   directory's `.claude/`/`.mcp.json` configuration confuses non-interactive
   invocations.
 - **Parallelism** is set per-phase in the YAML config under a `parallel:` block:
-  `phase_2` (page rendering, default 8), `phase_3` (figure extraction, default 4),
-  `phase_4` (guide generation, default 4 — Claude rate-limit bound). Phase 1
-  ToC OCR is intentionally serial — parallel cold-start of `claude -p` can
-  trip the OAuth `client_data` rate limit.
+  `phase_2` (page rendering, default 8), `phase_3` (figure extraction,
+  default 8), `phase_4` (guide generation, default 4 — Claude rate-limit
+  bound), `phase_5` (use-when routing hints, default 4 — same constraint
+  as phase 4). Phase 1 ToC OCR is intentionally serial — parallel
+  cold-start of `claude -p` can trip the OAuth `client_data` rate limit.
 - **Caching is aggressive**: every phase keys its outputs into `workspace/`
   and skips on hit. Delete a specific cache file to force that phase only.

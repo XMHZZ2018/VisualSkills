@@ -83,6 +83,7 @@ DEFAULT_PARALLEL = {
     "phase_2": 8,  # page rendering — local I/O, safe to run high
     "phase_3": 8,  # figure extraction — pure bitmap-xref, no LLM (local I/O)
     "phase_4": 4,  # guide generation — Claude calls per topic, keep modest for rate limits
+    "phase_5": 4,  # use-when extraction — Claude calls per guide, same constraint as phase 4
 }
 
 
@@ -1843,7 +1844,126 @@ def generate_multimodal_guide(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Phase 6: Index (SKILL.md per modality)
+# Phase 5a: Use-when routing hints (per generated guide)
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# For each generated guide.md we ask Claude to summarize, in one comma-separated
+# line, the concrete user tasks the guide answers. This line is consumed by
+# phase_index to enrich SKILL.md so a downstream agent can pick the right
+# topic guide for a given task description.
+#
+# Cached per modality at:
+#   workspace/<domain>/use_when/<modality>/<cat>/<topic>.txt
+#
+# We do NOT mutate the existing guide.md files — the cache is the source of
+# truth for the SKILL.md index.
+
+USE_WHEN_PROMPT = """\
+Below is a reference guide for {app_name} {app_version}, topic: "{topic_name}".
+
+Summarize, in ONE LINE, the concrete user tasks this guide answers. Output \
+3-6 short comma-separated phrases — concrete keywords or noun phrases that \
+a routing agent can match against a user's task description.
+
+Examples of good phrases:
+  saving with a password, encrypting with GPG, saving to .docx, configuring autorecovery
+
+Rules:
+- Output ONLY the comma-separated phrases on a single line. No prefix, no \
+quotes, no markdown, no explanation.
+- Be specific (mention dialog names, formats, settings) — avoid generic \
+filler like "working with documents" or "using Writer".
+- Stay grounded in what the guide actually covers — do not invent tasks.
+
+--- Guide ---
+{guide_text}
+"""
+
+
+def _use_when_cache_path(
+    config: dict, domain: str, modality: str, cat_id: str, topic_id: str,
+) -> Path:
+    return (
+        WORKSPACE_DIR / domain / "use_when" / modality / cat_id / f"{topic_id}.txt"
+    )
+
+
+def _compute_use_when(
+    config: dict, domain: str, modality: str,
+    cat: dict, topic: dict, guide_path: Path,
+) -> tuple[str, str, str | None]:
+    """Read guide.md and ask Claude for a one-line use-when summary. Cached."""
+    cache = _use_when_cache_path(config, domain, modality, cat["id"], topic["id"])
+    if cache.exists() and cache.stat().st_size > 0:
+        return cat["id"], topic["id"], cache.read_text().strip()
+    if not guide_path.exists():
+        return cat["id"], topic["id"], None
+    guide_text = guide_path.read_text()
+    prompt = USE_WHEN_PROMPT.format(
+        app_name=config["app_name"],
+        app_version=config["app_version"],
+        topic_name=topic["name"],
+        guide_text=guide_text,
+    )
+    result = call_claude(prompt, timeout=120)
+    if not result:
+        return cat["id"], topic["id"], None
+    line = result.strip().splitlines()[0].strip() if result.strip() else ""
+    if not line:
+        return cat["id"], topic["id"], None
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text(line + "\n")
+    return cat["id"], topic["id"], line
+
+
+def phase_use_when(
+    config: dict, domain: str, taxonomy: dict, mode: str, parallel: int = 4,
+) -> None:
+    """Populate the use-when cache for every existing guide.md. Idempotent."""
+    modalities = ["text", "multimodal"] if mode == "both" else [mode]
+    for modality in modalities:
+        skills_dir = _skills_dir(domain, modality)
+        jobs: list[tuple[dict, dict, Path]] = []
+        for cat in taxonomy["categories"]:
+            for topic in cat["topics"]:
+                guide_path = skills_dir / cat["id"] / topic["id"] / "guide.md"
+                if guide_path.exists():
+                    jobs.append((cat, topic, guide_path))
+        if not jobs:
+            print(f"  {modality}-v1: no guides found, skipping use-when")
+            continue
+        # Skip jobs already cached (avoid spawning futures for cache hits).
+        pending = [
+            j for j in jobs
+            if not _use_when_cache_path(
+                config, domain, modality, j[0]["id"], j[1]["id"],
+            ).exists()
+        ]
+        cached = len(jobs) - len(pending)
+        print(f"  {modality}-v1: {len(jobs)} guides ({cached} cached, {len(pending)} to compute)")
+        if not pending:
+            continue
+        with ThreadPoolExecutor(max_workers=parallel) as ex:
+            futures = {
+                ex.submit(
+                    _compute_use_when, config, domain, modality, cat, topic, gp,
+                ): (cat, topic)
+                for cat, topic, gp in pending
+            }
+            done = 0
+            for f in as_completed(futures):
+                cat, topic = futures[f]
+                try:
+                    _, _, line = f.result()
+                    done += 1
+                    status = "OK" if line else "FAILED"
+                    print(f"    [{done}/{len(pending)}] {topic['name']} {status}")
+                except Exception as e:
+                    print(f"    [{topic['name']}] ERROR: {e}")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Phase 5b: Index (SKILL.md per modality)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def phase_index(config: dict, domain: str, taxonomy: dict, mode: str) -> None:
@@ -1871,6 +1991,13 @@ def phase_index(config: dict, domain: str, taxonomy: dict, mode: str) -> None:
                 path = skills_dir / rel
                 if path.exists():
                     lines.append(f"- [{topic['name']}]({rel}) — {topic.get('description', '')}")
+                    uw_path = _use_when_cache_path(
+                        config, domain, modality, cat["id"], topic["id"],
+                    )
+                    if uw_path.exists():
+                        uw = uw_path.read_text().strip()
+                        if uw:
+                            lines.append(f"  - **Use when:** {uw}")
                 else:
                     lines.append(f"- {topic['name']} — *(not yet generated)*")
             lines.append("")
@@ -1958,7 +2085,8 @@ def main() -> None:
     p = config["parallel"]
     print(
         f"Domain: {domain} | {src_label} | Mode: {args.mode} | "
-        f"Parallel: phase_2={p['phase_2']}, phase_3={p['phase_3']}, phase_4={p['phase_4']}"
+        f"Parallel: phase_2={p['phase_2']}, phase_3={p['phase_3']}, "
+        f"phase_4={p['phase_4']}, phase_5={p['phase_5']}"
     )
     print()
 
@@ -2060,9 +2188,14 @@ def main() -> None:
             print("Done (phase 4 only).")
             return
 
-    # --- Phase 5: SKILL.md index ---
+    # --- Phase 5: routing hints (use-when) + SKILL.md index ---
     if target is None or target == 5:
-        print("Phase 5: Index")
+        print("Phase 5a: Use-when routing hints")
+        phase_use_when(
+            config, domain, taxonomy, args.mode, parallel=p["phase_5"],
+        )
+        print()
+        print("Phase 5b: Index")
         phase_index(config, domain, taxonomy, args.mode)
         print()
 

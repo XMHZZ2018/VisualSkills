@@ -44,6 +44,7 @@ Per-phase parallelism is configured in the YAML config:
     phase_2: 8     # page rendering (local I/O)
     phase_3: 8     # figure extraction (pure bitmap-xref, deterministic)
     phase_4: 4     # guide generation (Claude calls — rate-limit bound)
+    phase_5: 4     # use-when routing hints (Claude calls — rate-limit bound)
 
 Defaults are applied when keys are missing.
 
