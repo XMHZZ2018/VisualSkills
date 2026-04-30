@@ -1513,184 +1513,170 @@ def generate_text_guide(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Phase 5: Multimodal skill — insert figure references into the same text
+# Phase 4 (multimodal path): one-shot prose + inline figure references
 # ═══════════════════════════════════════════════════════════════════════════════
+#
+# The multimodal path is *independent* from the text path. It does not read or
+# share `text_drafts/`. Instead, it issues a single Claude call given both the
+# topic's page images and the candidate figure crops, and asks Claude to write
+# the full markdown guide with `Read the screenshot ...` paragraphs inlined at
+# the spots where a figure genuinely helps. After we get the markdown back, we
+# extract which raw figures Claude actually referenced (in order of appearance),
+# copy them into the topic dir as fig01.png, fig02.png, ..., and rewrite the
+# markdown so the references use the renumbered names.
 
-FIGURE_SELECT_PROMPT = """\
-You have a text guide for {app_name} {app_version} and a set of candidate figure crops \
-from the official PDF. Decide which figures are genuinely helpful for a reader of this \
-guide, and where each should be referenced.
+MULTIMODAL_PROMPT = """\
+Write a practical reference guide for {app_name} {app_version}.
 
-Guide text (paragraphs numbered):
----
-{numbered_guide}
----
+Topic: {topic_name}
+Description: {topic_description}
 
-Candidate figures (filenames and captions/descriptions, in order of attachment):
+I'm attaching the relevant pages from the official {app_name} {app_version} guide \
+as images — use them as the primary source of truth.
+
+A reader of this guide will also have access to a set of figure files in the \
+same directory. You won't see those figures here; pick them by their filename + \
+caption. Each figure was cropped from one of the pages above.
+
+Candidate figures (filename : caption):
 {figure_list}
 
-Output JSON:
-{{
-    "insertions": [
-        {{
-            "after_paragraph": 2,
-            "figure": "raw_003.png",
-            "description": "the Background tab of the Slide Properties dialog with the Fill dropdown"
-        }}
-    ]
-}}
+Write in a casual, readable style — like a colleague explaining over your shoulder. \
+Use natural prose with clear actions, not rigid numbered steps.
 
 Rules:
-- Only include figures that clearly illustrate something in that paragraph's action
-- `after_paragraph` is 1-indexed; it MUST refer to an existing paragraph number above
-- Each `figure` field MUST be one of the candidate filenames exactly
-- `description` should be a short phrase describing the visible UI elements — it will be \
-spliced into a sentence like "...you will see <description>."
-- Omit figures that are irrelevant, redundant, or too generic
-- Usually 0-3 figures per guide is plenty; never duplicate the same figure twice
-- Return {{"insertions": []}} if no figure materially helps
+- Title: "# {topic_name} ({app_name} {app_version})"
+- Use **bold** for menu paths and button names
+- Short paragraphs, each covering one action or concept
+- Include exact menu paths (e.g., **Format > Paragraph...**)
+- Around 15-25 lines of prose total — concise and scannable
+- No "Step 1, Step 2" phrasing — flowing prose with transitions
 
-Output ONLY valid JSON.
+Figure references:
+- Where a candidate figure clearly illustrates what the prose just described, \
+add a *short* pointer in one of these forms (the image carries the content; \
+do NOT verbalize what's in it):
+    See `<FILENAME>`.
+    (see `<FILENAME>`)
+    ... See `<FILENAME>` for the <brief noun phrase>.
+- `<FILENAME>` MUST be one of the candidate filenames above (e.g. `raw_004.png`), used exactly as given.
+- Reference each figure at most once.
+- Only reference figures that materially help — many candidates will be redundant or generic. \
+0-3 references is typical; it is fine to reference none.
+- Do NOT invent filenames; do NOT reference figures using markdown image syntax.
+
+Output ONLY the markdown guide.
 """
 
 
-def _split_paragraphs(markdown: str) -> list[str]:
-    """Split markdown into paragraphs on blank lines. Keeps the title as the first element."""
-    parts = re.split(r"\n\s*\n", markdown.strip())
-    return [p.strip() for p in parts if p.strip()]
+# Matches both `See \`raw_004.png\``, `(see \`raw_004.png\`)`, and `See \`raw_004.png\` for ...`.
+_FIG_REF_PATTERN = re.compile(
+    r"\bsee\s+`([A-Za-z0-9_./-]+\.png)`",
+    re.IGNORECASE,
+)
 
 
-def _number_guide_for_prompt(paragraphs: list[str]) -> str:
-    """Produce '[P1] <paragraph>' listing for the prompt (title excluded from numbering)."""
-    lines = []
-    n = 0
-    for p in paragraphs:
-        if p.startswith("#"):
-            lines.append(p)
-            continue
-        n += 1
-        lines.append(f"[P{n}] {p}")
-    return "\n\n".join(lines)
+def _draft_multimodal_prose(
+    topic: dict, cat: dict, config: dict,
+    page_images: list[Path], figures: list[dict],
+) -> str | None:
+    """Single-call multimodal prose draft (raw figure filenames inlined).
+
+    Cached at `workspace/<domain>/multimodal_drafts/<cat>/<topic>.md`. The cached
+    markdown still references figures by their original `raw_NNN.png` names; the
+    renumber-to-figXX step happens in `generate_multimodal_guide`.
+    """
+    if not page_images:
+        return None
+    cache = (
+        WORKSPACE_DIR / config["domain"] / "multimodal_drafts"
+        / cat["id"] / f"{topic['id']}.md"
+    )
+    if cache.exists() and cache.stat().st_size > 0:
+        return cache.read_text()
+
+    if figures:
+        fig_lines = []
+        for f in figures:
+            fname = Path(f["path"]).name
+            caption = (f.get("caption") or f.get("description") or "").strip()
+            fig_lines.append(f"  - {fname} : {caption}" if caption else f"  - {fname}")
+        fig_list = "\n".join(fig_lines)
+    else:
+        fig_list = "  (no candidate figures — write prose without figure references)"
+
+    prompt = MULTIMODAL_PROMPT.format(
+        app_name=config["app_name"],
+        app_version=config["app_version"],
+        topic_name=topic["name"],
+        topic_description=topic.get("description", ""),
+        figure_list=fig_list,
+    )
+    # Caption-only figure selection: send pages as images, figures as text list only.
+    result = call_claude(prompt, images=list(page_images), timeout=600)
+    if not result:
+        return None
+    text = result.strip() + "\n"
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text(text)
+    return text
 
 
 def generate_multimodal_guide(
     topic: dict, cat: dict, config: dict, domain: str,
     page_images: list[Path], figures: list[dict],
 ) -> bool:
-    app = config["app_name"]
-    ver = config["app_version"]
     mm_dir = _skills_dir(domain, "multimodal") / cat["id"] / topic["id"]
-    text_dir = _skills_dir(domain, "text") / cat["id"] / topic["id"]
     mm_guide = mm_dir / "guide.md"
-    text_guide = text_dir / "guide.md"
 
     if mm_guide.exists():
         print(f"    [{topic['name']}] multimodal [cached]")
         return True
 
-    # Prefer the on-disk text-v1 guide if it exists (for byte-for-byte parity);
-    # otherwise draft prose internally. Either way the multimodal output is
-    # produced without requiring text-v1 to be requested.
-    if text_guide.exists():
-        text = text_guide.read_text()
-    else:
-        text = _draft_topic_prose(topic, cat, config, page_images)
-        if text is None:
-            if not page_images:
-                print(f"    [{topic['name']}] multimodal SKIP (no pages)")
-            else:
-                print(f"    [{topic['name']}] multimodal FAILED (prose draft)")
-            return False
-    paragraphs = _split_paragraphs(text)
+    text = _draft_multimodal_prose(topic, cat, config, page_images, figures)
+    if text is None:
+        if not page_images:
+            print(f"    [{topic['name']}] multimodal SKIP (no pages)")
+        else:
+            print(f"    [{topic['name']}] multimodal FAILED (prose draft)")
+        return False
 
-    # If there are no candidate figures, the multimodal guide is just the text guide verbatim.
-    if not figures:
-        mm_dir.mkdir(parents=True, exist_ok=True)
-        mm_guide.write_text(text)
-        print(f"    [{topic['name']}] multimodal OK (no figures)")
-        return True
-
-    # Build numbered view for the prompt (paragraphs only; title excluded from numbering).
-    body_indices: list[int] = [i for i, p in enumerate(paragraphs) if not p.startswith("#")]
-    numbered = _number_guide_for_prompt(paragraphs)
-
-    fig_lines = []
-    for f in figures:
-        fname = Path(f["path"]).name
-        caption = (f.get("caption") or f.get("description") or "").strip()
-        fig_lines.append(f"  - {fname}: {caption}" if caption else f"  - {fname}")
-    fig_list = "\n".join(fig_lines)
-
-    prompt = FIGURE_SELECT_PROMPT.format(
-        app_name=app, app_version=ver,
-        numbered_guide=numbered,
-        figure_list=fig_list,
-    )
-    image_paths = [Path(f["path"]) for f in figures]
-    resp = call_claude(prompt, images=image_paths, timeout=300)
-    data = parse_json_response(resp) if resp else None
-    insertions = (data or {}).get("insertions", []) if isinstance(data, dict) else []
-
-    # Validate + order + dedup figures.
+    # Find which raw figures Claude actually referenced, in order of first appearance.
     valid_files = {Path(f["path"]).name: Path(f["path"]) for f in figures}
-    by_paragraph: dict[int, list[tuple[str, str]]] = {}
-    used_src: list[Path] = []
-    used_set: set[str] = set()
-    for ins in insertions:
-        try:
-            after = int(ins.get("after_paragraph", 0))
-        except (TypeError, ValueError):
-            continue
-        fname = ins.get("figure", "")
-        desc = (ins.get("description") or "").strip()
-        if fname not in valid_files:
-            continue
-        if fname in used_set:
-            continue
-        if after < 1 or after > len(body_indices):
-            continue
-        used_set.add(fname)
-        used_src.append(valid_files[fname])
-        by_paragraph.setdefault(after, []).append((fname, desc))
+    referenced: list[str] = []
+    seen: set[str] = set()
+    for m in _FIG_REF_PATTERN.finditer(text):
+        fname = m.group(1)
+        if fname in valid_files and fname not in seen:
+            seen.add(fname)
+            referenced.append(fname)
 
-    if not used_src:
-        mm_dir.mkdir(parents=True, exist_ok=True)
-        mm_guide.write_text(text)
-        print(f"    [{topic['name']}] multimodal OK (0 figs selected)")
-        return True
-
-    # Copy chosen figures as fig01.png, fig02.png, ...  (preserve insertion order).
     mm_dir.mkdir(parents=True, exist_ok=True)
     # Clean stale fig*.png if any.
     for old in mm_dir.glob("fig*.png"):
         old.unlink()
 
-    filename_to_fig: dict[str, str] = {}
-    for i, src in enumerate(used_src, 1):
-        fig_name = f"fig{i:02d}.png"
-        shutil.copy2(src, mm_dir / fig_name)
-        filename_to_fig[src.name] = fig_name
+    if not referenced:
+        mm_guide.write_text(text)
+        print(f"    [{topic['name']}] multimodal OK (0 figs selected)")
+        return True
 
-    # Rebuild markdown: walk original paragraphs, inject "Read `figNN.png`..." paragraphs
-    # after the specified body paragraph positions. Original text is preserved byte-for-byte.
-    out_paragraphs: list[str] = []
-    body_counter = 0
-    for para in paragraphs:
-        out_paragraphs.append(para)
-        if para.startswith("#"):
-            continue
-        body_counter += 1
-        for fname, desc in by_paragraph.get(body_counter, []):
-            fig_name = filename_to_fig[fname]
-            sentence_desc = desc or "the relevant UI"
-            ref = (
-                f"Read the screenshot `{fig_name}` in this directory — "
-                f"you will see {sentence_desc}."
-            )
-            out_paragraphs.append(ref)
+    # Copy referenced figures as fig01.png, fig02.png, ... in insertion order,
+    # and substitute the names in the markdown.
+    rename_map: dict[str, str] = {}
+    for i, fname in enumerate(referenced, 1):
+        new_name = f"fig{i:02d}.png"
+        shutil.copy2(valid_files[fname], mm_dir / new_name)
+        rename_map[fname] = new_name
 
-    mm_guide.write_text("\n\n".join(out_paragraphs).rstrip() + "\n")
-    print(f"    [{topic['name']}] multimodal OK ({len(used_src)} figs)")
+    def _sub(m: re.Match) -> str:
+        original = m.group(0)
+        fname = m.group(1)
+        return original.replace(fname, rename_map.get(fname, fname))
+
+    rewritten = _FIG_REF_PATTERN.sub(_sub, text)
+    mm_guide.write_text(rewritten)
+    print(f"    [{topic['name']}] multimodal OK ({len(referenced)} figs)")
     return True
 
 
@@ -1755,7 +1741,16 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Task-driven skill generation (v1)")
     parser.add_argument("--config", required=True, help="Path to domain YAML config")
     parser.add_argument("--mode", choices=["text", "multimodal", "both"], default="both")
-    parser.add_argument("--parallel", type=int, default=1)
+    parser.add_argument(
+        "--parallel-pages", type=int, default=8,
+        help="Topic-level parallelism for phases 2 (page rendering) and 3 (figure extraction). "
+             "Mostly local I/O / cheap PyMuPDF — 8 is safe.",
+    )
+    parser.add_argument(
+        "--parallel-guides", type=int, default=4,
+        help="Topic-level parallelism for phase 4 (guide generation). "
+             "Each topic issues Claude calls — keep modest (4) to avoid rate limits.",
+    )
     parser.add_argument("--task_ids", nargs="*", help="Filter to specific task id prefixes")
     parser.add_argument(
         "--phase", type=int, choices=[1, 2, 3, 4, 5], default=None,
@@ -1808,7 +1803,10 @@ def main() -> None:
         src_label = "Source: HTML docs"
     else:
         src_label = "Source: full PDF"
-    print(f"Domain: {domain} | {src_label} | Mode: {args.mode} | Parallel: {args.parallel}")
+    print(
+        f"Domain: {domain} | {src_label} | Mode: {args.mode} | "
+        f"Parallel: pages={args.parallel_pages}, guides={args.parallel_guides}"
+    )
     print()
 
     target = args.phase  # None = run all; otherwise run only this phase.
@@ -1843,7 +1841,7 @@ def main() -> None:
         _, topic_pages = phase_html_pages(config, taxonomy, ws)
     else:
         pdf_path, topic_pages = phase_pdf_pages(
-            config, taxonomy, ws, parallel=args.parallel,
+            config, taxonomy, ws, parallel=args.parallel_pages,
         )
     if target is None or target == 2:
         print()
@@ -1859,7 +1857,7 @@ def main() -> None:
             figures_by_topic = phase_html_figures(taxonomy, ws)
         elif pdf_path:
             figures_by_topic = phase_figures(
-                pdf_path, topic_pages, ws, parallel=args.parallel,
+                pdf_path, topic_pages, ws, parallel=args.parallel_pages,
             )
         if target is None or target == 3:
             print()
@@ -1885,7 +1883,7 @@ def main() -> None:
             return process_topic(topic, cat, config, domain, args.mode, images, figs)
 
         success = 0
-        if args.parallel <= 1:
+        if args.parallel_guides <= 1:
             for item in all_topics:
                 try:
                     if _one(item):
@@ -1893,7 +1891,7 @@ def main() -> None:
                 except Exception as e:
                     print(f"    [{item[0]['name']}] ERROR: {e}")
         else:
-            with ThreadPoolExecutor(max_workers=args.parallel) as executor:
+            with ThreadPoolExecutor(max_workers=args.parallel_guides) as executor:
                 futures = {executor.submit(_one, item): item for item in all_topics}
                 for f in as_completed(futures):
                     try:

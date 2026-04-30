@@ -5,8 +5,15 @@ application from one of three knowledge sources, all driven by a single YAML
 config and one Python entry point.
 
 ```bash
-./run.sh --config configs/<domain>.yaml --mode multimodal --parallel 4
+./run.sh --config configs/<domain>.yaml --mode multimodal
 ```
+
+The runner uses two parallelism knobs (defaults shown):
+- `--parallel-pages 8`  — topic-level parallelism for phases 2 (page rendering)
+  and 3 (figure extraction). Mostly local I/O / cheap PyMuPDF — 8 is safe.
+- `--parallel-guides 4` — topic-level parallelism for phase 4 (guide
+  generation). Each topic issues Claude calls — keep modest to avoid hitting
+  rate limits.
 
 ## Three modes
 
@@ -54,7 +61,7 @@ Render the source pages for every topic so phase 4 has visual context.
 
 - **PDF/Task:** for each topic, render its `pdf_pages` from the PDF at
   300 DPI using PyMuPDF. Skips pages already on disk. Topics are rendered
-  in parallel (`--parallel N`); each worker opens its own `fitz.Document`
+  in parallel (`--parallel-pages N`); each worker opens its own `fitz.Document`
   so PyMuPDF's thread restrictions are respected.
 - **HTML:** for each topic's URL, take a full-page screenshot via
   Playwright (chromium). Skips topics already screenshotted.
@@ -67,27 +74,37 @@ plus `figures.json` describing each crop.
 - **PDF:** first try PyMuPDF's bitmap-xref extraction (cheap and exact);
   for topics where xrefs miss, fall back to a Claude bounding-box pass that
   proposes figure regions on each page and crops them. Topics run in
-  parallel (`--parallel N`); each worker opens its own `fitz.Document`.
-  The Claude fallback is rate-limited only by `--parallel`, so keep N
+  parallel (`--parallel-pages N`); each worker opens its own `fitz.Document`.
+  The Claude fallback is rate-limited only by `--parallel-pages`, so keep N
   modest (4–8 is safe).
 - **HTML:** download every `<img>` from the page (deduplicated by URL),
   resolving relative URLs and respecting the page's content scope.
 
 ### Phase 4 — Per-topic guides
-Generate a `guide.md` per topic. Both modalities are produced here.
+Generate a `guide.md` per topic. Text and multimodal are produced by **two
+independent Claude calls** — multimodal does not derive from the text draft.
 **Output:**
 - `skills/<domain>-knowledge-text-v1/<cat>/<topic>/guide.md`
 - `skills/<domain>-knowledge-multimodal-v1/<cat>/<topic>/{guide.md, figNN.png}`
 
 - **Text:** ask Claude to read all of a topic's page images and write
-  concise prose. Cached at `workspace/<domain>/text_drafts/<cat>/<topic>.md`.
-- **Multimodal:** start from the text draft, then ask Claude to splice in
-  *"Read the screenshot `figNN.png` in this directory — you will see &lt;short
-  description&gt;."* paragraphs at the most useful spots and copy the chosen
-  figures into the topic directory, renumbered in insertion order.
-- Topics run in parallel with `--parallel N` (thread pool over topics).
-  `--mode multimodal` does **not** require the text-v1 directory to exist —
-  it drafts the prose internally on the fly and reuses the draft cache.
+  concise prose (no figure references). Cached at
+  `workspace/<domain>/text_drafts/<cat>/<topic>.md`.
+- **Multimodal:** ask Claude — in a *single call* given the page images plus
+  a *text list* of `filename : caption` for the candidate figures (the figure
+  pixels are NOT sent; selection is caption-based) — to write a fresh
+  markdown guide and add short pointers like `See \`raw_004.png\`.` or
+  `(see \`raw_004.png\`)` at spots where a figure genuinely helps. The image
+  carries the content; the pointer does NOT verbalize what's in the figure
+  (that's text-v1's job).
+  After Claude responds, we extract the filenames it actually referenced
+  (in order of first appearance), copy those crops into the topic dir as
+  `fig01.png`, `fig02.png`, ..., and rewrite the markdown to use the
+  renumbered names. Cached at
+  `workspace/<domain>/multimodal_drafts/<cat>/<topic>.md`.
+- Topics run in parallel with `--parallel-guides N` (thread pool over topics).
+  Each topic issues 1–2 Claude calls (text + multimodal), so keep this
+  modest — default is 4. The two modalities share neither prompts nor caches.
 
 ### Phase 5 — Index
 Write the per-modality `SKILL.md` summary that lists every topic.
@@ -147,26 +164,30 @@ tasks:
 ## Usage
 
 ```bash
-# Full pipeline, both modalities, 4 topics in parallel
-./run.sh --config configs/libreoffice_writer.yaml --mode both --parallel 4
+# Full pipeline, both modalities (defaults: pages=8, guides=4)
+./run.sh --config configs/libreoffice_writer.yaml --mode both
 
-# Multimodal only — drafts the prose internally, only writes multimodal-v1
-./run.sh --config configs/zotero.yaml --mode multimodal --parallel 4
+# Multimodal only
+./run.sh --config configs/zotero.yaml --mode multimodal
 
 # Text only
 ./run.sh --config configs/libreoffice_impress.yaml --mode text
+
+# Override parallelism (e.g. very tight rate limit → guides=2)
+./run.sh --config configs/libreoffice_writer.yaml --parallel-guides 2
 
 # Task mode with a specific subset
 ./run.sh --config configs/libreoffice_impress.yaml --task_ids create_flowchart
 
 # Run a single phase (earlier phases must already be cached, later phases skipped)
 ./run.sh --config configs/libreoffice_writer.yaml --phase 1   # just (re)build taxonomy
-./run.sh --config configs/libreoffice_writer.yaml --phase 4 --mode multimodal --parallel 4
+./run.sh --config configs/libreoffice_writer.yaml --phase 4 --mode multimodal
 ```
 
-`--mode multimodal` does **not** require `text-v1` to exist — it drafts the
-prose internally and caches it at `workspace/<domain>/text_drafts/<cat>/<topic>.md`,
-so a later `--mode both` reuses that draft for free.
+`--mode multimodal` and `--mode text` are fully independent — each runs its
+own Claude call(s) and writes to its own draft cache
+(`text_drafts/` vs. `multimodal_drafts/`). `--mode both` simply runs both
+paths back-to-back; neither modality reuses the other's prose.
 
 ## Output layout
 
@@ -202,7 +223,8 @@ workspace/<domain>/
 ├── html_pages/<topic>/         # HTML mode: playwright full-page screenshots
 ├── pdf_figures/<topic>/        # PDF mode: cropped figures + figures.json
 ├── html_figures/<topic>/       # HTML mode: downloaded <img> + figures.json
-└── text_drafts/<cat>/<topic>.md # In-memory prose cache (shared by both modalities)
+├── text_drafts/<cat>/<topic>.md       # text-mode prose draft cache
+└── multimodal_drafts/<cat>/<topic>.md # multimodal-mode draft cache (with raw_NNN.png refs)
 ```
 
 ## Requirements
@@ -221,7 +243,9 @@ workspace/<domain>/
   out to the `claude` CLI. The CLI is run from `cwd=/tmp` because the project
   directory's `.claude/`/`.mcp.json` configuration confuses non-interactive
   invocations.
-- **Parallelism** is at the topic level in Phases 4/5 (`--parallel N`). Phase 1
+- **Parallelism** is at the topic level. Phases 2/3 use `--parallel-pages N`
+  (default 8 — local I/O bound) and phase 4 uses `--parallel-guides N`
+  (default 4 — Claude rate-limit bound). Phase 1
   ToC OCR is intentionally serial — parallel cold-start of `claude -p` can
   trip the OAuth `client_data` rate limit.
 - **Caching is aggressive**: every phase keys its outputs into `workspace/`
