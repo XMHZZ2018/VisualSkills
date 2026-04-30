@@ -53,17 +53,23 @@ Render the source pages for every topic so phase 4 has visual context.
 **Output:** `workspace/<domain>/{pdf,html}_pages/<topic>/page_NNNN.png`
 
 - **PDF/Task:** for each topic, render its `pdf_pages` from the PDF at
-  300 DPI using PyMuPDF. Skips pages already on disk.
+  300 DPI using PyMuPDF. Skips pages already on disk. Topics are rendered
+  in parallel (`--parallel N`); each worker opens its own `fitz.Document`
+  so PyMuPDF's thread restrictions are respected.
 - **HTML:** for each topic's URL, take a full-page screenshot via
   Playwright (chromium). Skips topics already screenshotted.
 
 ### Phase 3 — Figures
-Collect figures used in phase 5 (multimodal). Skipped for `--mode text`.
-**Output:** `workspace/<domain>/{pdf,html}_figures/<topic>/fig_NNN.png`
+Collect figures used in phase 4 (multimodal). Skipped for `--mode text`.
+**Output:** `workspace/<domain>/{pdf,html}_figures/<topic>/raw_NNN.png`
+plus `figures.json` describing each crop.
 
 - **PDF:** first try PyMuPDF's bitmap-xref extraction (cheap and exact);
   for topics where xrefs miss, fall back to a Claude bounding-box pass that
-  proposes figure regions on each page and crops them.
+  proposes figure regions on each page and crops them. Topics run in
+  parallel (`--parallel N`); each worker opens its own `fitz.Document`.
+  The Claude fallback is rate-limited only by `--parallel`, so keep N
+  modest (4–8 is safe).
 - **HTML:** download every `<img>` from the page (deduplicated by URL),
   resolving relative URLs and respecting the page's content scope.
 

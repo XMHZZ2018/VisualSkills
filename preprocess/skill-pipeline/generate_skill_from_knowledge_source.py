@@ -761,9 +761,14 @@ def _mapping_from_taxonomy(taxonomy: dict) -> dict[str, list[int]]:
 
 
 def phase_pdf_pages(
-    config: dict, taxonomy: dict, ws: Path,
+    config: dict, taxonomy: dict, ws: Path, parallel: int = 1,
 ) -> tuple[Path | None, dict[str, list[tuple[int, Path]]]]:
-    """Returns (pdf_path, {topic_id: [(0-indexed page_num, rendered_image_path), ...]})."""
+    """Returns (pdf_path, {topic_id: [(0-indexed page_num, rendered_image_path), ...]}).
+
+    Topic rendering is parallelized across `parallel` threads. PyMuPDF page
+    reading is thread-safe as long as each thread opens its own Document,
+    which `_render_pdf_pages` already does.
+    """
     pdf_path = _download_pdf(config, ws)
     if not pdf_path:
         print("  No PDF configured; cannot build v1 skill.")
@@ -785,24 +790,39 @@ def phase_pdf_pages(
         print(f"  ToC: {len(toc)} entries")
         mapping = _map_topics_to_pages(toc, taxonomy, config, ws)
 
+    doc = fitz.open(str(pdf_path))
+    doc_len = doc.page_count
+    doc.close()
+
     pages_root = ws / "pdf_pages"
-    topic_pages: dict[str, list[tuple[int, Path]]] = {}
-    for topic_id, page_nums in mapping.items():
+
+    def _render_one(item: tuple[str, list[int]]) -> tuple[str, list[tuple[int, Path]]]:
+        topic_id, page_nums = item
         if not page_nums:
-            continue
-        rendered = _render_pdf_pages(pdf_path, page_nums, pages_root / topic_id)
-        # Re-zip with original 0-indexed page numbers, skipping any that fell out of range.
+            return topic_id, []
+        _render_pdf_pages(pdf_path, page_nums, pages_root / topic_id)
         paired: list[tuple[int, Path]] = []
-        doc_len = fitz.open(str(pdf_path)).page_count
         for pn in page_nums:
             if pn < 0 or pn >= doc_len:
                 continue
             out = pages_root / topic_id / f"page_{pn + 1:04d}.png"
             if out.exists():
                 paired.append((pn, out))
-        if paired:
-            topic_pages[topic_id] = paired
-    print(f"  Rendered pages for {len(topic_pages)} topics at {PDF_DPI} DPI")
+        return topic_id, paired
+
+    topic_pages: dict[str, list[tuple[int, Path]]] = {}
+    items = list(mapping.items())
+    if parallel <= 1:
+        for item in items:
+            tid, paired = _render_one(item)
+            if paired:
+                topic_pages[tid] = paired
+    else:
+        with ThreadPoolExecutor(max_workers=parallel) as executor:
+            for tid, paired in executor.map(_render_one, items):
+                if paired:
+                    topic_pages[tid] = paired
+    print(f"  Rendered pages for {len(topic_pages)} topics at {PDF_DPI} DPI (parallel={parallel})")
     return pdf_path, topic_pages
 
 
@@ -968,21 +988,25 @@ def phase_figures(
     pdf_path: Path,
     topic_pages: dict[str, list[tuple[int, Path]]],
     ws: Path,
+    parallel: int = 1,
 ) -> dict[str, list[dict]]:
-    """Extract figure crops per topic. Returns {topic_id: [figure dict, ...]}."""
-    root = ws / "pdf_figures"
-    result: dict[str, list[dict]] = {}
-    doc = fitz.open(str(pdf_path))
-    try:
-        for topic_id, pairs in topic_pages.items():
-            topic_dir = root / topic_id
-            topic_dir.mkdir(parents=True, exist_ok=True)
-            cache = topic_dir / "figures.json"
-            if cache.exists():
-                figs = json.loads(cache.read_text())
-                result[topic_id] = figs
-                continue
+    """Extract figure crops per topic. Returns {topic_id: [figure dict, ...]}.
 
+    Parallelized across topics. Each worker opens its own `fitz.Document` so
+    we never share a Document across threads (PyMuPDF requires this).
+    """
+    root = ws / "pdf_figures"
+
+    def _one(item: tuple[str, list[tuple[int, Path]]]) -> tuple[str, list[dict]]:
+        topic_id, pairs = item
+        topic_dir = root / topic_id
+        topic_dir.mkdir(parents=True, exist_ok=True)
+        cache = topic_dir / "figures.json"
+        if cache.exists():
+            return topic_id, json.loads(cache.read_text())
+
+        doc = fitz.open(str(pdf_path))
+        try:
             idx = 0
             topic_figs: list[dict] = []
             for page_num, page_image in pairs:
@@ -993,11 +1017,22 @@ def phase_figures(
                 else:
                     vec, idx = _extract_vector_figures(page, page_image, topic_dir, idx)
                     topic_figs.extend(vec)
-            cache.write_text(json.dumps(topic_figs, indent=2) + "\n")
-            result[topic_id] = topic_figs
-            print(f"    [{topic_id}] {len(topic_figs)} figures")
-    finally:
-        doc.close()
+        finally:
+            doc.close()
+        cache.write_text(json.dumps(topic_figs, indent=2) + "\n")
+        print(f"    [{topic_id}] {len(topic_figs)} figures")
+        return topic_id, topic_figs
+
+    items = list(topic_pages.items())
+    result: dict[str, list[dict]] = {}
+    if parallel <= 1:
+        for item in items:
+            tid, figs = _one(item)
+            result[tid] = figs
+    else:
+        with ThreadPoolExecutor(max_workers=parallel) as executor:
+            for tid, figs in executor.map(_one, items):
+                result[tid] = figs
     return result
 
 
@@ -1807,7 +1842,9 @@ def main() -> None:
     if has_html:
         _, topic_pages = phase_html_pages(config, taxonomy, ws)
     else:
-        pdf_path, topic_pages = phase_pdf_pages(config, taxonomy, ws)
+        pdf_path, topic_pages = phase_pdf_pages(
+            config, taxonomy, ws, parallel=args.parallel,
+        )
     if target is None or target == 2:
         print()
     if target == 2:
@@ -1821,7 +1858,9 @@ def main() -> None:
         if has_html:
             figures_by_topic = phase_html_figures(taxonomy, ws)
         elif pdf_path:
-            figures_by_topic = phase_figures(pdf_path, topic_pages, ws)
+            figures_by_topic = phase_figures(
+                pdf_path, topic_pages, ws, parallel=args.parallel,
+            )
         if target is None or target == 3:
             print()
     if target == 3:
