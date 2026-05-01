@@ -61,7 +61,9 @@ import yaml
 from PIL import Image
 
 PIPELINE_DIR = Path(__file__).parent
-MMSKILLS_ROOT = PIPELINE_DIR.parent.parent
+# Repo root: this script lives at MMSKILLS_ROOT/preprocess/skill-pipeline/v1/...,
+# so .parent.parent.parent climbs three levels back up to the repo root.
+MMSKILLS_ROOT = PIPELINE_DIR.parent.parent.parent
 CONFIGS_DIR = PIPELINE_DIR / "configs"
 WORKSPACE_DIR = PIPELINE_DIR / "workspace"
 
