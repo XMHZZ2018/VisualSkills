@@ -35,7 +35,9 @@ Usage: $0 --config <path.yaml> [options]
 
 Options:
   --mode {both,text,multimodal}    default: both
-  --phase N                        run only phase N (1..5), default: all
+  --phase N                        run only phase N (1..6); default flow is 1-5.
+                                   Phase 6 (text-v1 from multimodal-v1) is
+                                   optional and only runs with --phase 6.
   --task_ids ID [ID ...]           (task-driven configs only) filter to these task ids
 
 Per-phase parallelism is configured in the YAML config:
@@ -45,12 +47,14 @@ Per-phase parallelism is configured in the YAML config:
     phase_3: 8     # figure extraction (pure bitmap-xref, deterministic)
     phase_4: 4     # guide generation (Claude calls — rate-limit bound)
     phase_5: 4     # use-when routing hints (Claude calls — rate-limit bound)
+    phase_6: 4     # text-v1 from multimodal-v1 (Claude calls — optional phase)
 
 Defaults are applied when keys are missing.
 
 Examples:
   $0 --config configs/libreoffice_writer.yaml
   $0 --config configs/libreoffice_writer.yaml --mode multimodal --phase 4
+  $0 --config configs/libreoffice_writer.yaml --phase 6   # derive text-v1
 EOF
             exit 0
             ;;

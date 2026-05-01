@@ -1,0 +1,126 @@
+{
+  "target_skill_dir": "skills/libreoffice_impress-knowledge-multimodal-v0",
+  "guides": [
+    "animations-and-interactivity/interactive-navigation/guide.md",
+    "animations-and-interactivity/transitions-and-animations/guide.md",
+    "images-and-objects/image-alignment/guide.md",
+    "images-and-objects/image-composition/guide.md",
+    "images-and-objects/image-embedding/guide.md",
+    "images-and-objects/math-equations/guide.md",
+    "presentation-setup/creating-presentations/guide.md",
+    "presentation-setup/export/guide.md",
+    "presentation-setup/master-slides/guide.md",
+    "presentation-setup/slide-dimensions/guide.md",
+    "presentation-setup/slide-organization/guide.md",
+    "shapes-and-diagrams/architecture-diagrams/guide.md",
+    "shapes-and-diagrams/flowcharts/guide.md",
+    "shapes-and-diagrams/process-diagrams/guide.md",
+    "shapes-and-diagrams/shape-styling/guide.md",
+    "shapes-and-diagrams/shape-transformations/guide.md",
+    "text-and-content/bullet-formatting/guide.md",
+    "text-and-content/data-tables/guide.md",
+    "text-and-content/text-box-formatting/guide.md"
+  ],
+  "regions": {
+    "file-menu": {
+      "owners": [
+        {"guide": "presentation-setup/creating-presentations/guide.md", "confidence": "primary", "scope": "New (incl. New Presentation Ctrl+N), Open, Templates submenus"},
+        {"guide": "presentation-setup/export/guide.md", "confidence": "primary", "scope": "Save As, Export, Export As PDF, Print"}
+      ]
+    },
+    "pdf-options-dialog": {
+      "owners": [
+        {"guide": "presentation-setup/export/guide.md", "confidence": "primary", "scope": "Full dialog: 6 tabs (General, Initial View, User Interface, Links, Security, Digital Signatures)"}
+      ]
+    },
+    "slides-panel": {
+      "owners": [
+        {"guide": "presentation-setup/slide-organization/guide.md", "confidence": "primary", "scope": "Slide thumbnails, drag-to-reorder, right-click context menu (New/Duplicate/Delete/Rename/Hide)"}
+      ]
+    },
+    "properties-sidebar": {
+      "owners": [
+        {"guide": "presentation-setup/slide-dimensions/guide.md", "confidence": "primary", "scope": "Slide section: Format dropdown (4:3/16:9/Letter/etc.), Orientation dropdown"},
+        {"guide": "presentation-setup/master-slides/guide.md", "confidence": "primary", "scope": "Slide section: Master Slide dropdown, Master Background/Objects checkboxes, Master View button"},
+        {"guide": "presentation-setup/slide-organization/guide.md", "confidence": "relevant", "scope": "Layouts grid: 3x4 layout thumbnails for the current slide"}
+      ]
+    },
+    "slide-slideshow-menus": {
+      "owners": [
+        {"guide": "presentation-setup/slide-organization/guide.md", "confidence": "primary", "scope": "Slide menu: New Slide (Ctrl+M), Duplicate Slide, Delete Slide, Rename Slide, Summary Slide"},
+        {"guide": "presentation-setup/master-slides/guide.md", "confidence": "primary", "scope": "Slide menu: Change Slide Master, Slide Properties, Set Background Image"},
+        {"guide": "animations-and-interactivity/transitions-and-animations/guide.md", "confidence": "relevant", "scope": "Slide menu: Slide Transition opens transition panel"},
+        {"guide": "animations-and-interactivity/interactive-navigation/guide.md", "confidence": "relevant", "scope": "Slide Show menu: Start, Slide Show Settings (kiosk mode, looping)"}
+      ]
+    },
+    "insert-menu": {
+      "owners": [
+        {"guide": "images-and-objects/image-composition/guide.md", "confidence": "primary", "scope": "Image entry: file-browser dialog with Preview/Link checkboxes"},
+        {"guide": "text-and-content/data-tables/guide.md", "confidence": "primary", "scope": "Table entry: Insert Table dialog (rows/columns)"},
+        {"guide": "images-and-objects/math-equations/guide.md", "confidence": "primary", "scope": "Object > Formula entry — opens LibreOffice Math editor as OLE object"},
+        {"guide": "text-and-content/text-box-formatting/guide.md", "confidence": "relevant", "scope": "Text Box entry (F2)"},
+        {"guide": "animations-and-interactivity/interactive-navigation/guide.md", "confidence": "relevant", "scope": "Hyperlink entry (Ctrl+K) — Hyperlink dialog with Internet/Mail/Document/New Document tabs"}
+      ]
+    },
+    "format-menu": {
+      "owners": [
+        {"guide": "text-and-content/text-box-formatting/guide.md", "confidence": "primary", "scope": "Character submenu / Character dialog; Paragraph dialog; Text submenu (Bold/Italic/case)"},
+        {"guide": "text-and-content/bullet-formatting/guide.md", "confidence": "primary", "scope": "Bullets and Numbering dialog; Spacing submenu (line spacing)"},
+        {"guide": "shapes-and-diagrams/shape-styling/guide.md", "confidence": "primary", "scope": "Line dialog, Area dialog (fill color, gradient, hatching, bitmap)"},
+        {"guide": "shapes-and-diagrams/shape-transformations/guide.md", "confidence": "primary", "scope": "Position and Size dialog (F4) — Position/Size/Rotation/Slant tabs"},
+        {"guide": "images-and-objects/image-alignment/guide.md", "confidence": "primary", "scope": "Align Objects submenu, Distribute Selection submenu"}
+      ]
+    },
+    "character-paragraph-dialogs": {
+      "owners": [
+        {"guide": "text-and-content/text-box-formatting/guide.md", "confidence": "primary", "scope": "Character dialog (Fonts, Font Effects, Position, Highlighting tabs); Paragraph dialog (Indents/Spacing, Alignment, Tabs)"},
+        {"guide": "text-and-content/bullet-formatting/guide.md", "confidence": "primary", "scope": "Bullets and Numbering dialog: Unordered/Ordered/Outline/Image tabs, Customize tab for character/color/size"}
+      ]
+    },
+    "drawing-toolbar": {
+      "owners": [
+        {"guide": "shapes-and-diagrams/flowcharts/guide.md", "confidence": "primary", "scope": "Flowchart Shapes split button (palette: terminator, process, decision, etc.); Connectors split button (straight/curved/elbow)"},
+        {"guide": "shapes-and-diagrams/process-diagrams/guide.md", "confidence": "primary", "scope": "Block Arrows split button (chevrons, pentagons); Basic Shapes (rectangle, trapezoid for funnel segments)"},
+        {"guide": "shapes-and-diagrams/architecture-diagrams/guide.md", "confidence": "primary", "scope": "Rectangle, Basic Shapes (rounded rectangle), Connectors split button"},
+        {"guide": "shapes-and-diagrams/shape-styling/guide.md", "confidence": "primary", "scope": "Line Color and Fill Color split buttons (color palette dropdown)"},
+        {"guide": "shapes-and-diagrams/shape-transformations/guide.md", "confidence": "relevant", "scope": "Rotate button, Align/Distribute split buttons"}
+      ]
+    },
+    "standard-toolbar": {
+      "owners": [
+        {"guide": "presentation-setup/creating-presentations/guide.md", "confidence": "weak", "scope": "New, Open icons (mostly redundant with File menu)"},
+        {"guide": "presentation-setup/export/guide.md", "confidence": "weak", "scope": "Export Directly as PDF icon, Print icon (redundant with File menu)"},
+        {"guide": "text-and-content/data-tables/guide.md", "confidence": "weak", "scope": "Insert Table dropdown (row/column grid picker)"}
+      ],
+      "drop_recommended": true,
+      "drop_reason": "Touches many guides only weakly; nearly all entries are redundant with the corresponding menu regions (file-menu, insert-menu). Inlining would bloat each guide with content that already appears via its menu region."
+    },
+    "canvas-statusbar": {
+      "owners": [
+        {"guide": "text-and-content/text-box-formatting/guide.md", "confidence": "weak", "scope": "Text frame interaction: single-click selects, double-click enters text editing"},
+        {"guide": "shapes-and-diagrams/shape-transformations/guide.md", "confidence": "weak", "scope": "Right-click on object > Position and Size"}
+      ],
+      "drop_recommended": true,
+      "drop_reason": "Mostly app-wide click semantics. Position-and-Size is already covered by format-menu region. Status bar info (zoom, slide count) is informational, not actionable for any specific task."
+    },
+    "edit-view-menus": {
+      "owners": [],
+      "orphan": true,
+      "drop_recommended": true,
+      "drop_reason": "Edit menu (clipboard, Find, Undo) and View menu (panels, zoom, master view) are app-wide. No specific task guide is the right owner. Master View is already covered by properties-sidebar (Master View button) and slide-slideshow-menus (Slide menu's Change Slide Master)."
+    }
+  },
+  "summary": {
+    "n_regions": 12,
+    "n_regions_with_primary_owner": 9,
+    "n_regions_drop_recommended": 3,
+    "n_guides": 19,
+    "n_guides_covered_strict_primary_only": 17,
+    "n_guides_covered_permissive_relevant_or_better": 18,
+    "n_guides_uncovered": 1,
+    "uncovered_guides": [
+      "images-and-objects/image-embedding/guide.md"
+    ],
+    "uncovered_note": "image-embedding (Edit > Links to External Files dialog) was not explored by any worker — extending the plan to cover it is optional."
+  }
+}

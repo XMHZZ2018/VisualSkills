@@ -84,6 +84,7 @@ DEFAULT_PARALLEL = {
     "phase_3": 8,  # figure extraction — pure bitmap-xref, no LLM (local I/O)
     "phase_4": 4,  # guide generation — Claude calls per topic, keep modest for rate limits
     "phase_5": 4,  # use-when extraction — Claude calls per guide, same constraint as phase 4
+    "phase_6": 4,  # text-v1 derivation — Claude calls per multimodal guide, same constraint
 }
 
 
@@ -2007,6 +2008,304 @@ def phase_index(config: dict, domain: str, taxonomy: dict, mode: str) -> None:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Phase 6 (optional): Derive text-v1 from multimodal-v1
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Take each generated multimodal-v1 guide and rewrite the inline figure
+# references (lines like `See \`figXX.png\`.`) into a few sentences of verbal
+# description grounded in what the screenshot actually shows. The result is
+# markdown-only — no images are copied. Topics with zero figure refs are
+# copied verbatim (no LLM call).
+#
+# We also copy the multimodal use-when cache to the text cache (same topic =
+# same routing keywords) so phase_index for text mode produces a SKILL.md
+# with use-when bullets without an extra Claude pass.
+
+TEXT_V1_PROMPT = """\
+Below is a markdown reference guide for {app_name} {app_version}, topic: \
+"{topic_name}". It currently references one or more screenshots inline using \
+lines like:
+
+    See `fig01.png`.
+    (see `fig02.png`)
+    ... See `fig03.png` for the dialog.
+
+For each filename mentioned, the actual image is attached to this message \
+in the SAME ORDER as the list below — first listed name = first attachment, \
+and so on.
+
+Rewrite the guide so that EACH such reference is REPLACED by 1-3 sentences \
+that verbally describe what the screenshot shows — the dialog name, key \
+fields/buttons visible, layout, anything a reader would need if they cannot \
+see the image. Be concrete and grounded in the actual image content.
+
+Strict rules:
+- Do NOT modify any other text. Only the figure-reference lines change.
+- Do NOT include any image references, markdown image syntax, or filenames \
+in your output.
+- Do NOT add a "Figure 1: ..." prefix; just describe what's there as prose.
+- Output ONLY the rewritten markdown, starting with the `# Title` line. \
+The first character of your reply must be `#`.
+
+--- Figures attached, in order ---
+{figure_list}
+
+--- Original guide ---
+{guide_text}
+"""
+
+
+def _text_v1_drafts_dir(config: dict, cat: dict) -> Path:
+    return WORKSPACE_DIR / config["domain"] / "text_v1_drafts" / cat["id"]
+
+
+def derive_text_for_one_guide(
+    mm_guide: Path,
+    text_guide: Path,
+    cache: Path,
+    app_name: str,
+    app_version: str,
+    topic_name: str,
+    fig_ref_pattern: re.Pattern = _FIG_REF_PATTERN,
+) -> str:
+    """Derive a text-only guide from a multimodal guide.md by replacing each
+    inline figure reference (matched by `fig_ref_pattern`, must capture the
+    PNG filename in group 1) with 1-3 sentences of verbal description.
+
+    Used by both v1 (Phase 6) and v3 (Phase 5) — see preprocess/skill-pipeline/.
+
+    Returns status ∈ {"OK", "COPIED", "SKIP", "FAILED"}:
+      OK     — Claude rewrote refs to verbal descriptions (or already cached)
+      COPIED — guide had no fig refs, copied verbatim
+      SKIP   — multimodal guide doesn't exist
+      FAILED — Claude call failed (or referenced PNG missing on disk)
+    """
+    if not mm_guide.exists():
+        return "SKIP"
+
+    if text_guide.exists():
+        return "OK"  # final output already on disk
+
+    if cache.exists() and cache.stat().st_size > 0:
+        text_guide.parent.mkdir(parents=True, exist_ok=True)
+        text_guide.write_text(cache.read_text())
+        return "OK"
+
+    guide_text = mm_guide.read_text()
+
+    # Find fig refs in order of first appearance, dedup.
+    fig_names: list[str] = []
+    seen: set[str] = set()
+    for m in fig_ref_pattern.finditer(guide_text):
+        fname = m.group(1)
+        if fname not in seen:
+            seen.add(fname)
+            fig_names.append(fname)
+
+    if not fig_names:
+        # No figures to verbalize — copy verbatim.
+        text_guide.parent.mkdir(parents=True, exist_ok=True)
+        text_guide.write_text(guide_text)
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text(guide_text)
+        return "COPIED"
+
+    # Verify all referenced figures exist on disk (next to the mm guide).
+    fig_paths: list[Path] = []
+    for name in fig_names:
+        p = mm_guide.parent / name
+        if not p.exists():
+            return "FAILED"
+        fig_paths.append(p)
+
+    figure_list = "\n".join(f"  - {n}" for n in fig_names)
+    prompt = TEXT_V1_PROMPT.format(
+        app_name=app_name,
+        app_version=app_version,
+        topic_name=topic_name,
+        figure_list=figure_list,
+        guide_text=guide_text,
+    )
+    result = call_claude(prompt, images=fig_paths, timeout=300)
+    if not result:
+        return "FAILED"
+
+    text = result.strip()
+    # Safety net: trim any preamble before the first `# ` heading.
+    if not text.startswith("# "):
+        h = text.find("\n# ")
+        if h != -1:
+            text = text[h + 1:]
+    # Safety net: strip any leftover figure refs (shouldn't be any).
+    text = fig_ref_pattern.sub("", text)
+    text = text.rstrip() + "\n"
+
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text(text)
+    text_guide.parent.mkdir(parents=True, exist_ok=True)
+    text_guide.write_text(text)
+    return "OK"
+
+
+def _derive_text_v1_for_topic(
+    config: dict, domain: str, cat: dict, topic: dict,
+) -> tuple[str, str, str]:
+    """Rewrite one multimodal-v1 guide into text-v1 prose. v1-specific wrapper
+    around `derive_text_for_one_guide` that maps taxonomy entries to disk paths.
+    """
+    mm_guide = (
+        _skills_dir(domain, "multimodal") / cat["id"] / topic["id"] / "guide.md"
+    )
+    text_guide = (
+        _skills_dir(domain, "text") / cat["id"] / topic["id"] / "guide.md"
+    )
+    cache = _text_v1_drafts_dir(config, cat) / f"{topic['id']}.md"
+    status = derive_text_for_one_guide(
+        mm_guide=mm_guide,
+        text_guide=text_guide,
+        cache=cache,
+        app_name=config["app_name"],
+        app_version=config["app_version"],
+        topic_name=topic["name"],
+    )
+    return cat["id"], topic["id"], status
+
+
+def _mirror_use_when_to_text(config: dict, domain: str, taxonomy: dict) -> int:
+    """Copy multimodal use-when cache files to the text cache. Idempotent."""
+    copied = 0
+    for cat in taxonomy["categories"]:
+        for topic in cat["topics"]:
+            src = _use_when_cache_path(
+                config, domain, "multimodal", cat["id"], topic["id"],
+            )
+            dst = _use_when_cache_path(
+                config, domain, "text", cat["id"], topic["id"],
+            )
+            if src.exists() and not dst.exists():
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                dst.write_text(src.read_text())
+                copied += 1
+    return copied
+
+
+def derive_text_from_multimodal_dir(
+    mm_dir: Path,
+    text_dir: Path,
+    cache_dir: Path,
+    app_name: str,
+    app_version: str,
+    parallel: int = 4,
+    fig_ref_pattern: re.Pattern = _FIG_REF_PATTERN,
+) -> dict[str, int]:
+    """Glob-based driver: walk `mm_dir/**/guide.md`, derive a text-only twin
+    for each into `text_dir/<rel>/guide.md`. Cache files at
+    `cache_dir/<rel>.md`. Topic name is taken from the guide's first `# `
+    heading (fallback: parent dir name). Returns counts dict.
+
+    v3 uses this directly. v1 prefers the taxonomy-aware path
+    (`phase_text_v1_from_multimodal`) which also mirrors use-when caches.
+    """
+    mm_dir = Path(mm_dir)
+    text_dir = Path(text_dir)
+    cache_dir = Path(cache_dir)
+
+    guides = sorted(mm_dir.glob("*/*/guide.md"))
+    if not guides:
+        print(f"  No guides under {mm_dir} — nothing to derive.")
+        return {"OK": 0, "COPIED": 0, "SKIP": 0, "FAILED": 0}
+    print(f"  {len(guides)} guides to derive (parallel={parallel})")
+
+    counts = {"OK": 0, "COPIED": 0, "SKIP": 0, "FAILED": 0}
+
+    def _job(mm_guide: Path) -> tuple[Path, str]:
+        rel = mm_guide.relative_to(mm_dir)
+        text_guide = text_dir / rel
+        cache = cache_dir / rel.parent / (rel.parent.name + ".md")
+        # Topic name from H1 heading.
+        topic_name = mm_guide.parent.name
+        try:
+            for line in mm_guide.read_text().splitlines():
+                line = line.strip()
+                if line.startswith("# "):
+                    topic_name = line[2:].strip()
+                    break
+        except Exception:
+            pass
+        status = derive_text_for_one_guide(
+            mm_guide=mm_guide,
+            text_guide=text_guide,
+            cache=cache,
+            app_name=app_name,
+            app_version=app_version,
+            topic_name=topic_name,
+            fig_ref_pattern=fig_ref_pattern,
+        )
+        return mm_guide, status
+
+    with ThreadPoolExecutor(max_workers=parallel) as ex:
+        futures = {ex.submit(_job, g): g for g in guides}
+        done = 0
+        for f in as_completed(futures):
+            g = futures[f]
+            try:
+                _, status = f.result()
+                counts[status] = counts.get(status, 0) + 1
+                done += 1
+                rel = g.relative_to(mm_dir)
+                print(f"    [{done}/{len(guides)}] {rel} {status}")
+            except Exception as e:
+                counts["FAILED"] = counts.get("FAILED", 0) + 1
+                print(f"    [{g.relative_to(mm_dir)}] ERROR: {e}")
+    print(
+        f"  done: OK={counts['OK']} COPIED={counts['COPIED']} "
+        f"SKIP={counts['SKIP']} FAILED={counts['FAILED']}"
+    )
+    return counts
+
+
+def phase_text_v1_from_multimodal(
+    config: dict, domain: str, taxonomy: dict, parallel: int = 4,
+) -> None:
+    """Derive text-v1 guides from multimodal-v1 guides + figures."""
+    jobs: list[tuple[dict, dict]] = []
+    mm_skills = _skills_dir(domain, "multimodal")
+    for cat in taxonomy["categories"]:
+        for topic in cat["topics"]:
+            if (mm_skills / cat["id"] / topic["id"] / "guide.md").exists():
+                jobs.append((cat, topic))
+    if not jobs:
+        print("  No multimodal-v1 guides found — run phase 4 first.")
+        return
+    print(f"  {len(jobs)} multimodal guides to derive into text-v1 (parallel={parallel})")
+
+    counts = {"OK": 0, "COPIED": 0, "SKIP": 0, "FAILED": 0}
+    with ThreadPoolExecutor(max_workers=parallel) as ex:
+        futures = {
+            ex.submit(_derive_text_v1_for_topic, config, domain, cat, topic): (cat, topic)
+            for cat, topic in jobs
+        }
+        done = 0
+        for f in as_completed(futures):
+            cat, topic = futures[f]
+            try:
+                _, _, status = f.result()
+                counts[status] = counts.get(status, 0) + 1
+                done += 1
+                print(f"    [{done}/{len(jobs)}] {topic['name']} {status}")
+            except Exception as e:
+                counts["FAILED"] = counts.get("FAILED", 0) + 1
+                print(f"    [{topic['name']}] ERROR: {e}")
+    print(
+        f"  text-v1: OK={counts['OK']} COPIED={counts['COPIED']} "
+        f"SKIP={counts['SKIP']} FAILED={counts['FAILED']}"
+    )
+
+    n = _mirror_use_when_to_text(config, domain, taxonomy)
+    print(f"  Mirrored {n} use-when cache files multimodal → text")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # Orchestration
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -2032,11 +2331,13 @@ def main() -> None:
     parser.add_argument("--mode", choices=["text", "multimodal", "both"], default="both")
     parser.add_argument("--task_ids", nargs="*", help="Filter to specific task id prefixes")
     parser.add_argument(
-        "--phase", type=int, choices=[1, 2, 3, 4, 5], default=None,
+        "--phase", type=int, choices=[1, 2, 3, 4, 5, 6], default=None,
         help=(
-            "Run only phase N (1=taxonomy, 2=pages, 3=figures, 4=guides, 5=index). "
+            "Run only phase N (1=taxonomy, 2=pages, 3=figures, 4=guides, "
+            "5=use-when+index, 6=text-v1 from multimodal [optional]). "
             "Earlier phases must already be cached; later phases are skipped. "
-            "Default: run all phases."
+            "Phase 6 is optional and not part of the default flow — request "
+            "it explicitly with --phase 6. Default: run phases 1-5."
         ),
     )
     args = parser.parse_args()
@@ -2086,7 +2387,7 @@ def main() -> None:
     print(
         f"Domain: {domain} | {src_label} | Mode: {args.mode} | "
         f"Parallel: phase_2={p['phase_2']}, phase_3={p['phase_3']}, "
-        f"phase_4={p['phase_4']}, phase_5={p['phase_5']}"
+        f"phase_4={p['phase_4']}, phase_5={p['phase_5']}, phase_6={p['phase_6']}"
     )
     print()
 
@@ -2197,6 +2498,18 @@ def main() -> None:
         print()
         print("Phase 5b: Index")
         phase_index(config, domain, taxonomy, args.mode)
+        print()
+
+    # --- Phase 6 (optional): derive text-v1 from multimodal-v1 ---
+    # Not part of the default flow — only runs when explicitly requested.
+    if target == 6:
+        print("Phase 6: Text-v1 from multimodal-v1")
+        phase_text_v1_from_multimodal(
+            config, domain, taxonomy, parallel=p["phase_6"],
+        )
+        print()
+        print("Phase 6b: Index (text-v1)")
+        phase_index(config, domain, taxonomy, "text")
         print()
 
     print("Done.")
