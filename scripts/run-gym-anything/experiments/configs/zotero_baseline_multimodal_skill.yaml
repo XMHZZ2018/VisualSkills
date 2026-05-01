@@ -1,0 +1,44 @@
+# Zotero with multimodal skill — 30 test tasks (per zotero_split.json)
+# Skill: skills/zotero_env-knowledge-multimodal-v1 (12 topics, 22 figures
+# from quick_start_guide smoketest pipeline)
+model: claude-opus-4-6
+skill_mode: multimodal
+env_dir: vendor/gym-anything/benchmarks/cua_world/environments/zotero_env
+result_dir: scripts/run-gym-anything/workspaces
+task_timeout: 900   # 15 minutes per task
+
+num_parallel: 4
+rerun: false
+log_level: INFO
+
+task_list:
+  - add_missing_abstracts
+  - attach_pdf_files
+  - catalog_legal_cases
+  - catalog_research_software
+  - convert_notes_to_tags
+  - correct_item_types_to_conference
+  - correct_paper_year
+  - create_book_sections
+  - create_saved_search
+  - create_saved_searches
+  - create_standalone_research_notes
+  - export_collection_csv
+  - import_bibtex_library
+  - link_related_papers
+  - manually_add_references
+  - merge_duplicate_items
+  - migrate_tags_to_collections
+  - normalize_journal_names
+  - organize_classics_by_tag
+  - organize_into_subcollections
+  - remove_from_collection
+  - restore_trashed_items
+  - snapshot_search_results
+  - standardize_journal_abbreviations
+  - standardize_page_hyphens
+  - tag_and_search_pipeline
+  - tag_short_papers
+  - trash_irrelevant_items
+  - triage_distributed_systems_papers
+  - update_preprints_to_proceedings
