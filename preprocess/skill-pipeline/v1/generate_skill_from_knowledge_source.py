@@ -1145,15 +1145,24 @@ def _absolutize(href: str, base_url: str) -> str:
     return urljoin(base_url, href).split("#", 1)[0]
 
 
-def _is_in_scope(url: str, root_url: str) -> bool:
-    """Stay within the same docs site/section as the root URL."""
+def _is_in_scope(url: str, root_url: str, path_prefix: str | None = None) -> bool:
+    """Stay within the same docs site/section as the root URL.
+
+    If `path_prefix` is given, additionally require the URL's path to start
+    with that prefix (the root URL itself is exempt so the entry-point page
+    can still be visited even when its TOC links live in a sub-section).
+    """
     from urllib.parse import urlparse
     pr, pu = urlparse(root_url), urlparse(url)
     if pr.netloc != pu.netloc:
         return False
     # Same path prefix up to last "/" of root.
     root_prefix = pr.path.rsplit("/", 1)[0] + "/"
-    return pu.path.startswith(root_prefix) or pu.path == pr.path
+    if not (pu.path.startswith(root_prefix) or pu.path == pr.path):
+        return False
+    if path_prefix and pu.path != pr.path and not pu.path.startswith(path_prefix):
+        return False
+    return True
 
 
 def _select_main(soup):
@@ -1162,6 +1171,11 @@ def _select_main(soup):
         node = soup.find(sel)
         if node:
             return node
+    # ARIA role="main" — used by Sphinx-readthedocs themes which wrap the
+    # body inside `<div role="main">` rather than a semantic <main> tag.
+    node = soup.find(attrs={"role": "main"})
+    if node:
+        return node
     for cid in ("content", "main", "main-content"):
         node = soup.find(id=cid)
         if node:
@@ -1257,8 +1271,19 @@ Output ONLY valid JSON.
 """
 
 
-def _crawl_html(root_url: str, depth: int, ws: Path) -> tuple[list[dict], list[str]]:
+def _crawl_html(
+    root_url: str,
+    depth: int,
+    ws: Path,
+    path_prefix: str | None = None,
+) -> tuple[list[dict], list[str]]:
     """Breadth-first crawl from root_url up to `depth` link-hops.
+
+    `path_prefix` (optional) restricts which links to follow AND which
+    outline entries to keep — useful when the root page is a top-level
+    index that mixes target docs with out-of-scope siblings (e.g. a docs
+    home that lists both User Guide and Developer Guide). The root page
+    itself is always visited so its TOC can be harvested.
 
     Returns (all_outline_entries, ordered_visited_urls). Cached HTML lives in
     workspace/<domain>/html_cache/.
@@ -1279,11 +1304,18 @@ def _crawl_html(root_url: str, depth: int, ws: Path) -> tuple[list[dict], list[s
             continue
         visited.append(url)
         entries = _parse_html_outline(html, url)
+        if path_prefix:
+            from urllib.parse import urlparse
+            entries = [
+                e for e in entries
+                if not e.get("url")
+                or urlparse(e["url"]).path.startswith(path_prefix)
+            ]
         outline.extend(entries)
         if d + 1 < depth:
             for e in entries:
                 u = e.get("url") or ""
-                if u and u not in seen and _is_in_scope(u, root_url):
+                if u and u not in seen and _is_in_scope(u, root_url, path_prefix):
                     queue.append((u, d + 1))
     return outline, visited
 
@@ -1306,9 +1338,13 @@ def phase_taxonomy_from_html_root(config: dict, ws: Path) -> dict:
         print("  HTML mode requires sources.html_guide.root_url in the config.")
         sys.exit(1)
     depth = int(src.get("crawl_depth", HTML_DEFAULT_DEPTH))
-    print(f"  Crawling {root_url} (depth={depth})")
+    path_prefix = src.get("path_prefix") or None
+    if path_prefix:
+        print(f"  Crawling {root_url} (depth={depth}, path_prefix={path_prefix})")
+    else:
+        print(f"  Crawling {root_url} (depth={depth})")
 
-    outline, visited = _crawl_html(root_url, depth, ws)
+    outline, visited = _crawl_html(root_url, depth, ws, path_prefix=path_prefix)
     if not outline:
         print("  FAILED: crawl produced no outline entries")
         sys.exit(1)
@@ -1366,6 +1402,28 @@ def phase_taxonomy_from_html_root(config: dict, ws: Path) -> dict:
 def phase_html_pages(
     config: dict, taxonomy: dict, ws: Path,
 ) -> tuple[None, dict[str, list[tuple[int, Path]]]]:
+    """Phase 2 dispatcher for HTML mode — chooses render vs text fetch path.
+
+    Reads `config["sources"]["html_guide"]["fetch_mode"]` (already merged
+    from yaml + CLI in main()). Defaults to "render" so legacy configs
+    behave exactly as before.
+
+    Both paths return the same shape `(None, {topic_id: [(idx, file_path), ...]})`
+    so downstream Phase 4 doesn't care which was used. The file extension
+    differs (.png for render, .md for text), but `call_claude` just lists
+    paths and Claude reads each via its Read tool — extension-agnostic.
+    """
+    fetch_mode = (
+        config.get("sources", {}).get("html_guide", {}).get("fetch_mode") or "render"
+    )
+    if fetch_mode == "text":
+        return _phase_html_pages_text(config, taxonomy, ws)
+    return _phase_html_pages_render(config, taxonomy, ws)
+
+
+def _phase_html_pages_render(
+    config: dict, taxonomy: dict, ws: Path,
+) -> tuple[None, dict[str, list[tuple[int, Path]]]]:
     """Render each topic URL as a full-page PNG via playwright.
 
     Returns (None, {topic_id: [(idx, png_path), ...]}) — the leading `None`
@@ -1391,7 +1449,17 @@ def phase_html_pages(
 
     topic_pages: dict[str, list[tuple[int, Path]]] = {}
     with sync_playwright() as p:
-        browser = p.chromium.launch()
+        # --no-sandbox: required on systems without the SUID setuid_sandbox
+        #               helper (e.g. Mariner / non-Ubuntu containers).
+        # --disable-dev-shm-usage: small /dev/shm causes the renderer to OOM
+        #                           on JS-heavy pages.
+        # --disable-gpu: no display server attached.
+        # Safe here — we only render trusted docs URLs.
+        browser = p.chromium.launch(args=[
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+        ])
         ctx = browser.new_context(
             viewport={"width": HTML_VIEWPORT_W, "height": 900},
             user_agent=HTML_USER_AGENT,
@@ -1482,9 +1550,192 @@ def phase_html_figures(taxonomy: dict, ws: Path) -> dict[str, list[dict]]:
     return result
 
 
+# ───────────────────────────────────────────────────────────────────────────────
+# Phase 2 alternate path: text fetch (no Playwright)
+#
+# Activated by `sources.html_guide.fetch_mode: "text"` in the yaml or via the
+# `--fetch-mode text` CLI flag. Fetches each topic URL via plain HTTP, extracts
+# main content as markdown, and downloads inline `<img>` files to local disk.
+# The markdown's `<img>` references are rewritten to absolute local paths so
+# Claude (in Phase 4, via the Read tool) can load each image alongside the
+# prose. Avoids the Chromium full-page-screenshot OOM seen on Mariner with
+# long Slicer docs pages.
+# ───────────────────────────────────────────────────────────────────────────────
+
+
+def _extract_main_html(html: str, page_url: str):
+    """Return a BeautifulSoup of the page's main content node, with all
+    `<a href>` and `<img src>` URLs absolutized in-place."""
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(html, "html.parser")
+    main = _select_main(soup)
+    # Strip noise that markdownify would otherwise serialize.
+    for tag in main.find_all(["script", "style", "noscript"]):
+        tag.decompose()
+    # Absolutize hrefs / srcs so any reference (in markdown or downloaded
+    # image filename derivation) is unambiguous.
+    for a in main.find_all("a", href=True):
+        a["href"] = _absolutize(a["href"], page_url)
+    for img in main.find_all("img", src=True):
+        img["src"] = _absolutize(img["src"], page_url)
+    return main
+
+
+def _download_image(abs_src: str, dest_dir: Path, idx: int) -> Path | None:
+    """Download one image to `dest_dir/img_{idx:03d}.<ext>`. Returns the
+    local Path or None on failure. Skips download if the file already
+    exists (cache). Honors `HTML_USER_AGENT` and matches the timeout
+    conventions of `phase_html_figures`."""
+    import requests
+    from urllib.parse import urlparse
+    # Derive an extension from the URL path; default .png if none.
+    suffix = Path(urlparse(abs_src).path).suffix.lower()
+    if suffix not in (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"):
+        suffix = ".png"
+    dest = dest_dir / f"img_{idx:03d}{suffix}"
+    if dest.exists() and dest.stat().st_size > 0:
+        return dest
+    try:
+        r = requests.get(
+            abs_src,
+            timeout=15,
+            headers={"User-Agent": HTML_USER_AGENT},
+        )
+        if r.status_code != 200 or not r.content:
+            return None
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(r.content)
+        return dest
+    except Exception:
+        return None
+
+
+def _html_to_markdown_with_local_images(soup, page_url: str, images_dir: Path) -> str:
+    """Walk the soup, replace each `<img src=...>` with `<img src="<abs-local-path>">`
+    after downloading the image, then convert the soup to markdown via
+    `markdownify`. Images that fail to download are dropped (their `<img>` tag
+    is removed so the markdown stays clean)."""
+    from markdownify import markdownify
+    # Number images sequentially per-page so filenames are stable + ordered.
+    for idx, img in enumerate(list(soup.find_all("img", src=True))):
+        abs_src = img["src"]  # already absolutized in _extract_main_html
+        local = _download_image(abs_src, images_dir, idx)
+        if local is None:
+            img.decompose()
+            continue
+        # Rewrite to absolute local path so Claude's Read tool can load it.
+        img["src"] = str(local.resolve())
+    return markdownify(str(soup), heading_style="ATX")
+
+
+def _phase_html_pages_text(
+    config: dict, taxonomy: dict, ws: Path,
+) -> tuple[None, dict[str, list[tuple[int, Path]]]]:
+    """Text-mode equivalent of `_phase_html_pages_render`.
+
+    For each (topic_id, url) pair, fetch HTML via `_fetch_html`, extract the
+    main content, download every inline `<img>` to a sibling `images/` dir,
+    rewrite the markdown with absolute-path references, and write the result
+    to `workspace/<domain>/html_pages/<topic_id>/page_NNNN.md`.
+
+    Returns the same shape as `_phase_html_pages_render`:
+    `(None, {topic_id: [(idx, md_path), ...]})`. Phase 4 helpers receive
+    `.md` paths in their `images=` argument; `call_claude` lists them in
+    the prompt and Claude reads each via its Read tool — file extension
+    is irrelevant to that mechanism.
+
+    Cached: a topic-page is skipped when its `.md` exists and is non-empty.
+    Embedded images cache via `_download_image`'s exists-check.
+    """
+    pages_root = ws / "html_pages"
+    pages_root.mkdir(parents=True, exist_ok=True)
+    cache_dir = ws / "html_cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    # Collect (topic_id, url) pairs preserving order.
+    work: list[tuple[str, str]] = []
+    for cat in taxonomy.get("categories", []):
+        for topic in cat.get("topics", []):
+            for url in topic.get("urls", []):
+                work.append((topic["id"], url))
+
+    if not work:
+        print("  No URLs in taxonomy.")
+        return None, {}
+
+    topic_pages: dict[str, list[tuple[int, Path]]] = {}
+    for topic_id, url in work:
+        topic_dir = pages_root / topic_id
+        topic_dir.mkdir(parents=True, exist_ok=True)
+        images_dir = topic_dir / "images"
+        idx = len(topic_pages.get(topic_id, []))
+        out = topic_dir / f"page_{idx:04d}.md"
+
+        if out.exists() and out.stat().st_size > 0:
+            topic_pages.setdefault(topic_id, []).append((idx, out))
+            continue
+
+        html = _fetch_html(url, cache_dir)
+        if not html:
+            print(f"    [{topic_id}] fetch {url[:60]}... ERR no html")
+            continue
+        try:
+            main = _extract_main_html(html, url)
+            md = _html_to_markdown_with_local_images(main, url, images_dir)
+        except Exception as e:
+            print(f"    [{topic_id}] convert {url[:60]}... ERR {e}")
+            continue
+
+        if not md.strip():
+            print(f"    [{topic_id}] convert {url[:60]}... empty markdown, skipping")
+            continue
+
+        out.write_text(md, encoding="utf-8")
+        topic_pages.setdefault(topic_id, []).append((idx, out))
+
+    n_imgs = sum(
+        1
+        for tdir in pages_root.iterdir() if tdir.is_dir()
+        for _ in (tdir / "images").glob("*") if (tdir / "images").exists()
+    )
+    print(f"  Wrote markdown for {len(topic_pages)} topics ({n_imgs} inline images) via requests")
+    return None, topic_pages
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Phase 4: Text skill — one guide.md per topic
 # ═══════════════════════════════════════════════════════════════════════════════
+
+# Source-format hint slotted into TEXT_PROMPT and MULTIMODAL_PROSE_PROMPT.
+# - "image": pages are PNGs (PDF/task modes always; HTML render mode).
+# - "markdown": pages are .md files with inline absolute-path image refs
+#   (HTML text mode). Claude must Read each ![](abs_path) reference itself.
+SOURCE_FORMAT_HINTS = {
+    "image": (
+        "I'm attaching the relevant pages from the official {app_name} {app_version} guide "
+        "as images. Use them as the primary source of truth."
+    ),
+    "markdown": (
+        "I'm attaching markdown extracted from the official {app_name} {app_version} guide. "
+        "The markdown contains inline image references — `![alt](abs_path)`. Use the Read tool "
+        "to load each referenced image so you can see the UI screenshots alongside the prose. "
+        "Use the markdown text and its referenced images together as the primary source of truth."
+    ),
+}
+
+
+def _resolve_source_format(config: dict) -> str:
+    """Pick the SOURCE_FORMAT_HINTS key for the current run.
+
+    HTML mode + fetch_mode=text  → 'markdown'
+    Everything else (PDF, task, HTML render mode) → 'image'.
+    """
+    sources = config.get("sources", {}) or {}
+    html_cfg = sources.get("html_guide") or {}
+    if html_cfg and html_cfg.get("fetch_mode") == "text":
+        return "markdown"
+    return "image"
+
 
 TEXT_PROMPT = """\
 Write a practical reference guide for {app_name} {app_version}.
@@ -1492,8 +1743,7 @@ Write a practical reference guide for {app_name} {app_version}.
 Topic: {topic_name}
 Description: {topic_description}
 
-I'm attaching the relevant pages from the official {app_name} {app_version} guide \
-as images. Use them as the primary source of truth.
+{source_format_hint}
 
 Write in a casual, readable style — like a colleague explaining over your shoulder. \
 Use natural prose with clear actions, not rigid numbered steps.
@@ -1533,11 +1783,15 @@ def _draft_topic_prose(
     )
     if cache.exists() and cache.stat().st_size > 0:
         return cache.read_text()
+    fmt_key = _resolve_source_format(config)
     prompt = TEXT_PROMPT.format(
         app_name=config["app_name"],
         app_version=config["app_version"],
         topic_name=topic["name"],
         topic_description=topic.get("description", ""),
+        source_format_hint=SOURCE_FORMAT_HINTS[fmt_key].format(
+            app_name=config["app_name"], app_version=config["app_version"],
+        ),
     )
     result = call_claude(prompt, images=list(page_images), timeout=300)
     if not result:
@@ -1597,8 +1851,7 @@ Write a practical reference guide for {app_name} {app_version}.
 Topic: {topic_name}
 Description: {topic_description}
 
-I'm attaching the relevant pages from the official {app_name} {app_version} guide \
-as images. Use them as the primary source of truth.
+{source_format_hint}
 
 Write in a casual, readable style — like a colleague explaining over your shoulder. \
 Use natural prose with clear actions, not rigid numbered steps.
@@ -1652,7 +1905,9 @@ Strict rules:
 - Do NOT invent filenames. Do NOT use markdown image syntax.
 - Do NOT add new figure references at sentences without a placeholder.
 - Use the candidate filenames EXACTLY as listed in the text below \
-  (they end in `.png`). Do NOT use the attached thumbnail filenames.
+  (the listed extension may be `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, \
+  or `.svg` — preserve whatever extension the candidate has). Do NOT use \
+  the attached thumbnail filenames.
 
 Output ONLY the resolved markdown — start with the `# Title` line. \
 Do NOT add any preamble, summary of thumbnails, or commentary before or \
@@ -1667,8 +1922,12 @@ after the guide. The first character of your reply must be `#`.
 
 
 # Matches `See \`raw_004.png\``, `(see \`raw_004.png\`)`, `See \`raw_004.png\` for ...`.
+# Source images aren't always .png — Slicer docs include .jpeg/.gif/.webp etc., so the
+# extension group covers every common image format. If this pattern only matched .png,
+# refs to .jpeg/.gif sources would dangle (Call B emits the ref but post-processing
+# would skip the file copy + filename rewrite).
 _FIG_REF_PATTERN = re.compile(
-    r"\bsee\s+`([A-Za-z0-9_./-]+\.png)`",
+    r"\bsee\s+`([A-Za-z0-9_./-]+\.(?:png|jpg|jpeg|gif|webp|svg))`",
     re.IGNORECASE,
 )
 # Matches Call A's placeholder lines (so Call B can be cleaned up after the fact).
@@ -1676,7 +1935,7 @@ _FIG_PLACEHOLDER_PATTERN = re.compile(
     r"^\s*<!--\s*figure:[^>]*-->\s*\n?",
     re.MULTILINE | re.IGNORECASE,
 )
-THUMBNAIL_MAX_SIDE = 256
+THUMBNAIL_MAX_SIDE = 512
 THUMBNAIL_QUALITY = 75
 
 
@@ -1704,11 +1963,15 @@ def _draft_multimodal_prose_only(
     cache = _multimodal_drafts_dir(config, cat) / f"{topic['id']}.prose.md"
     if cache.exists() and cache.stat().st_size > 0:
         return cache.read_text()
+    fmt_key = _resolve_source_format(config)
     prompt = MULTIMODAL_PROSE_PROMPT.format(
         app_name=config["app_name"],
         app_version=config["app_version"],
         topic_name=topic["name"],
         topic_description=topic.get("description", ""),
+        source_format_hint=SOURCE_FORMAT_HINTS[fmt_key].format(
+            app_name=config["app_name"], app_version=config["app_version"],
+        ),
     )
     result = call_claude(prompt, images=list(page_images), timeout=300)
     if not result:
@@ -1821,8 +2084,8 @@ def generate_multimodal_guide(
             referenced.append(fname)
 
     mm_dir.mkdir(parents=True, exist_ok=True)
-    # Clean stale fig*.png if any.
-    for old in mm_dir.glob("fig*.png"):
+    # Clean stale figXX.* (any image extension we might've written previously).
+    for old in mm_dir.glob("fig[0-9][0-9].*"):
         old.unlink()
 
     if not referenced:
@@ -1830,11 +2093,12 @@ def generate_multimodal_guide(
         print(f"    [{topic['name']}] multimodal OK (0 figs selected)")
         return True
 
-    # Copy referenced figures as fig01.png, fig02.png, ... in insertion order,
-    # and substitute the names in the markdown.
+    # Copy referenced figures as fig01.<ext>, fig02.<ext>, ... preserving the
+    # source extension (so JPEG/GIF/etc sources keep their format).
     rename_map: dict[str, str] = {}
     for i, fname in enumerate(referenced, 1):
-        new_name = f"fig{i:02d}.png"
+        ext = Path(fname).suffix.lower() or ".png"
+        new_name = f"fig{i:02d}{ext}"
         shutil.copy2(valid_files[fname], mm_dir / new_name)
         rename_map[fname] = new_name
 
@@ -2345,6 +2609,17 @@ def main() -> None:
             "it explicitly with --phase 6. Default: run phases 1-5."
         ),
     )
+    parser.add_argument(
+        "--fetch-mode", choices=["render", "text"], default=None,
+        help=(
+            "HTML mode only: how Phase 2 produces per-topic input. "
+            "'render' uses Playwright full-page screenshots (default). "
+            "'text' fetches HTML via requests, converts to markdown, and "
+            "downloads inline images locally — useful when Chromium is "
+            "unavailable or crashes on long pages. "
+            "Overrides sources.html_guide.fetch_mode in the yaml."
+        ),
+    )
     args = parser.parse_args()
 
     config_path = Path(args.config)
@@ -2371,6 +2646,19 @@ def main() -> None:
         print("Config must define sources.pdf_guide, sources.html_guide, or a tasks block.")
         sys.exit(1)
 
+    # Merge --fetch-mode into config (CLI > yaml > default "render"). Only
+    # meaningful for HTML mode; warn-and-ignore otherwise.
+    if has_html:
+        html_cfg = sources.setdefault("html_guide", {})
+        yaml_fetch_mode = html_cfg.get("fetch_mode") or "render"
+        fetch_mode = args.fetch_mode or yaml_fetch_mode
+        if fetch_mode not in ("render", "text"):
+            print(f"Invalid fetch_mode {fetch_mode!r}; expected 'render' or 'text'.")
+            sys.exit(1)
+        html_cfg["fetch_mode"] = fetch_mode
+    elif args.fetch_mode is not None:
+        print(f"Warning: --fetch-mode is HTML-only; ignored for {('PDF' if has_pdf else 'task')} mode.")
+
     if task_mode:
         tasks = load_tasks(config)
         if args.task_ids:
@@ -2385,7 +2673,7 @@ def main() -> None:
     if task_mode:
         src_label = f"Tasks: {len(tasks)}"
     elif has_html:
-        src_label = "Source: HTML docs"
+        src_label = f"Source: HTML docs (fetch_mode={sources['html_guide']['fetch_mode']})"
     else:
         src_label = "Source: full PDF"
     p = config["parallel"]
