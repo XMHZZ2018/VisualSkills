@@ -25,12 +25,14 @@ Pipeline:
             PDF table of contents (PDF mode), or synthesize categories/topics
             from a crawled HTML outline (HTML mode). All three converge on the
             same taxonomy shape. Cached at workspace/<domain>/taxonomy.json.
-  Phase 2 — Per-topic pages: each topic gets a list of rendered page images —
-            300-DPI PDF page renders in PDF/task mode, or full-page playwright
-            screenshots in HTML mode.
+  Phase 2 — Per-topic pages: each topic gets a list of source pages —
+            300-DPI PDF page renders (.png) in PDF/task mode, or markdown
+            extracted via plain-HTTP fetch + markdownify (.md) with all
+            inline `<img>` tags downloaded locally in HTML mode.
   Phase 3 — Figures: PDF mode crops figures from rendered pages (bitmap xrefs
-            first, LLM bbox detection as fallback). HTML mode downloads
-            `<img>` tags directly from each topic's pages.
+            first, LLM bbox detection as fallback). HTML mode is a no-op
+            because every inline `<img>` was already downloaded as part of
+            Phase 2's markdown conversion.
   Phase 4 — Text skill: generate one concise guide.md per topic from the
             rendered pages. This is the text-skill-v1 content.
   Phase 5 — Multimodal skill: pick figures relevant to the guide and splice
@@ -1101,13 +1103,19 @@ def phase_figures(
 # Outputs match the PDF path so downstream phases (4, 5, 6) need no changes:
 #   • taxonomy.json: same shape as PDF mode, except topics carry `urls: [str]`
 #     instead of `pdf_pages: [int]`.
-#   • topic_pages: dict[topic_id, list[(idx, png_path)]] — full-page playwright
-#     screenshots, one per URL, in `workspace/<domain>/html_pages/<topic_id>/`.
-#   • figures: dict[topic_id, list[fig_dict]] — `<img>` tags downloaded from
-#     each topic's pages, into `workspace/<domain>/html_figures/<topic_id>/`.
+#   • topic_pages: dict[topic_id, list[(idx, md_path)]] — markdown converted
+#     from each URL's main content, one .md per URL, in
+#     `workspace/<domain>/html_pages/<topic_id>/page_NNNN.md`. Every inline
+#     `<img>` is downloaded as a sibling `images/img_NNN.<ext>` and the
+#     markdown's `![alt]` references point at the absolute local path so
+#     Claude's Read tool can load them in Phase 4. `call_claude` lists each
+#     .md path in the prompt — extension-agnostic vs. .png paths.
+#   • figures: dict[topic_id, list[fig_dict]] — same `<img>` downloads,
+#     re-emitted as `{path, description, source_url}` for Phase 4
+#     multimodal Call B candidates. Cached at
+#     `workspace/<domain>/html_pages/<topic_id>/figures.json`.
 
 HTML_DEFAULT_DEPTH = 2
-HTML_VIEWPORT_W = 1280
 HTML_FETCH_TIMEOUT = 30
 HTML_USER_AGENT = "Mozilla/5.0 (compatible; skill-pipeline/1.0)"
 
@@ -1145,15 +1153,24 @@ def _absolutize(href: str, base_url: str) -> str:
     return urljoin(base_url, href).split("#", 1)[0]
 
 
-def _is_in_scope(url: str, root_url: str) -> bool:
-    """Stay within the same docs site/section as the root URL."""
+def _is_in_scope(url: str, root_url: str, path_prefix: str | None = None) -> bool:
+    """Stay within the same docs site/section as the root URL.
+
+    If `path_prefix` is given, additionally require the URL's path to start
+    with that prefix (the root URL itself is exempt so the entry-point page
+    can still be visited even when its TOC links live in a sub-section).
+    """
     from urllib.parse import urlparse
     pr, pu = urlparse(root_url), urlparse(url)
     if pr.netloc != pu.netloc:
         return False
     # Same path prefix up to last "/" of root.
     root_prefix = pr.path.rsplit("/", 1)[0] + "/"
-    return pu.path.startswith(root_prefix) or pu.path == pr.path
+    if not (pu.path.startswith(root_prefix) or pu.path == pr.path):
+        return False
+    if path_prefix and pu.path != pr.path and not pu.path.startswith(path_prefix):
+        return False
+    return True
 
 
 def _select_main(soup):
@@ -1162,6 +1179,11 @@ def _select_main(soup):
         node = soup.find(sel)
         if node:
             return node
+    # ARIA role="main" — used by Sphinx-readthedocs themes which wrap the
+    # body inside `<div role="main">` rather than a semantic <main> tag.
+    node = soup.find(attrs={"role": "main"})
+    if node:
+        return node
     for cid in ("content", "main", "main-content"):
         node = soup.find(id=cid)
         if node:
@@ -1257,8 +1279,19 @@ Output ONLY valid JSON.
 """
 
 
-def _crawl_html(root_url: str, depth: int, ws: Path) -> tuple[list[dict], list[str]]:
+def _crawl_html(
+    root_url: str,
+    depth: int,
+    ws: Path,
+    path_prefix: str | None = None,
+) -> tuple[list[dict], list[str]]:
     """Breadth-first crawl from root_url up to `depth` link-hops.
+
+    `path_prefix` (optional) restricts which links to follow AND which
+    outline entries to keep — useful when the root page is a top-level
+    index that mixes target docs with out-of-scope siblings (e.g. a docs
+    home that lists both User Guide and Developer Guide). The root page
+    itself is always visited so its TOC can be harvested.
 
     Returns (all_outline_entries, ordered_visited_urls). Cached HTML lives in
     workspace/<domain>/html_cache/.
@@ -1279,11 +1312,18 @@ def _crawl_html(root_url: str, depth: int, ws: Path) -> tuple[list[dict], list[s
             continue
         visited.append(url)
         entries = _parse_html_outline(html, url)
+        if path_prefix:
+            from urllib.parse import urlparse
+            entries = [
+                e for e in entries
+                if not e.get("url")
+                or urlparse(e["url"]).path.startswith(path_prefix)
+            ]
         outline.extend(entries)
         if d + 1 < depth:
             for e in entries:
                 u = e.get("url") or ""
-                if u and u not in seen and _is_in_scope(u, root_url):
+                if u and u not in seen and _is_in_scope(u, root_url, path_prefix):
                     queue.append((u, d + 1))
     return outline, visited
 
@@ -1306,9 +1346,13 @@ def phase_taxonomy_from_html_root(config: dict, ws: Path) -> dict:
         print("  HTML mode requires sources.html_guide.root_url in the config.")
         sys.exit(1)
     depth = int(src.get("crawl_depth", HTML_DEFAULT_DEPTH))
-    print(f"  Crawling {root_url} (depth={depth})")
+    path_prefix = src.get("path_prefix") or None
+    if path_prefix:
+        print(f"  Crawling {root_url} (depth={depth}, path_prefix={path_prefix})")
+    else:
+        print(f"  Crawling {root_url} (depth={depth})")
 
-    outline, visited = _crawl_html(root_url, depth, ws)
+    outline, visited = _crawl_html(root_url, depth, ws, path_prefix=path_prefix)
     if not outline:
         print("  FAILED: crawl produced no outline entries")
         sys.exit(1)
@@ -1363,18 +1407,108 @@ def phase_taxonomy_from_html_root(config: dict, ws: Path) -> dict:
     return taxonomy
 
 
+def _extract_main_html(html: str, page_url: str):
+    """Return a BeautifulSoup of the page's main content node, with all
+    `<a href>` and `<img src>` URLs absolutized in-place."""
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(html, "html.parser")
+    main = _select_main(soup)
+    # Strip noise that markdownify would otherwise serialize.
+    for tag in main.find_all(["script", "style", "noscript"]):
+        tag.decompose()
+    # Absolutize hrefs / srcs so any reference (in markdown or downloaded
+    # image filename derivation) is unambiguous.
+    for a in main.find_all("a", href=True):
+        a["href"] = _absolutize(a["href"], page_url)
+    for img in main.find_all("img", src=True):
+        img["src"] = _absolutize(img["src"], page_url)
+    return main
+
+
+def _download_image(abs_src: str, dest_dir: Path, idx: int) -> Path | None:
+    """Download one image to `dest_dir/img_{idx:03d}.<ext>`. Returns the
+    local Path or None on failure. Skips download if the file already
+    exists (cache)."""
+    import requests
+    from urllib.parse import urlparse
+    suffix = Path(urlparse(abs_src).path).suffix.lower()
+    if suffix not in (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"):
+        suffix = ".png"
+    dest = dest_dir / f"img_{idx:03d}{suffix}"
+    if dest.exists() and dest.stat().st_size > 0:
+        return dest
+    try:
+        r = requests.get(
+            abs_src,
+            timeout=15,
+            headers={"User-Agent": HTML_USER_AGENT},
+        )
+        if r.status_code != 200 or not r.content:
+            return None
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(r.content)
+        return dest
+    except Exception:
+        return None
+
+
+def _html_to_markdown_with_local_images(
+    soup, page_url: str, images_dir: Path,
+) -> tuple[str, list[dict]]:
+    """Walk the soup, replace each `<img src=...>` with a download to
+    `images_dir/img_NNN.<ext>` (path absolutized so Claude's Read tool can
+    load it), then convert the soup to markdown via `markdownify`. Images
+    that fail to download are dropped (their `<img>` tag is removed so the
+    markdown stays clean).
+
+    Returns (markdown_text, figures_metadata) where figures_metadata is a
+    list of `{path, description, source_url}` dicts in download order —
+    consumable by Phase 4 multimodal Call B as figure candidates.
+    """
+    from markdownify import markdownify
+    figures: list[dict] = []
+    for idx, img in enumerate(list(soup.find_all("img", src=True))):
+        abs_src = img["src"]  # already absolutized in _extract_main_html
+        local = _download_image(abs_src, images_dir, idx)
+        if local is None:
+            img.decompose()
+            continue
+        # Rewrite to absolute local path so Claude's Read tool can load it.
+        img["src"] = str(local.resolve())
+        figures.append({
+            "path": str(local.resolve()),
+            "description": (img.get("alt") or "").strip(),
+            "source_url": page_url,
+        })
+    md = markdownify(str(soup), heading_style="ATX")
+    return md, figures
+
+
 def phase_html_pages(
     config: dict, taxonomy: dict, ws: Path,
-) -> tuple[None, dict[str, list[tuple[int, Path]]]]:
-    """Render each topic URL as a full-page PNG via playwright.
+) -> tuple[None, dict[str, list[tuple[int, Path]]], dict[str, list[dict]]]:
+    """Fetch each topic URL via plain HTTP, extract main content as
+    markdown, and download every inline `<img>` to a sibling `images/`
+    dir. The markdown's `<img>` references are rewritten to absolute
+    local paths so Claude (in Phase 4, via the Read tool) can load each
+    image alongside the prose.
 
-    Returns (None, {topic_id: [(idx, png_path), ...]}) — the leading `None`
-    matches phase_pdf_pages's signature so main() can consume both uniformly
-    (the PDF path is irrelevant in HTML mode and figures use the cached HTML
-    instead of cropping a PDF).
+    Output per topic:
+      `workspace/<domain>/html_pages/<topic_id>/page_NNNN.md`
+      `workspace/<domain>/html_pages/<topic_id>/images/img_NNN.<ext>`
+      `workspace/<domain>/html_pages/<topic_id>/figures.json`
+
+    Returns `(None, topic_pages, figures_by_topic)` where:
+      - `topic_pages` = `{topic_id: [(idx, md_path), ...]}` for Phase 4 prose input
+      - `figures_by_topic` = `{topic_id: [{path, description, source_url}, ...]}`
+        for Phase 4 multimodal Call B candidates (replaces what the deleted
+        `phase_html_figures` used to produce — image download is now folded
+        into Phase 2 since text-mode already pulls every `<img>` inline).
     """
     pages_root = ws / "html_pages"
     pages_root.mkdir(parents=True, exist_ok=True)
+    cache_dir = ws / "html_cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
 
     # Collect (topic_id, url) pairs preserving order.
     work: list[tuple[str, str]] = []
@@ -1385,106 +1519,85 @@ def phase_html_pages(
 
     if not work:
         print("  No URLs in taxonomy.")
-        return None, {}
-
-    from playwright.sync_api import sync_playwright
+        return None, {}, {}
 
     topic_pages: dict[str, list[tuple[int, Path]]] = {}
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
-        ctx = browser.new_context(
-            viewport={"width": HTML_VIEWPORT_W, "height": 900},
-            user_agent=HTML_USER_AGENT,
-        )
+    figures_by_topic: dict[str, list[dict]] = {}
+    for topic_id, url in work:
+        topic_dir = pages_root / topic_id
+        topic_dir.mkdir(parents=True, exist_ok=True)
+        images_dir = topic_dir / "images"
+        figures_cache = topic_dir / "figures.json"
+        idx = len(topic_pages.get(topic_id, []))
+        out = topic_dir / f"page_{idx:04d}.md"
+
+        if out.exists() and out.stat().st_size > 0 and figures_cache.exists():
+            topic_pages.setdefault(topic_id, []).append((idx, out))
+            cached_figs = json.loads(figures_cache.read_text())
+            figures_by_topic.setdefault(topic_id, []).extend(cached_figs)
+            continue
+
+        html = _fetch_html(url, cache_dir)
+        if not html:
+            print(f"    [{topic_id}] fetch {url[:60]}... ERR no html")
+            continue
         try:
-            for topic_id, url in work:
-                topic_dir = pages_root / topic_id
-                topic_dir.mkdir(parents=True, exist_ok=True)
-                idx = len(topic_pages.get(topic_id, []))
-                out = topic_dir / f"page_{idx:04d}.png"
-                if not out.exists():
-                    try:
-                        page = ctx.new_page()
-                        page.goto(url, wait_until="networkidle", timeout=30000)
-                        page.screenshot(path=str(out), full_page=True)
-                        page.close()
-                    except Exception as e:
-                        print(f"    [{topic_id}] screenshot {url[:60]}... ERR {e}")
-                        continue
-                topic_pages.setdefault(topic_id, []).append((idx, out))
-        finally:
-            ctx.close()
-            browser.close()
-    print(f"  Rendered pages for {len(topic_pages)} topics via playwright")
-    return None, topic_pages
+            main = _extract_main_html(html, url)
+            md, page_figs = _html_to_markdown_with_local_images(main, url, images_dir)
+        except Exception as e:
+            print(f"    [{topic_id}] convert {url[:60]}... ERR {e}")
+            continue
 
+        if not md.strip():
+            print(f"    [{topic_id}] convert {url[:60]}... empty markdown, skipping")
+            continue
 
-def phase_html_figures(taxonomy: dict, ws: Path) -> dict[str, list[dict]]:
-    """Pull `<img>` tags from each topic's pages and download them.
+        out.write_text(md, encoding="utf-8")
+        topic_pages.setdefault(topic_id, []).append((idx, out))
+        # Append figures from this URL to the topic's running list, then
+        # write the merged figures.json. (One topic may have multiple URLs.)
+        merged = figures_by_topic.setdefault(topic_id, [])
+        merged.extend(page_figs)
+        figures_cache.write_text(json.dumps(merged, indent=2) + "\n")
 
-    Output mirrors phase_figures: {topic_id: [{path, description, ...}]}.
-    """
-    import requests
-    from bs4 import BeautifulSoup
-
-    root = ws / "html_figures"
-    cache_dir = ws / "html_cache"
-    result: dict[str, list[dict]] = {}
-
-    for cat in taxonomy.get("categories", []):
-        for topic in cat.get("topics", []):
-            topic_id = topic["id"]
-            topic_dir = root / topic_id
-            topic_dir.mkdir(parents=True, exist_ok=True)
-            cache = topic_dir / "figures.json"
-            if cache.exists():
-                result[topic_id] = json.loads(cache.read_text())
-                continue
-
-            figs: list[dict] = []
-            seen_src: set[str] = set()
-            for url in topic.get("urls", []):
-                html = _fetch_html(url, cache_dir)
-                if not html:
-                    continue
-                soup = BeautifulSoup(html, "html.parser")
-                main = _select_main(soup)
-                for img in main.find_all("img"):
-                    src = img.get("src") or img.get("data-src")
-                    if not src:
-                        continue
-                    abs_src = _absolutize(src, url)
-                    if abs_src in seen_src:
-                        continue
-                    seen_src.add(abs_src)
-                    ext = abs_src.rsplit(".", 1)[-1].split("?", 1)[0].lower()
-                    if ext not in ("png", "jpg", "jpeg", "gif", "webp", "svg"):
-                        ext = "png"
-                    fname = f"fig_{len(figs):03d}.{ext}"
-                    fpath = topic_dir / fname
-                    try:
-                        r = requests.get(
-                            abs_src, timeout=20,
-                            headers={"User-Agent": HTML_USER_AGENT},
-                        )
-                        if r.status_code == 200 and r.content:
-                            fpath.write_bytes(r.content)
-                            figs.append({
-                                "path": str(fpath),
-                                "description": (img.get("alt") or "").strip(),
-                                "source_url": url,
-                            })
-                    except Exception:
-                        continue
-            cache.write_text(json.dumps(figs, indent=2) + "\n")
-            result[topic_id] = figs
-            print(f"    [{topic_id}] {len(figs)} figures")
-    return result
+    n_imgs = sum(len(v) for v in figures_by_topic.values())
+    print(f"  Wrote markdown for {len(topic_pages)} topics ({n_imgs} inline images) via requests")
+    return None, topic_pages, figures_by_topic
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Phase 4: Text skill — one guide.md per topic
 # ═══════════════════════════════════════════════════════════════════════════════
+
+# Source-format hint slotted into TEXT_PROMPT and MULTIMODAL_PROSE_PROMPT.
+# - "image":   pages are PNGs (PDF mode, task mode).
+# - "markdown": pages are .md files with inline absolute-path image refs
+#   (HTML mode). Claude must Read each ![](abs_path) reference itself.
+SOURCE_FORMAT_HINTS = {
+    "image": (
+        "I'm attaching the relevant pages from the official {app_name} {app_version} guide "
+        "as images. Use them as the primary source of truth."
+    ),
+    "markdown": (
+        "I'm attaching markdown extracted from the official {app_name} {app_version} guide. "
+        "The markdown contains inline image references — `![alt](abs_path)`. Use the Read tool "
+        "to load each referenced image so you can see the UI screenshots alongside the prose. "
+        "Use the markdown text and its referenced images together as the primary source of truth."
+    ),
+}
+
+
+def _resolve_source_format(config: dict) -> str:
+    """Pick the SOURCE_FORMAT_HINTS key for the current run.
+
+    HTML mode → 'markdown' (Phase 2 produces .md files with inline image refs).
+    PDF / task mode → 'image' (Phase 2 produces .png renders).
+    """
+    sources = config.get("sources", {}) or {}
+    if sources.get("html_guide"):
+        return "markdown"
+    return "image"
+
 
 TEXT_PROMPT = """\
 Write a practical reference guide for {app_name} {app_version}.
@@ -1492,8 +1605,7 @@ Write a practical reference guide for {app_name} {app_version}.
 Topic: {topic_name}
 Description: {topic_description}
 
-I'm attaching the relevant pages from the official {app_name} {app_version} guide \
-as images. Use them as the primary source of truth.
+{source_format_hint}
 
 Write in a casual, readable style — like a colleague explaining over your shoulder. \
 Use natural prose with clear actions, not rigid numbered steps.
@@ -1533,11 +1645,15 @@ def _draft_topic_prose(
     )
     if cache.exists() and cache.stat().st_size > 0:
         return cache.read_text()
+    fmt_key = _resolve_source_format(config)
     prompt = TEXT_PROMPT.format(
         app_name=config["app_name"],
         app_version=config["app_version"],
         topic_name=topic["name"],
         topic_description=topic.get("description", ""),
+        source_format_hint=SOURCE_FORMAT_HINTS[fmt_key].format(
+            app_name=config["app_name"], app_version=config["app_version"],
+        ),
     )
     result = call_claude(prompt, images=list(page_images), timeout=300)
     if not result:
@@ -1597,8 +1713,7 @@ Write a practical reference guide for {app_name} {app_version}.
 Topic: {topic_name}
 Description: {topic_description}
 
-I'm attaching the relevant pages from the official {app_name} {app_version} guide \
-as images. Use them as the primary source of truth.
+{source_format_hint}
 
 Write in a casual, readable style — like a colleague explaining over your shoulder. \
 Use natural prose with clear actions, not rigid numbered steps.
@@ -1652,7 +1767,9 @@ Strict rules:
 - Do NOT invent filenames. Do NOT use markdown image syntax.
 - Do NOT add new figure references at sentences without a placeholder.
 - Use the candidate filenames EXACTLY as listed in the text below \
-  (they end in `.png`). Do NOT use the attached thumbnail filenames.
+  (the listed extension may be `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, \
+  or `.svg` — preserve whatever extension the candidate has). Do NOT use \
+  the attached thumbnail filenames.
 
 Output ONLY the resolved markdown — start with the `# Title` line. \
 Do NOT add any preamble, summary of thumbnails, or commentary before or \
@@ -1667,8 +1784,13 @@ after the guide. The first character of your reply must be `#`.
 
 
 # Matches `See \`raw_004.png\``, `(see \`raw_004.png\`)`, `See \`raw_004.png\` for ...`.
+# Source images aren't always .png — HTML mode (and some docs PDFs) include
+# .jpeg/.gif/.webp/.svg, so the extension group covers every common image
+# format. If this pattern only matched .png, refs to non-PNG sources would
+# dangle (Call B emits the ref but post-processing would skip the file copy
+# + filename rewrite).
 _FIG_REF_PATTERN = re.compile(
-    r"\bsee\s+`([A-Za-z0-9_./-]+\.png)`",
+    r"\bsee\s+`([A-Za-z0-9_./-]+\.(?:png|jpg|jpeg|gif|webp|svg))`",
     re.IGNORECASE,
 )
 # Matches Call A's placeholder lines (so Call B can be cleaned up after the fact).
@@ -1676,7 +1798,7 @@ _FIG_PLACEHOLDER_PATTERN = re.compile(
     r"^\s*<!--\s*figure:[^>]*-->\s*\n?",
     re.MULTILINE | re.IGNORECASE,
 )
-THUMBNAIL_MAX_SIDE = 256
+THUMBNAIL_MAX_SIDE = 512
 THUMBNAIL_QUALITY = 75
 
 
@@ -1704,11 +1826,15 @@ def _draft_multimodal_prose_only(
     cache = _multimodal_drafts_dir(config, cat) / f"{topic['id']}.prose.md"
     if cache.exists() and cache.stat().st_size > 0:
         return cache.read_text()
+    fmt_key = _resolve_source_format(config)
     prompt = MULTIMODAL_PROSE_PROMPT.format(
         app_name=config["app_name"],
         app_version=config["app_version"],
         topic_name=topic["name"],
         topic_description=topic.get("description", ""),
+        source_format_hint=SOURCE_FORMAT_HINTS[fmt_key].format(
+            app_name=config["app_name"], app_version=config["app_version"],
+        ),
     )
     result = call_claude(prompt, images=list(page_images), timeout=300)
     if not result:
@@ -1821,8 +1947,8 @@ def generate_multimodal_guide(
             referenced.append(fname)
 
     mm_dir.mkdir(parents=True, exist_ok=True)
-    # Clean stale fig*.png if any.
-    for old in mm_dir.glob("fig*.png"):
+    # Clean stale figXX.<ext> (any image extension we might've written previously).
+    for old in mm_dir.glob("fig[0-9][0-9].*"):
         old.unlink()
 
     if not referenced:
@@ -1830,11 +1956,13 @@ def generate_multimodal_guide(
         print(f"    [{topic['name']}] multimodal OK (0 figs selected)")
         return True
 
-    # Copy referenced figures as fig01.png, fig02.png, ... in insertion order,
-    # and substitute the names in the markdown.
+    # Copy referenced figures as fig01.<ext>, fig02.<ext>, ... preserving the
+    # source extension (so JPEG/GIF/WebP/SVG sources keep their format), and
+    # substitute the names in the markdown.
     rename_map: dict[str, str] = {}
     for i, fname in enumerate(referenced, 1):
-        new_name = f"fig{i:02d}.png"
+        ext = Path(fname).suffix.lower() or ".png"
+        new_name = f"fig{i:02d}{ext}"
         shutil.copy2(valid_files[fname], mm_dir / new_name)
         rename_map[fname] = new_name
 
@@ -2423,9 +2551,13 @@ def main() -> None:
         return
 
     # --- Phase 2: Per-topic pages (always needed for downstream) ---
+    # HTML mode also produces figure metadata as a side-effect (every
+    # inline `<img>` is downloaded during markdown conversion), so for
+    # HTML there is no separate Phase 3 image-download step.
     header(2, "Phase 2: Per-topic pages")
+    html_figures_by_topic: dict[str, list[dict]] = {}
     if has_html:
-        _, topic_pages = phase_html_pages(config, taxonomy, ws)
+        _, topic_pages, html_figures_by_topic = phase_html_pages(config, taxonomy, ws)
     else:
         pdf_path, topic_pages = phase_pdf_pages(
             config, taxonomy, ws, parallel=config["parallel"]["phase_2"],
@@ -2436,12 +2568,17 @@ def main() -> None:
         print("Done (phase 2 only).")
         return
 
-    # --- Phase 3: Figures (only needed for multimodal) ---
+    # --- Phase 3: Figures (only needed for multimodal; HTML mode is a no-op) ---
     figures_by_topic: dict[str, list[dict]] = {}
     if topic_pages and args.mode in ("multimodal", "both"):
         header(3, "Phase 3: Figures")
         if has_html:
-            figures_by_topic = phase_html_figures(taxonomy, ws)
+            # Already gathered in Phase 2 — every inline `<img>` was
+            # downloaded as part of markdown conversion.
+            figures_by_topic = html_figures_by_topic
+            if target is None or target == 3:
+                n_total = sum(len(v) for v in figures_by_topic.values())
+                print(f"  Reusing {n_total} figures gathered in Phase 2 ({len(figures_by_topic)} topics)")
         elif pdf_path:
             figures_by_topic = phase_figures(
                 pdf_path, topic_pages, ws, parallel=config["parallel"]["phase_3"],

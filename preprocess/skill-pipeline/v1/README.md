@@ -33,7 +33,7 @@ The pipeline auto-detects which mode to run based on what's in the YAML:
 | Mode | Trigger | Taxonomy comes from | Per-topic content |
 |------|---------|--------------------|-------------------|
 | **Full-PDF** | `sources.pdf_guide.url` | The PDF's printed Table of Contents | Page renders cropped from the PDF |
-| **HTML docs** | `sources.html_guide.root_url` | Crawl from a root page (acts as the ToC) | Full-page playwright screenshots + `<img>` tags |
+| **HTML docs** | `sources.html_guide.root_url` | Crawl from a root page (acts as the ToC) | Markdown extracted via plain-HTTP fetch + every inline `<img>` downloaded locally |
 | **Task-filtered** | A `tasks:` block | Cluster gym-anything tasks into topics | Pages of a PDF mapped to each topic via Claude |
 
 All three converge on the same downstream pipeline.
@@ -67,20 +67,29 @@ Build a 2-layer `category → topic` structure with page ranges.
   PDF guide.
 
 ### Phase 2 — Per-topic pages
-Render the source pages for every topic so phase 4 has visual context.
-**Output:** `workspace/<domain>/{pdf,html}_pages/<topic>/page_NNNN.png`
+Produce the source pages for every topic so phase 4 has the content to
+work from.
 
 - **PDF/Task:** for each topic, render its `pdf_pages` from the PDF at
   300 DPI using PyMuPDF. Skips pages already on disk. Topics are rendered
   in parallel (config `parallel.phase_2`, default 8); each worker opens its own `fitz.Document`
   so PyMuPDF's thread restrictions are respected.
-- **HTML:** for each topic's URL, take a full-page screenshot via
-  Playwright (chromium). Skips topics already screenshotted.
+  **Output:** `workspace/<domain>/pdf_pages/<topic>/page_NNNN.png`
+- **HTML:** for each topic's URL, fetch the HTML via `requests`, extract
+  the main content (`<main>`, `<article>`, `[role="main"]`, then id-based
+  fallbacks), download every inline `<img>` to a sibling `images/` dir,
+  rewrite the markdown's `![]()` references to absolute local paths, and
+  convert the result to markdown via `markdownify`. Phase 4 receives the
+  markdown via Claude's Read tool, which transparently follows the
+  embedded image refs. Also writes a `figures.json` enumerating the
+  downloaded `<img>`s for Phase 4 multimodal Call B (so HTML mode has no
+  separate Phase 3 image-download step).
+  **Output:** `workspace/<domain>/html_pages/<topic>/page_NNNN.md`,
+  `workspace/<domain>/html_pages/<topic>/images/img_NNN.<ext>`, and
+  `workspace/<domain>/html_pages/<topic>/figures.json`.
 
 ### Phase 3 — Figures
 Collect figures used in phase 4 (multimodal). Skipped for `--mode text`.
-**Output:** `workspace/<domain>/{pdf,html}_figures/<topic>/raw_NNN.png`
-plus `figures.json` describing each crop.
 
 - **PDF:** for each rendered page, use PyMuPDF
   `page.get_images(full=True)` + `get_image_rects(xref)` to locate every
@@ -98,8 +107,11 @@ plus `figures.json` describing each crop.
   Claude, so coordinates come straight from the PDF's own image-object
   rects and body-text bleed is structurally impossible. Topics run in
   parallel (config `parallel.phase_3`, default 8 — purely local I/O).
-- **HTML:** download every `<img>` from the page (deduplicated by URL),
-  resolving relative URLs and respecting the page's content scope.
+  **Output:** `workspace/<domain>/pdf_figures/<topic>/raw_NNN.png` plus
+  `figures.json`.
+- **HTML:** no-op. The figure metadata produced by Phase 2's inline
+  `<img>` download is reused as Phase 4's Call B candidates, so HTML mode
+  never re-fetches anything in Phase 3.
 
 ### Phase 4 — Per-topic guides
 Generate a `guide.md` per topic. Text and multimodal are independent code
@@ -236,6 +248,11 @@ sources:
   html_guide:
     root_url: "https://www.zotero.org/support/start"
     crawl_depth: 2
+    # Optional: restrict the crawl to a sub-section of the docs site.
+    # Useful when the root page is a top-level index that mixes target
+    # docs with out-of-scope siblings (e.g. a docs home that lists both
+    # User Guide and Developer Guide).
+    # path_prefix: "/support/"
 ```
 
 `crawl_depth` controls how many link-hops we follow from the root when
@@ -243,14 +260,19 @@ harvesting structure. Depth 1 = the root page only (its links become topics).
 Depth 2 = also walk each linked page's headings to discover sub-topics.
 Content for each topic is always fetched in Phase 2 regardless of depth.
 
+`path_prefix` (optional) restricts which links are followed AND which
+outline entries are kept. The root URL itself is exempt so the entry-point
+page always loads. Use it when the docs root mixes in unrelated sections
+you don't want to taxonomize.
+
 **Single tutorial page.** `root_url` doesn't have to be a documentation hub
 — it can be one tutorial URL like
 `https://www.zotero.org/support/quick_start_guide`. Set `crawl_depth: 1` and
-Phase 1 will parse only that page's headings. Phases 2 and 3 then render
-that one page and extract its `<img>`s. The taxonomy will naturally collapse
-to a small (1-3 category) shape — `TAXONOMY_FROM_HTML_PROMPT` allows this
-when the source warrants it. No code changes needed across modes; only
-Phases 1-3 differ between PDF and HTML, and all three handle small sources.
+Phase 1 will parse only that page's headings. Phase 2 then fetches that one
+page's HTML, converts it to markdown, and downloads its inline `<img>`s.
+The taxonomy will naturally collapse to a small (1-3 category) shape —
+`TAXONOMY_FROM_HTML_PROMPT` allows this when the source warrants it. No
+code changes needed across modes.
 
 **Task-filtered mode** (`configs/libreoffice_impress.yaml`):
 ```yaml
@@ -327,9 +349,8 @@ workspace/<domain>/
 ├── html_outline_raw.json       # HTML mode: harvested headings + links
 ├── taxonomy.json               # Phase 1 output (delete to regenerate)
 ├── pdf_pages/<topic>/          # PDF mode: 300-DPI page renders
-├── html_pages/<topic>/         # HTML mode: playwright full-page screenshots
+├── html_pages/<topic>/         # HTML mode: page_NNNN.md + images/img_NNN.<ext> + figures.json
 ├── pdf_figures/<topic>/        # PDF mode: cropped figures + figures.json
-├── html_figures/<topic>/       # HTML mode: downloaded <img> + figures.json
 ├── text_drafts/<cat>/<topic>.md       # text-mode prose draft cache
 └── multimodal_drafts/<cat>/<topic>.md # multimodal-mode draft cache (with raw_NNN.png refs)
 ```
@@ -339,7 +360,7 @@ workspace/<domain>/
 - Python 3.10+ (uses `X | Y` type unions)
 - `claude` CLI authenticated (model: `claude-opus-4-6`)
 - `PyMuPDF`, `Pillow`, `PyYAML` — for PDFs
-- `requests`, `beautifulsoup4`, `playwright` (with `chromium` installed) — for HTML mode
+- `requests`, `beautifulsoup4`, `markdownify` — for HTML mode
 
 ## Architecture notes
 
