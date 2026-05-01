@@ -81,12 +81,12 @@ work from.
   rewrite the markdown's `![]()` references to absolute local paths, and
   convert the result to markdown via `markdownify`. Phase 4 receives the
   markdown via Claude's Read tool, which transparently follows the
-  embedded image refs. Also writes a `figures.json` enumerating the
-  downloaded `<img>`s for Phase 4 multimodal Call B (so HTML mode has no
-  separate Phase 3 image-download step).
-  **Output:** `workspace/<domain>/html_pages/<topic>/page_NNNN.md`,
-  `workspace/<domain>/html_pages/<topic>/images/img_NNN.<ext>`, and
-  `workspace/<domain>/html_pages/<topic>/figures.json`.
+  embedded image refs. The inline-image download here is scoped to the
+  markdown — Phase 3 (`phase_html_figures`) does an independent pass that
+  builds the canonical `html_figures/<topic>/` figure list for Phase 4
+  multimodal Call B.
+  **Output:** `workspace/<domain>/html_pages/<topic>/page_NNNN.md` and
+  `workspace/<domain>/html_pages/<topic>/images/img_NNN.<ext>`.
 
 ### Phase 3 — Figures
 Collect figures used in phase 4 (multimodal). Skipped for `--mode text`.
@@ -109,9 +109,13 @@ Collect figures used in phase 4 (multimodal). Skipped for `--mode text`.
   parallel (config `parallel.phase_3`, default 8 — purely local I/O).
   **Output:** `workspace/<domain>/pdf_figures/<topic>/raw_NNN.png` plus
   `figures.json`.
-- **HTML:** no-op. The figure metadata produced by Phase 2's inline
-  `<img>` download is reused as Phase 4's Call B candidates, so HTML mode
-  never re-fetches anything in Phase 3.
+- **HTML:** independent pass. For each topic URL, re-parse the cached HTML,
+  extract main content, and download every `<img>` (with `alt` text used
+  as `description`) into `workspace/<domain>/html_figures/<topic>/`,
+  writing a `figures.json` keyed by topic. This is the canonical figure
+  list Phase 4 multimodal Call B picks from. The Phase 2 inline-image
+  download under `html_pages/<topic>/images/` is a separate copy that
+  exists only to back the markdown's `![]()` refs.
 
 ### Phase 4 — Per-topic guides
 Generate a `guide.md` per topic. Text and multimodal are independent code
@@ -349,8 +353,9 @@ workspace/<domain>/
 ├── html_outline_raw.json       # HTML mode: harvested headings + links
 ├── taxonomy.json               # Phase 1 output (delete to regenerate)
 ├── pdf_pages/<topic>/          # PDF mode: 300-DPI page renders
-├── html_pages/<topic>/         # HTML mode: page_NNNN.md + images/img_NNN.<ext> + figures.json
+├── html_pages/<topic>/         # HTML mode: page_NNNN.md + images/img_NNN.<ext>
 ├── pdf_figures/<topic>/        # PDF mode: cropped figures + figures.json
+├── html_figures/<topic>/       # HTML mode: downloaded <img>s + figures.json
 ├── text_drafts/<cat>/<topic>.md       # text-mode prose draft cache
 └── multimodal_drafts/<cat>/<topic>.md # multimodal-mode draft cache (with raw_NNN.png refs)
 ```

@@ -30,9 +30,9 @@ Pipeline:
             extracted via plain-HTTP fetch + markdownify (.md) with all
             inline `<img>` tags downloaded locally in HTML mode.
   Phase 3 — Figures: PDF mode crops figures from rendered pages (bitmap xrefs
-            first, LLM bbox detection as fallback). HTML mode is a no-op
-            because every inline `<img>` was already downloaded as part of
-            Phase 2's markdown conversion.
+            first, LLM bbox detection as fallback). HTML mode does an
+            independent `<img>` pass into `html_figures/<topic>/`, which
+            is the canonical figure list used by Phase 4 multimodal Call B.
   Phase 4 — Text skill: generate one concise guide.md per topic from the
             rendered pages. This is the text-skill-v1 content.
   Phase 5 — Multimodal skill: pick figures relevant to the guide and splice
@@ -1486,24 +1486,19 @@ def _html_to_markdown_with_local_images(
 
 def phase_html_pages(
     config: dict, taxonomy: dict, ws: Path,
-) -> tuple[None, dict[str, list[tuple[int, Path]]], dict[str, list[dict]]]:
+) -> tuple[None, dict[str, list[tuple[int, Path]]]]:
     """Fetch each topic URL via plain HTTP, extract main content as
-    markdown, and download every inline `<img>` to a sibling `images/`
+    markdown, and download every inline `<img>` into a sibling `images/`
     dir. The markdown's `<img>` references are rewritten to absolute
     local paths so Claude (in Phase 4, via the Read tool) can load each
-    image alongside the prose.
+    image alongside the prose. Image downloads here are scoped to the
+    markdown — Phase 3 (`phase_html_figures`) does an independent pass
+    that builds the canonical `html_figures/<topic>/` figure list used
+    as Phase 4 multimodal Call B candidates.
 
     Output per topic:
       `workspace/<domain>/html_pages/<topic_id>/page_NNNN.md`
       `workspace/<domain>/html_pages/<topic_id>/images/img_NNN.<ext>`
-      `workspace/<domain>/html_pages/<topic_id>/figures.json`
-
-    Returns `(None, topic_pages, figures_by_topic)` where:
-      - `topic_pages` = `{topic_id: [(idx, md_path), ...]}` for Phase 4 prose input
-      - `figures_by_topic` = `{topic_id: [{path, description, source_url}, ...]}`
-        for Phase 4 multimodal Call B candidates (replaces what the deleted
-        `phase_html_figures` used to produce — image download is now folded
-        into Phase 2 since text-mode already pulls every `<img>` inline).
     """
     pages_root = ws / "html_pages"
     pages_root.mkdir(parents=True, exist_ok=True)
@@ -1519,22 +1514,18 @@ def phase_html_pages(
 
     if not work:
         print("  No URLs in taxonomy.")
-        return None, {}, {}
+        return None, {}
 
     topic_pages: dict[str, list[tuple[int, Path]]] = {}
-    figures_by_topic: dict[str, list[dict]] = {}
     for topic_id, url in work:
         topic_dir = pages_root / topic_id
         topic_dir.mkdir(parents=True, exist_ok=True)
         images_dir = topic_dir / "images"
-        figures_cache = topic_dir / "figures.json"
         idx = len(topic_pages.get(topic_id, []))
         out = topic_dir / f"page_{idx:04d}.md"
 
-        if out.exists() and out.stat().st_size > 0 and figures_cache.exists():
+        if out.exists() and out.stat().st_size > 0:
             topic_pages.setdefault(topic_id, []).append((idx, out))
-            cached_figs = json.loads(figures_cache.read_text())
-            figures_by_topic.setdefault(topic_id, []).extend(cached_figs)
             continue
 
         html = _fetch_html(url, cache_dir)
@@ -1543,7 +1534,7 @@ def phase_html_pages(
             continue
         try:
             main = _extract_main_html(html, url)
-            md, page_figs = _html_to_markdown_with_local_images(main, url, images_dir)
+            md, _ = _html_to_markdown_with_local_images(main, url, images_dir)
         except Exception as e:
             print(f"    [{topic_id}] convert {url[:60]}... ERR {e}")
             continue
@@ -1554,15 +1545,76 @@ def phase_html_pages(
 
         out.write_text(md, encoding="utf-8")
         topic_pages.setdefault(topic_id, []).append((idx, out))
-        # Append figures from this URL to the topic's running list, then
-        # write the merged figures.json. (One topic may have multiple URLs.)
-        merged = figures_by_topic.setdefault(topic_id, [])
-        merged.extend(page_figs)
-        figures_cache.write_text(json.dumps(merged, indent=2) + "\n")
 
-    n_imgs = sum(len(v) for v in figures_by_topic.values())
-    print(f"  Wrote markdown for {len(topic_pages)} topics ({n_imgs} inline images) via requests")
-    return None, topic_pages, figures_by_topic
+    print(f"  Wrote markdown for {len(topic_pages)} topics via requests")
+    return None, topic_pages
+
+
+def phase_html_figures(taxonomy: dict, ws: Path) -> dict[str, list[dict]]:
+    """Pull `<img>` tags from each topic's pages and download them into
+    `html_figures/<topic>/`. Independent of Phase 2's inline-image
+    download (which lives in `html_pages/<topic>/images/` and exists to
+    back the markdown's `![]()` refs); this canonical list is what
+    Phase 4 multimodal Call B uses as figure candidates.
+
+    Output mirrors phase_figures: {topic_id: [{path, description, ...}]}.
+    """
+    import requests
+    from bs4 import BeautifulSoup
+
+    root = ws / "html_figures"
+    cache_dir = ws / "html_cache"
+    result: dict[str, list[dict]] = {}
+
+    for cat in taxonomy.get("categories", []):
+        for topic in cat.get("topics", []):
+            topic_id = topic["id"]
+            topic_dir = root / topic_id
+            topic_dir.mkdir(parents=True, exist_ok=True)
+            cache = topic_dir / "figures.json"
+            if cache.exists():
+                result[topic_id] = json.loads(cache.read_text())
+                continue
+
+            figs: list[dict] = []
+            seen_src: set[str] = set()
+            for url in topic.get("urls", []):
+                html = _fetch_html(url, cache_dir)
+                if not html:
+                    continue
+                soup = BeautifulSoup(html, "html.parser")
+                main = _select_main(soup)
+                for img in main.find_all("img"):
+                    src = img.get("src") or img.get("data-src")
+                    if not src:
+                        continue
+                    abs_src = _absolutize(src, url)
+                    if abs_src in seen_src:
+                        continue
+                    seen_src.add(abs_src)
+                    ext = abs_src.rsplit(".", 1)[-1].split("?", 1)[0].lower()
+                    if ext not in ("png", "jpg", "jpeg", "gif", "webp", "svg"):
+                        ext = "png"
+                    fname = f"fig_{len(figs):03d}.{ext}"
+                    fpath = topic_dir / fname
+                    try:
+                        r = requests.get(
+                            abs_src, timeout=20,
+                            headers={"User-Agent": HTML_USER_AGENT},
+                        )
+                        if r.status_code == 200 and r.content:
+                            fpath.write_bytes(r.content)
+                            figs.append({
+                                "path": str(fpath),
+                                "description": (img.get("alt") or "").strip(),
+                                "source_url": url,
+                            })
+                    except Exception:
+                        continue
+            cache.write_text(json.dumps(figs, indent=2) + "\n")
+            result[topic_id] = figs
+            print(f"    [{topic_id}] {len(figs)} figures")
+    return result
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2551,13 +2603,9 @@ def main() -> None:
         return
 
     # --- Phase 2: Per-topic pages (always needed for downstream) ---
-    # HTML mode also produces figure metadata as a side-effect (every
-    # inline `<img>` is downloaded during markdown conversion), so for
-    # HTML there is no separate Phase 3 image-download step.
     header(2, "Phase 2: Per-topic pages")
-    html_figures_by_topic: dict[str, list[dict]] = {}
     if has_html:
-        _, topic_pages, html_figures_by_topic = phase_html_pages(config, taxonomy, ws)
+        _, topic_pages = phase_html_pages(config, taxonomy, ws)
     else:
         pdf_path, topic_pages = phase_pdf_pages(
             config, taxonomy, ws, parallel=config["parallel"]["phase_2"],
@@ -2568,17 +2616,12 @@ def main() -> None:
         print("Done (phase 2 only).")
         return
 
-    # --- Phase 3: Figures (only needed for multimodal; HTML mode is a no-op) ---
+    # --- Phase 3: Figures (only needed for multimodal) ---
     figures_by_topic: dict[str, list[dict]] = {}
     if topic_pages and args.mode in ("multimodal", "both"):
         header(3, "Phase 3: Figures")
         if has_html:
-            # Already gathered in Phase 2 — every inline `<img>` was
-            # downloaded as part of markdown conversion.
-            figures_by_topic = html_figures_by_topic
-            if target is None or target == 3:
-                n_total = sum(len(v) for v in figures_by_topic.values())
-                print(f"  Reusing {n_total} figures gathered in Phase 2 ({len(figures_by_topic)} topics)")
+            figures_by_topic = phase_html_figures(taxonomy, ws)
         elif pdf_path:
             figures_by_topic = phase_figures(
                 pdf_path, topic_pages, ws, parallel=config["parallel"]["phase_3"],
