@@ -1652,7 +1652,9 @@ Strict rules:
 - Do NOT invent filenames. Do NOT use markdown image syntax.
 - Do NOT add new figure references at sentences without a placeholder.
 - Use the candidate filenames EXACTLY as listed in the text below \
-  (they end in `.png`). Do NOT use the attached thumbnail filenames.
+  (the listed extension may be `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, \
+  or `.svg` — preserve whatever extension the candidate has). Do NOT use \
+  the attached thumbnail filenames.
 
 Output ONLY the resolved markdown — start with the `# Title` line. \
 Do NOT add any preamble, summary of thumbnails, or commentary before or \
@@ -1667,8 +1669,12 @@ after the guide. The first character of your reply must be `#`.
 
 
 # Matches `See \`raw_004.png\``, `(see \`raw_004.png\`)`, `See \`raw_004.png\` for ...`.
+# Source images aren't always .png — Slicer docs include .jpeg/.gif/.webp etc., so the
+# extension group covers every common image format. If this pattern only matched .png,
+# refs to .jpeg/.gif sources would dangle (Call B emits the ref but post-processing
+# would skip the file copy + filename rewrite).
 _FIG_REF_PATTERN = re.compile(
-    r"\bsee\s+`([A-Za-z0-9_./-]+\.png)`",
+    r"\bsee\s+`([A-Za-z0-9_./-]+\.(?:png|jpg|jpeg|gif|webp|svg))`",
     re.IGNORECASE,
 )
 # Matches Call A's placeholder lines (so Call B can be cleaned up after the fact).
@@ -1676,7 +1682,7 @@ _FIG_PLACEHOLDER_PATTERN = re.compile(
     r"^\s*<!--\s*figure:[^>]*-->\s*\n?",
     re.MULTILINE | re.IGNORECASE,
 )
-THUMBNAIL_MAX_SIDE = 256
+THUMBNAIL_MAX_SIDE = 512
 THUMBNAIL_QUALITY = 75
 
 
@@ -1821,8 +1827,8 @@ def generate_multimodal_guide(
             referenced.append(fname)
 
     mm_dir.mkdir(parents=True, exist_ok=True)
-    # Clean stale fig*.png if any.
-    for old in mm_dir.glob("fig*.png"):
+    # Clean stale figXX.* (any image extension we might've written previously).
+    for old in mm_dir.glob("fig[0-9][0-9].*"):
         old.unlink()
 
     if not referenced:
@@ -1830,11 +1836,12 @@ def generate_multimodal_guide(
         print(f"    [{topic['name']}] multimodal OK (0 figs selected)")
         return True
 
-    # Copy referenced figures as fig01.png, fig02.png, ... in insertion order,
-    # and substitute the names in the markdown.
+    # Copy referenced figures as fig01.<ext>, fig02.<ext>, ... preserving the
+    # source extension (so JPEG/GIF/etc sources keep their format).
     rename_map: dict[str, str] = {}
     for i, fname in enumerate(referenced, 1):
-        new_name = f"fig{i:02d}.png"
+        ext = Path(fname).suffix.lower() or ".png"
+        new_name = f"fig{i:02d}{ext}"
         shutil.copy2(valid_files[fname], mm_dir / new_name)
         rename_map[fname] = new_name
 
