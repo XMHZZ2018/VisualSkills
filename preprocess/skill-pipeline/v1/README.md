@@ -243,6 +243,15 @@ harvesting structure. Depth 1 = the root page only (its links become topics).
 Depth 2 = also walk each linked page's headings to discover sub-topics.
 Content for each topic is always fetched in Phase 2 regardless of depth.
 
+**Single tutorial page.** `root_url` doesn't have to be a documentation hub
+— it can be one tutorial URL like
+`https://www.zotero.org/support/quick_start_guide`. Set `crawl_depth: 1` and
+Phase 1 will parse only that page's headings. Phases 2 and 3 then render
+that one page and extract its `<img>`s. The taxonomy will naturally collapse
+to a small (1-3 category) shape — `TAXONOMY_FROM_HTML_PROMPT` allows this
+when the source warrants it. No code changes needed across modes; only
+Phases 1-3 differ between PDF and HTML, and all three handle small sources.
+
 **Task-filtered mode** (`configs/libreoffice_impress.yaml`):
 ```yaml
 app_name: "LibreOffice Impress"

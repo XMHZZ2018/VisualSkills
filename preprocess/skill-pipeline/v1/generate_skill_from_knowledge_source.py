@@ -1225,7 +1225,12 @@ Turn it into a 2-layer skill taxonomy: category → topic.
 - For each topic, set `urls` to the documentation URLs that contain the
   relevant content for that topic. Order matters: put the most authoritative
   page first.
-- Use kebab-case slugs for ids. Aim for 4-12 categories, 2-10 topics each.
+- Use kebab-case slugs for ids.
+- Size the taxonomy to the source: a full documentation crawl typically
+  yields 4-12 categories with 2-10 topics each; a single tutorial page
+  (a "quick start" or one-page how-to) may legitimately produce just 1-3
+  categories with 2-5 topics each. Don't pad with synthetic topics to hit
+  a target — fewer well-grounded topics is better than diluted ones.
 
 Outline (L<level> <title> [-> url]):
 {entries_text}
