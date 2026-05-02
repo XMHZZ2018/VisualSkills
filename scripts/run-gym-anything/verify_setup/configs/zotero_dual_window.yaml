@@ -1,0 +1,17 @@
+# Re-verify the 8 tasks whose v5 screenshots showed dual-window
+# (non-maximized Zotero with dock visible). Tests whether
+# verify_setup.py's case-insensitive wmctrl-by-ID maximize fixes them.
+env_dir: vendor/gym-anything/benchmarks/cua_world/environments/zotero_env
+
+task_list:
+  - attach_pdf_files
+  - correct_item_types_to_conference
+  - create_saved_search
+  - create_saved_searches
+  - create_standalone_research_notes
+  - normalize_journal_names
+  - restore_trashed_items
+  - triage_distributed_systems_papers
+
+num_parallel: 4
+use_cache: false

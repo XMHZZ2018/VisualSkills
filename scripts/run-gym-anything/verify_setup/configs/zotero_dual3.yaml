@@ -1,0 +1,12 @@
+# Diagnostic re-run for the 3 tasks still showing dual-window after the
+# wmctrl-by-ID maximize fix. Verify_setup.py now captures wmctrl -lG +
+# pgrep zotero state right before the screenshot.
+env_dir: vendor/gym-anything/benchmarks/cua_world/environments/zotero_env
+
+task_list:
+  - create_saved_searches
+  - restore_trashed_items
+  - triage_distributed_systems_papers
+
+num_parallel: 3
+use_cache: false

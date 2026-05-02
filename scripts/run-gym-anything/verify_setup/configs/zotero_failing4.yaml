@@ -1,0 +1,11 @@
+# Re-verify the 4 tasks that still failed after the XAUTHORITY/setsid patch.
+env_dir: vendor/gym-anything/benchmarks/cua_world/environments/zotero_env
+
+task_list:
+  - attach_pdf_files
+  - catalog_research_software
+  - convert_notes_to_tags
+  - create_saved_searches
+
+num_parallel: 4
+use_cache: false

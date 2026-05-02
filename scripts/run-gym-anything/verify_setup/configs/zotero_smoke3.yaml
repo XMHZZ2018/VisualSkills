@@ -1,0 +1,11 @@
+# Smoke test: 3 tasks to validate setup_zotero.sh fix (Zotero Update dialog,
+# two-window issue). Run before the full 30-task verification.
+env_dir: vendor/gym-anything/benchmarks/cua_world/environments/zotero_env
+
+task_list:
+  - add_missing_abstracts
+  - import_bibtex_library
+  - create_saved_search
+
+num_parallel: 3
+use_cache: false

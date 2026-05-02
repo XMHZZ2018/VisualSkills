@@ -1,0 +1,14 @@
+# Re-verify the 6 writer tasks that failed in libreoffice_writer_test.yaml
+# after patching task_utils.sh to define take_screenshot.
+env_dir: vendor/gym-anything/benchmarks/cua_world/environments/libreoffice_writer_env
+
+task_list:
+  - paperback_book_layout
+  - report_pagination_flow_control
+  - resume_ats_remediation
+  - sales_report_chart_creation
+  - spec_cross_reference_repair
+  - stem_exam_equation_formatting
+
+num_parallel: 4
+use_cache: false

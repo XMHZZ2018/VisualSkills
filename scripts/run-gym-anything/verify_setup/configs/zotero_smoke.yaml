@@ -1,0 +1,8 @@
+# Smoke test: 1 task to validate setup_zotero.sh fix
+env_dir: vendor/gym-anything/benchmarks/cua_world/environments/zotero_env
+
+task_list:
+  - add_missing_abstracts
+
+num_parallel: 1
+use_cache: false

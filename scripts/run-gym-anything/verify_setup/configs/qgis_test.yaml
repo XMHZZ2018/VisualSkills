@@ -1,0 +1,23 @@
+# Verify setup for the 16 QGIS test tasks (per qgis_split.json)
+env_dir: vendor/gym-anything/benchmarks/cua_world/environments/qgis_env
+
+task_list:
+  - road_proximity_clip_analysis
+  - seismic_risk_country_exposure
+  - select_by_expression_export
+  - simplify_geometries_web_export
+  - snap_gps_points_correction
+  - solar_suitability_analysis
+  - spatial_join_points_to_polygons
+  - spatial_join_summary_concatenation
+  - spatial_trend_ellipse_japan
+  - split_layer_by_attribute
+  - supply_chain_hub_lines
+  - terrain_hillshade_slope_analysis
+  - topological_coloring_world_map
+  - urban_park_coverage_equity
+  - variable_distance_buffer_zones
+  - viewshed_fire_lookout_siting
+
+num_parallel: 4
+use_cache: false
