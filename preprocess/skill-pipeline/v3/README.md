@@ -13,11 +13,15 @@ text-only twin **text-skill-v3** is derived from mm-v3.
 > directory to the VM and SSHs in to launch the requested phase.
 
 ```bash
-./run.sh --config configs/impress.yaml             # phases 1-3 (on VM)
+./run.sh --config configs/impress.yaml             # phases 1, 2, 3a + 3b (on VM)
 ./run.sh --config configs/impress.yaml --phase 3b  # re-run mapper only
-./run.sh --config configs/impress.yaml --phase 4   # inline → mm-v3
-./run.sh --config configs/impress.yaml --phase 5   # derive text-v3
+./run.sh --config configs/impress.yaml --phase 4   # phase 3c: inline → mm-v3
+./run.sh --config configs/impress.yaml --phase 5   # phase 4: derive text-v3
 ```
+
+> The pipeline is **4 conceptual phases** (Plan / Workers / Assemble→mm-v3 /
+> Text-v3). Phase 3 has three sub-steps (3a assembler, 3b mapper, 3c inline).
+> The `run.sh --phase` numeric flags (`4`, `5`) are kept for backward compat.
 
 ## How v3 differs from v1
 
@@ -62,10 +66,10 @@ region of the UI. The worker writes:
 - **Per-worker budget:** `task_timeout` (default 1800s wall) and `max_actions` (default 80)
 - **Bridge ports:** `bridge_port_base + i + 1` for worker *i*
 
-### Phase 3 — Assemble (Opus)
-Phase 3 has two sub-steps that together produce everything Phase 4 needs.
-The orchestrator runs them back-to-back automatically; both can be re-run
-standalone via `run.sh --phase 3b` (mapper only).
+### Phase 3 — Assemble → mm-v3
+Phase 3 turns the raw worker notes into the finished `mm-v3` skill. It
+has three sub-steps; the orchestrator runs 3a + 3b automatically, and 3c
+is invoked via `run.sh --phase 4` once mm-v3 is ready to be merged.
 
 **3a. Assembler (Opus, `assemble.py`).** Runs Opus on the host with
 `cwd = <output_dir>`. Reads every worker's `notes.md` + `notes.json`,
@@ -82,31 +86,25 @@ folder:
 **3b. Region → guide mapper (Opus, `map_regions.py`).** Reads
 `skill/regions/*.md` plus the mm-v1 `SKILL.md` and the first ~40 lines of
 each `guide.md`, then asks Opus to emit
-`<output_dir>/region_to_guides.json` matching the schema consumed by
-Phase 4. Each region is annotated with one or more owners
-(`{guide, confidence, scope}`) using these confidence levels:
+`<output_dir>/region_to_guides.json` consumed by 3c. Each region is
+annotated with one or more owners (`{guide, confidence, scope}`) using
+these confidence levels:
 
 - `primary`  — the region directly documents UI for that guide's task.
 - `relevant` — the region overlaps with the guide but is not its main subject.
 - `weak`     — only tangentially related; would bloat the guide if inlined.
 
 Regions whose owners are all weak, or that are app-wide with no real
-owner, are marked `drop_recommended: true` and skipped by Phase 4.
-This step replaces the previously hand-curated mapping file.
+owner, are marked `drop_recommended: true` and skipped by 3c. This step
+replaces the previously hand-curated mapping file.
 
 - **Model:** `mapper_model` (default `claude-opus-4-6`)
 - **Wall clock:** `mapper_timeout` (default 900s)
 - **Re-run only this step:** `./run.sh --config configs/<d>.yaml --phase 3b`
 
-After Phase 3 the `<output_dir>` contains the **raw v3 product** —
-per-region docs plus the auto-generated `region_to_guides.json` — but
-it isn't yet a fully-formed Claude Code skill.
-
-### Phase 4 — Inline (deterministic)
-`inline_into_mm_v1.py` reads the **auto-generated** mapping at
-**`<output_dir>/region_to_guides.json`** (produced by Phase 3b) that says
-"this region's UI reference belongs in these v1 guide(s)" with confidence
-labels. For each owning v1 guide, the script:
+**3c. Inline (deterministic, `inline_into_mm_v1.py`).** Reads the
+auto-generated mapping at `<output_dir>/region_to_guides.json` and, for
+each owning v1 guide, does:
 
 1. Strips the region.md's frontmatter and screenshot block.
 2. Rewrites image references from markdown `![]()` syntax to mm-v1's
@@ -122,13 +120,12 @@ the v3 augmentation is purely additive at the per-guide level.
 
 - No Claude calls (deterministic merge).
 - Owner confidence policy: `primary` and `relevant` are appended; `weak`
-  is skipped. Regions marked `drop_recommended` or `orphan` in the mapping
-  are skipped entirely.
-- **Mapping file:** `<output_dir>/region_to_guides.json`, auto-generated
-  by Phase 3b. Re-run Phase 3b (`run.sh --phase 3b`) if you want a fresh
-  mapping after editing `skill/regions/*.md`.
+  is skipped. Regions marked `drop_recommended` or `orphan` are skipped.
+- **Invoked as:** `./run.sh --config configs/<d>.yaml --phase 4`
+  (kept as numeric flag `4` for backward compat; conceptually this is
+  sub-step 3c).
 
-### Phase 5 — Text-v3 (Claude, mirrors v1 Phase 6)
+### Phase 4 — Text-v3 (Claude, mirrors v1 Phase 6)
 `derive_text_v3.py` walks every `guide.md` under
 `skills/<domain>-knowledge-multimodal-v3/` and replaces inline image
 references — both the mm-v1 ``See `figXX.png``` style and the v3-appended
@@ -151,7 +148,7 @@ both reference styles.
 ## Config schema
 
 ```yaml
-# Skill identity (used by phases 4 & 5)
+# Skill identity (used by phases 3c & 4)
 domain: libreoffice_impress
 app_name: "LibreOffice Impress"
 app_version: "7.3.7"
@@ -189,13 +186,13 @@ text_v3_parallel: 4
 v3/
 ├── README.md                          (this file)
 ├── run.sh                             # rsync to VM + launch phase (always remote)
-├── orchestrator.py                    # phases 1-3 driver (plan → workers → assemble → map)
+├── orchestrator.py                    # phases 1 → 2 → 3a → 3b driver
 ├── plan.py / worker.py / assemble.py  # phase 1 / 2 / 3a implementations
 ├── map_regions.py                     # phase 3b: auto-map regions → mm-v1 guides (Opus)
 ├── prompts.py                         # planner / worker / assembler / mapper prompts
 ├── img_tool.py                        # Bash-callable crop/inspect helper used by assembler
-├── inline_into_mm_v1.py               # phase 4: deterministic mm-v3 merge
-├── derive_text_v3.py                  # phase 5: text-v3 from mm-v3 (reuses v1 phase 6 core)
+├── inline_into_mm_v1.py               # phase 3c: deterministic mm-v3 merge
+├── derive_text_v3.py                  # phase 4: text-v3 from mm-v3 (reuses v1 phase 6 core)
 ├── configs/
 │   └── <domain>.yaml
 └── outputs/<domain>/                  # per-domain pipeline artefacts (the config's output_dir)
