@@ -14,6 +14,7 @@ text-only twin **text-skill-v3** is derived from mm-v3.
 
 ```bash
 ./run.sh --config configs/impress.yaml             # phases 1-3 (on VM)
+./run.sh --config configs/impress.yaml --phase 3b  # re-run mapper only
 ./run.sh --config configs/impress.yaml --phase 4   # inline → mm-v3
 ./run.sh --config configs/impress.yaml --phase 5   # derive text-v3
 ```
@@ -62,10 +63,15 @@ region of the UI. The worker writes:
 - **Bridge ports:** `bridge_port_base + i + 1` for worker *i*
 
 ### Phase 3 — Assemble (Opus)
-`assemble.py` runs Opus on the host with `cwd = <output_dir>`. The
-assembler reads every worker's `notes.md` + `notes.json`, selectively
-opens screenshots via the local `img_tool.py` helper (Bash-callable
-crop/inspect utility), and writes the final per-region skill folder:
+Phase 3 has two sub-steps that together produce everything Phase 4 needs.
+The orchestrator runs them back-to-back automatically; both can be re-run
+standalone via `run.sh --phase 3b` (mapper only).
+
+**3a. Assembler (Opus, `assemble.py`).** Runs Opus on the host with
+`cwd = <output_dir>`. Reads every worker's `notes.md` + `notes.json`,
+selectively opens screenshots via the local `img_tool.py` helper
+(Bash-callable crop/inspect utility), and writes the per-region skill
+folder:
 
 - `skill/regions/<region_id>.md` — one markdown file per region with H1, scope, screenshot block, and a per-element table
 - `skill/images/*.png`           — cropped screenshots referenced by the regions
@@ -73,16 +79,34 @@ crop/inspect utility), and writes the final per-region skill folder:
 - **Model:** `assembler_model` (default `claude-opus-4-6`)
 - **Wall clock:** `assembler_timeout` (default 2400s)
 
-After Phase 3 the `<output_dir>` contains the **raw v3 product** — but it
-isn't yet a fully-formed Claude Code skill, just per-region docs.
+**3b. Region → guide mapper (Opus, `map_regions.py`).** Reads
+`skill/regions/*.md` plus the mm-v1 `SKILL.md` and the first ~40 lines of
+each `guide.md`, then asks Opus to emit
+`<output_dir>/region_to_guides.json` matching the schema consumed by
+Phase 4. Each region is annotated with one or more owners
+(`{guide, confidence, scope}`) using these confidence levels:
+
+- `primary`  — the region directly documents UI for that guide's task.
+- `relevant` — the region overlaps with the guide but is not its main subject.
+- `weak`     — only tangentially related; would bloat the guide if inlined.
+
+Regions whose owners are all weak, or that are app-wide with no real
+owner, are marked `drop_recommended: true` and skipped by Phase 4.
+This step replaces the previously hand-curated mapping file.
+
+- **Model:** `mapper_model` (default `claude-opus-4-6`)
+- **Wall clock:** `mapper_timeout` (default 900s)
+- **Re-run only this step:** `./run.sh --config configs/<d>.yaml --phase 3b`
+
+After Phase 3 the `<output_dir>` contains the **raw v3 product** —
+per-region docs plus the auto-generated `region_to_guides.json` — but
+it isn't yet a fully-formed Claude Code skill.
 
 ### Phase 4 — Inline (deterministic)
-`inline_into_mm_v1.py` reads a hand-curated mapping at
-**`<output_dir>/region_to_guides.json`** that says "this region's UI reference
-belongs in these v1 guide(s)" with confidence labels. The mapping lives next
-to the Phase 3 artefacts (not in the source tree) because it is per-domain
-and authored *after* reviewing assembler output. For each owning v1 guide,
-the script:
+`inline_into_mm_v1.py` reads the **auto-generated** mapping at
+**`<output_dir>/region_to_guides.json`** (produced by Phase 3b) that says
+"this region's UI reference belongs in these v1 guide(s)" with confidence
+labels. For each owning v1 guide, the script:
 
 1. Strips the region.md's frontmatter and screenshot block.
 2. Rewrites image references from markdown `![]()` syntax to mm-v1's
@@ -100,8 +124,9 @@ the v3 augmentation is purely additive at the per-guide level.
 - Owner confidence policy: `primary` and `relevant` are appended; `weak`
   is skipped. Regions marked `drop_recommended` or `orphan` in the mapping
   are skipped entirely.
-- **Mapping file:** `<output_dir>/region_to_guides.json` (must be created
-  manually for each new domain — no auto-mapper yet).
+- **Mapping file:** `<output_dir>/region_to_guides.json`, auto-generated
+  by Phase 3b. Re-run Phase 3b (`run.sh --phase 3b`) if you want a fresh
+  mapping after editing `skill/regions/*.md`.
 
 ### Phase 5 — Text-v3 (Claude, mirrors v1 Phase 6)
 `derive_text_v3.py` walks every `guide.md` under
@@ -145,12 +170,14 @@ bridge_port_base: 9100
 planner_model: claude-opus-4-6
 worker_model: claude-sonnet-4-6
 assembler_model: claude-opus-4-6
+mapper_model: claude-opus-4-6
 claude_cli_image: ga-claude-cli
 task_timeout: 1800
 max_actions: 80
 action_wait: 1.0
 planner_timeout: 600
 assembler_timeout: 2400
+mapper_timeout: 900
 
 # Phase 5 parallelism
 text_v3_parallel: 4
@@ -162,19 +189,20 @@ text_v3_parallel: 4
 v3/
 ├── README.md                          (this file)
 ├── run.sh                             # rsync to VM + launch phase (always remote)
-├── orchestrator.py                    # phases 1-3 driver (plan → workers → assemble)
-├── plan.py / worker.py / assemble.py  # phase 1 / 2 / 3 implementations
-├── prompts.py                         # planner / worker / assembler prompts
+├── orchestrator.py                    # phases 1-3 driver (plan → workers → assemble → map)
+├── plan.py / worker.py / assemble.py  # phase 1 / 2 / 3a implementations
+├── map_regions.py                     # phase 3b: auto-map regions → mm-v1 guides (Opus)
+├── prompts.py                         # planner / worker / assembler / mapper prompts
 ├── img_tool.py                        # Bash-callable crop/inspect helper used by assembler
 ├── inline_into_mm_v1.py               # phase 4: deterministic mm-v3 merge
 ├── derive_text_v3.py                  # phase 5: text-v3 from mm-v3 (reuses v1 phase 6 core)
 ├── configs/
 │   └── <domain>.yaml
 └── outputs/<domain>/                  # per-domain pipeline artefacts (the config's output_dir)
-    ├── region_to_guides.json          # phase 4 hand-curated mapping
+    ├── region_to_guides.json          # phase 3b auto-generated mapping
     ├── plan/plan.json                 # phase 1
     ├── workers/worker_NN_*/           # phase 2
-    └── skill/{regions,images}/        # phase 3
+    └── skill/{regions,images}/        # phase 3a
 ```
 
 ## Output layout
@@ -214,10 +242,10 @@ for the reference implementation.
 ## Running on the GCP VM
 
 `run.sh` always runs on the `osworld` VM.  It rsyncs this directory (so any
-local edits to scripts, configs, or `outputs/<domain>/region_to_guides.json`
-take effect) and then SSHs in to launch the requested phase.  After phases 4
-and 5 (foreground mode), it rsyncs the produced `skills/<domain>-knowledge-{multimodal,text}-v3/`
-directories back to the local tree.
+local edits to scripts or configs take effect) and then SSHs in to launch
+the requested phase.  After phases 4 and 5 (foreground mode), it rsyncs
+the produced `skills/<domain>-knowledge-{multimodal,text}-v3/` directories
+back to the local tree.
 
 ```bash
 ./run.sh --config configs/impress.yaml             # phases 1-3, nohup'd on VM
