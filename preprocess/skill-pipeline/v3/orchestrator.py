@@ -26,6 +26,7 @@ sys.path.insert(0, str(PIPELINE_DIR))
 
 from plan import plan as run_plan  # noqa: E402
 from assemble import assemble as run_assemble  # noqa: E402
+from map_regions import map_regions as run_map_regions  # noqa: E402
 
 
 log = logging.getLogger("orchestrator")
@@ -39,12 +40,14 @@ def load_config(path: str) -> dict:
         "planner_model": "claude-opus-4-6",
         "worker_model": "claude-sonnet-4-6",
         "assembler_model": "claude-opus-4-6",
+        "mapper_model": "claude-opus-4-6",
         "claude_cli_image": "ga-claude-cli",
         "task_timeout": 1200,
         "max_actions": 40,
         "action_wait": 1.0,
         "planner_timeout": 600,
         "assembler_timeout": 1800,
+        "mapper_timeout": 900,
     }
     for k, v in defaults.items():
         cfg.setdefault(k, v)
@@ -194,6 +197,27 @@ def run(cfg: dict, output_dir: Path) -> int:
         timeout=cfg["assembler_timeout"],
     )
     log.info("assembler done in %.1fs rc=%d", time.time() - t2, rc)
+    if rc != 0:
+        log.error("assembler failed; skipping region mapping")
+        return rc
+
+    # ── Phase 2b: auto-map regions → mm-v1 guides ───────────────────────
+    log.info("═══ Phase 2b: map regions → guides ═══")
+    domain = cfg.get("domain") or Path(cfg["env_dir"]).name.removesuffix("_env")
+    mm_v1_dir = MMSKILLS_ROOT / "skills" / f"{domain}-knowledge-multimodal-v1"
+    if not mm_v1_dir.is_dir():
+        log.error("mm-v1 dir not found: %s — skipping mapper", mm_v1_dir)
+        return 1
+    target_skill_dir_rel = f"skills/{domain}-knowledge-multimodal-v0"
+    t2b = time.time()
+    rc = run_map_regions(
+        pipeline_dir=output_dir,
+        mm_v1_dir=mm_v1_dir,
+        target_skill_dir_rel=target_skill_dir_rel,
+        model=cfg["mapper_model"],
+        timeout=cfg["mapper_timeout"],
+    )
+    log.info("mapper done in %.1fs rc=%d", time.time() - t2b, rc)
 
     log.info("═══ pipeline complete ═══")
     log.info("output: %s", output_dir)

@@ -48,7 +48,9 @@ Options:
   --foreground   Stream the remote log instead of nohup-ing.
 
 Phases:
-  1-3 plan/workers/assemble  (orchestrator.py — spins up Docker)
+  1-3 plan/workers/assemble+map  (orchestrator.py — spins up Docker; mapper
+                                  emits region_to_guides.json automatically)
+  3b  re-run only the region→guide mapper (Claude Opus)
   4   inline regions+images into mm-v1 → mm-v3   (deterministic)
   5   derive text-v3 from mm-v3                  (Claude API, parallel)
 
@@ -128,6 +130,11 @@ case "${PHASE:-}" in
 python -c 'import PIL' 2>/dev/null || pip install --quiet Pillow ; \
 python -u orchestrator.py --config ${CONFIG_REL} ${FORCE} ${EXTRA_STR}"
         ;;
+    3b)
+        REMOTE_CMD="cd ${REMOTE_PIPELINE} && \
+python -u map_regions.py --pipeline-dir ${REMOTE_REPO}/${OUTPUT_DIR_REL} \
+    --domain ${DOMAIN} ${EXTRA_STR}"
+        ;;
     4)
         REMOTE_CMD="cd ${REMOTE_PIPELINE} && \
 python -u inline_into_mm_v1.py --pipeline-dir ${REMOTE_REPO}/${OUTPUT_DIR_REL} ${EXTRA_STR}"
@@ -141,7 +148,7 @@ python -u derive_text_v3.py \
     --parallel ${PARALLEL} ${EXTRA_STR}"
         ;;
     *)
-        echo "Error: --phase must be 1, 2, 3, 4, or 5 (got: $PHASE)" >&2
+        echo "Error: --phase must be 1, 2, 3, 3b, 4, or 5 (got: $PHASE)" >&2
         exit 1
         ;;
 esac

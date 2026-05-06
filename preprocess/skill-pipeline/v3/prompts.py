@@ -479,3 +479,125 @@ Forbidden: Agent, AskUserQuestion, NotebookEdit.
 
 Start now.  No preamble.  Produce files.
 """
+
+
+MAP_REGIONS_PROMPT = """\
+You are mapping a set of auto-discovered UI **regions** (from the assembler)
+onto an existing **multimodal skill (mm-v1)** so the inline step can append
+each region's UI Reference into the right guide(s).
+
+═══ INPUT ═══
+
+mm-v1 SKILL.md (the table of contents):
+
+{skill_md}
+
+mm-v1 guides (path + first ~40 lines of each guide.md):
+
+{guides_section}
+
+Assembler regions (one per region; the entire region .md is shown):
+
+{regions_section}
+
+═══ OUTPUT ═══
+
+Write a single JSON file using the Write tool to:
+
+    {out_path}
+
+The JSON MUST follow this exact schema:
+
+{{
+  "target_skill_dir": "{target_skill_dir}",
+  "guides": <list of guide paths, copy from below>,
+  "regions": {{
+    "<region-slug>": {{
+      "owners": [
+        {{"guide": "<guide path>", "confidence": "primary|relevant|weak", "scope": "<short phrase>"}},
+        ...
+      ],
+      "drop_recommended": <bool, optional>,
+      "drop_reason": "<string, only if drop_recommended is true>",
+      "orphan": <bool, optional — true if owners=[]>
+    }},
+    ...
+  }},
+  "summary": {{
+    "n_regions": <int>,
+    "n_regions_with_primary_owner": <int>,
+    "n_regions_drop_recommended": <int>,
+    "n_guides": <int>,
+    "n_guides_covered_strict_primary_only": <int>,
+    "n_guides_covered_permissive_relevant_or_better": <int>,
+    "n_guides_uncovered": <int>,
+    "uncovered_guides": [<guide paths>],
+    "uncovered_note": "<short prose>"
+  }}
+}}
+
+Use this exact list for the top-level "guides" field (do not modify):
+
+{guide_paths_json}
+
+═══ CONFIDENCE SEMANTICS ═══
+
+For each (region, candidate guide) pair:
+
+- **primary** — the region documents UI that DIRECTLY corresponds to the
+  guide's task. Inlining this region into the guide is genuinely useful.
+  Example: a "pdf-options-dialog" region → primary owner of an
+  "export presentations" guide.
+- **relevant** — the region overlaps with the guide but is not its main
+  subject. Example: an "insert-menu" region's "Hyperlink (Ctrl+K)" entry
+  → relevant for an "interactive-navigation" guide.
+- **weak** — touches the guide only tangentially or is largely redundant
+  with another region that already owns it. Inlining would bloat the
+  guide. Default to drop_recommended=true if ALL owners are weak.
+
+Set `drop_recommended: true` for regions that should NOT be inlined into
+any guide:
+
+  - All owners are weak (would only bloat guides with redundant content).
+  - The region is app-wide (e.g. Edit/View menus, status bar) with no
+    specific task guide that owns it. In that case, "owners": [] and
+    add `"orphan": true` alongside `"drop_recommended": true`.
+
+═══ RULES ═══
+
+1. ONE region can have multiple primary owners (e.g. a multi-purpose menu
+   that has distinct entries for several guides).
+2. Each owner's `scope` field is a short phrase (≤ 25 words) naming WHICH
+   parts of the region apply to that guide. Be specific (cite menu items,
+   tab names, dialog buttons).
+3. NEVER invent guides not in the provided list.
+4. Region slugs come verbatim from the input region filenames (without
+   the `.md`). Use the same slugs in the output.
+5. Compute the `summary` block correctly:
+   - `n_regions_with_primary_owner` counts regions where ANY owner has
+     confidence `primary`.
+   - `n_regions_drop_recommended` counts regions with
+     `drop_recommended: true`.
+   - `n_guides_covered_strict_primary_only` = number of guides that
+     appear as a `primary` owner of at least one non-dropped region.
+   - `n_guides_covered_permissive_relevant_or_better` = number of guides
+     that appear as a `primary` OR `relevant` owner of at least one
+     non-dropped region.
+   - `uncovered_guides` = guides not covered under the permissive
+     definition.
+
+═══ WORKFLOW ═══
+
+1. Read the SKILL.md and each guide excerpt to understand the per-guide
+   task scope. (You may use the Read tool to view a full guide if its
+   excerpt is insufficient — guides are at <mm-v1-dir>/<guide-path>.)
+2. For each region, decide its owners and scope, or mark it
+   drop_recommended.
+3. Compute the summary block.
+4. Use the Write tool to save the JSON to {out_path}.
+
+Allowed tools: Read, Write, Glob, Grep.
+Forbidden: Bash, Edit, Agent, AskUserQuestion, NotebookEdit.
+
+Start now.  No preamble.  Write the JSON file.
+"""
