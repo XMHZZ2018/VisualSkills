@@ -1677,7 +1677,7 @@ Output ONLY the markdown guide.
 
 
 def _skills_dir(domain: str, modality: str) -> Path:
-    return MMSKILLS_ROOT / "skills" / f"{domain}-knowledge-{modality}-v1"
+    return MMSKILLS_ROOT / "skills" / f"{domain}-knowledge-{modality}-stage1"
 
 
 def _draft_topic_prose(

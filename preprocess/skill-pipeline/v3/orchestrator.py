@@ -204,11 +204,11 @@ def run(cfg: dict, output_dir: Path) -> int:
     # ── Phase 2b: auto-map regions → mm-v1 guides ───────────────────────
     log.info("═══ Phase 2b: map regions → guides ═══")
     domain = cfg.get("domain") or Path(cfg["env_dir"]).name.removesuffix("_env")
-    mm_v1_dir = MMSKILLS_ROOT / "skills" / f"{domain}-knowledge-multimodal-v1"
+    mm_v1_dir = MMSKILLS_ROOT / "skills" / f"{domain}-knowledge-multimodal-stage1"
     if not mm_v1_dir.is_dir():
         log.error("mm-v1 dir not found: %s — skipping mapper", mm_v1_dir)
         return 1
-    target_skill_dir_rel = f"skills/{domain}-knowledge-multimodal-v0"
+    target_skill_dir_rel = f"skills/{domain}-knowledge-multimodal-stage2"
     t2b = time.time()
     rc = run_map_regions(
         pipeline_dir=output_dir,

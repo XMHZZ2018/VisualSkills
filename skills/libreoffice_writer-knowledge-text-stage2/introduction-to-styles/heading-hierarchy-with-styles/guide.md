@@ -1,0 +1,55 @@
+# Defining a Heading Hierarchy with Styles (LibreOffice Writer 7.3.7)
+
+Paragraph styles are the backbone of heading hierarchy in Writer. They drive the table of contents, outline numbering, and cross-references, so it's worth getting them right from the start.
+
+Writer ships with default heading styles — *Heading 1*, *Heading 2*, and so on — already mapped to outline levels. If those defaults work for you and you just want automatic numbering, you're basically done: apply the styles and let Writer handle the rest. But if you want to swap in your own custom paragraph styles, you'll need to tell Writer which style maps to which level.
+
+Open **Tools > Chapter Numbering** to get to the main dialog. On the **Numbering** tab, you'll see a *Level* list on the left (1 through 10). Click a level, then pick the paragraph style you want assigned to it from the *Paragraph style* drop-down. For instance, you could replace the default *Heading 1* with your own *My Heading 1*, and *Heading 2* with *My Heading 2*. Repeat for each level you need, then click **OK**.
+
+The Chapter Numbering dialog is shown with the **Numbering** tab active. On the left is a Level list (1 through 10, plus "1 - 10"). In the center are fields for Number (set to "None"), Start at, Paragraph style (with its drop-down open showing available styles such as Heading 9, Heading 10, Heading Caution, Heading Note, Heading Tip, Index, List, My Heading 1, My Heading 2, and My Heading 3 — with "My Heading 2" highlighted), Character style, Show sublevels, and Separator Before/After fields. Level 2 is selected. On the right, a Preview pane displays the resulting hierarchy: "My Heading 1" at Level 1 followed by "Heading 2" through "Heading 10" for the remaining levels.
+
+You can also assign outline levels directly on any paragraph style. Open the style for editing, go to the **Outline & List** tab, and set the desired outline level from the *Outline level* drop-down. This is handy for appendix styles or other headings you want included in the table of contents alongside your main chapter headings.
+
+To add actual numbering (like 1, 1.1, 1.2.1), go back to **Tools > Chapter Numbering**. Select Level 1, set *Number* to "1, 2, 3, …". Then select Level 2, again choose "1, 2, 3, …" and set *Show sublevels* to 2. For Level 3, do the same and set *Show sublevels* to 3. The preview pane on the right updates live so you can see exactly how your nested numbers will look.
+
+A Writer document page is shown with three heading levels demonstrating the numbering results. The Level 1 heading reads "1   This is a Heading 1" in large bold text. Below it, a Level 2 heading reads "1.1   This is a Heading 2. It has far too many words in it, so it wraps around to the next line." in slightly smaller text, illustrating how a long heading wraps. At the bottom, a Level 3 heading reads "1.1.1   This is a Heading 3" in still smaller text. Paragraph marks are visible at the end of each heading.
+
+Once numbering is in place, you may want to fine-tune indentation. Switch to the **Position** tab in the same dialog. Select the level you want to adjust and set values for *Aligned at*, *Tab stop at*, and *Indent at*. For example, indenting Level 2 headings from the margin makes the hierarchy visually obvious. If you have long headings that wrap, increase the *Indent at* value so the second line aligns with the heading text rather than the number.
+
+The Chapter Numbering dialog is shown with the **Position** tab active. On the left, Level 2 is selected in the Level list. The center section, labeled "Position and Spacing," contains fields for Numbering alignment (set to "Left"), Aligned at (0.30 cm), Numbering followed by (set to "Tab stop"), Tab stop at (0.80 cm), and Indent at (0.30 cm), along with a Default button at the bottom. On the right, a Preview pane shows horizontal lines at varying indentation levels, representing how the different heading levels will be indented relative to the margin.
+
+That's really all there is to it. Define your styles, map them to levels in **Tools > Chapter Numbering**, configure numbering and position, and your document's heading hierarchy is locked in — ready for a table of contents, PDF bookmarks, or Navigator browsing.
+
+---
+
+## UI Reference  —  Tools Menu
+
+_Scope: Heading Numbering… (Chapter Numbering dialog)_
+
+The Tools menu provides document proofing, language settings, automation, and application-wide configuration.
+
+The Tools menu is shown expanded in the Writer menu bar. It is a single-column drop-down listing items from top to bottom: Spelling…, Automatic Spell Checking (with a checkbox, currently checked), Thesaurus… (grayed out), Language, Word Count…, Accessibility Check…, Automatic Accessibility Checking (unchecked checkbox), AutoCorrect, AutoText…, ImageMap (grayed out), Redact, Auto-Redact, Heading Numbering…, Line Numbering…, Footnote/Endnote Settings…, Mail Merge Wizard…, Bibliography Database, Address Book Source…, Update, Protect Document, Calculate (grayed out), Sort… (grayed out), Macros, Development Tools (unchecked checkbox), XML Filter Settings…, Extensions…, Customize…, and Options… at the very bottom.
+
+## Elements
+
+- **Spelling…** (F7) — Open the spelling dialog.
+- **Automatic Spell Checking** (Shift+F7) — Toggle live spell-check underlines.
+- **Thesaurus…** (Ctrl+F7) — Look up synonyms (requires thesaurus dictionary).
+- **Language** (►) — Set language For Selection / For Paragraph / For All Text, Hyphenation…, More Dictionaries Online…
+- **Word Count…** — Show detailed word/character counts.
+- **Accessibility Check…** (Alt+8) / **Automatic Accessibility Checking** — Audit document for accessibility issues.
+- **AutoCorrect** (►) — While Typing (toggle), Apply, Apply and Edit Changes, AutoCorrect Options… (5-tab dialog: Replace, Exceptions, Options, Localized Options, Word Completion).
+- **AutoText…** (Ctrl+F3) — Manage reusable text blocks.
+- **Redact** / **Auto-Redact** — Document redaction tools.
+- **Heading Numbering…** — Configure outline numbering for headings.
+- **Line Numbering…** — Enable/configure line numbers (position, interval, separator).
+- **Footnote/Endnote Settings…** — Configure footnote/endnote formatting.
+- **Mail Merge Wizard…** — Step-by-step mail merge.
+- **Bibliography Database** / **Address Book Source…** — Database connections.
+- **Update** (►) — Refresh: Update All, Page Formatting, Fields (F9), Indexes and Tables, Links, Charts.
+- **Protect Document** (►) — Protect Fields (checkbox), Protect Bookmarks (checkbox).
+- **Calculate** (Ctrl++) / **Sort…** — In-document calculation and sorting.
+- **Macros** (►) — Run Macro…, Edit Macros…, Organize Macros, Digital Signature…, Organize Dialogs…
+- **Development Tools** — Toggle developer panel.
+- **XML Filter Settings…** / **Extensions…** (Ctrl+Alt+E) / **Customize…**
+- **Options…** (Alt+F12) — Opens the comprehensive Options dialog with tree navigation: LibreOffice (User Data, General, View, Print, Paths, Fonts, Security, etc.), Load/Save, Languages, LibreOffice Writer, and more.

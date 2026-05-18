@@ -46,6 +46,7 @@ import datetime
 import json
 import logging
 import os
+import secrets
 import subprocess
 import sys
 from pathlib import Path
@@ -55,8 +56,8 @@ import docker
 MMSKILLS_ROOT = Path(__file__).resolve().parents[2]
 MCP_SERVER_PATH = "/opt/mmskills/tools/osworld-controller/server.py"
 PLUGIN_DIRS = {
-    "text": "/opt/mmskills/plugins/osworld-text",
-    "multimodal": "/opt/mmskills/plugins/osworld-multimodal",
+    "text": "/home/ziyan/MMSkills/plugins/osworld-text",
+    "multimodal": "/home/ziyan/MMSkills/plugins/osworld-multimodal",
 }
 CLAUDE_CLI_IMAGE = os.environ.get("CLAUDE_CLI_IMAGE", "osworld-claude-cli")
 
@@ -104,8 +105,94 @@ def _get_vm_host_port(env) -> int:
 
 # ── MCP config for inside the Claude container ────────────────────────────────
 
-def _write_mcp_config(output_dir: Path, skill_mode: str) -> None:
-    """Write MCP config JSON to the output dir (mounted as /workspace)."""
+def _resolve_skill_dir(domain_or_skill: str, skill_mode: str) -> Path | None:
+    """Resolve the host-side skill dir for a given (domain, skill_mode).
+
+    Tries naming conventions in order:
+        skills/<dom>-knowledge-<mode>-stage1   (current convention)
+        skills/<dom>-knowledge-<mode>-v1       (legacy)
+        skills/<dom>-knowledge-<mode>          (legacy, no suffix)
+    Returns None if no match.
+    """
+    if skill_mode in (None, "", "none"):
+        return None
+    root = Path("/home/ziyan/MMSkills/skills")
+    for suffix in ("-stage1", "-v1", ""):
+        cand = root / f"{domain_or_skill}-knowledge-{skill_mode}{suffix}"
+        if cand.is_dir():
+            return cand
+    return None
+
+
+
+
+# Per-task plugin builder — replicates the gym-anything pattern that's been
+# proven to make SKILL.md visible to the agent as a slash command.
+# The static PLUGIN_DIRS dict above is no longer used for skill mounting; it's
+# kept only as a legacy fallback.
+import json as _json_for_plugin
+
+def _build_plugin_dir(skill_dir: Path | None, output_dir: Path) -> str | None:
+    """Build a per-task plugin dir at <output_dir>/plugin/ that exposes
+    exactly one skill, mirroring the gym-anything runner's structure.
+
+    Layout:
+        <output_dir>/plugin/
+          .claude-plugin/marketplace.json    # lists this single skill
+          skills/<skill_name>                # symlink → /opt/mmskills/skills/<skill_name>
+
+    Returns the container-side path to pass via --plugin-dir, or None if
+    no skill was resolved.
+    """
+    if skill_dir is None:
+        return None
+
+    skill_name = skill_dir.name
+    plugin_root = output_dir / "plugin"
+    (plugin_root / ".claude-plugin").mkdir(parents=True, exist_ok=True)
+    (plugin_root / "skills").mkdir(parents=True, exist_ok=True)
+
+    link_path = plugin_root / "skills" / skill_name
+    if link_path.exists() or link_path.is_symlink():
+        link_path.unlink()
+    # Container-side symlink target (output_dir is mounted at /workspace, and
+    # MMSKILLS_ROOT is mounted at /opt/mmskills inside the Claude container).
+    link_path.symlink_to(f"/opt/mmskills/skills/{skill_name}")
+
+    # Marketplace manifest: plugin name becomes a slash command on the agent.
+    manifest = {
+        "name": "osworld-skill",
+        "owner": {"name": "MMSkills"},
+        "metadata": {
+            "description": f"Skill for {skill_name}",
+            "version": "1.0.0",
+        },
+        "plugins": [
+            {
+                "name": skill_name,
+                "description": f"Skill: {skill_name}",
+                "source": "./",
+                "strict": False,
+                "skills": [f"./skills/{skill_name}"],
+            }
+        ],
+    }
+    (plugin_root / ".claude-plugin" / "marketplace.json").write_text(
+        _json_for_plugin.dumps(manifest, indent=2), encoding="utf-8",
+    )
+    return "/workspace/plugin"
+
+
+def _write_mcp_config(
+    output_dir: Path, skill_mode: str, skill_dir: Path | None = None
+) -> None:
+    """Write MCP config JSON to the output dir (mounted as /workspace).
+
+    Always registers osworld-controller. If a skill_dir is passed and it
+    ships tools/skill_server.py, also registers skill-loader (load_topic /
+    list_topics) pointing at the container-side mount of that file
+    (/opt/mmskills/skills/<skill>/tools/skill_server.py).
+    """
     config = {
         "mcpServers": {
             "osworld-controller": {
@@ -115,6 +202,14 @@ def _write_mcp_config(output_dir: Path, skill_mode: str) -> None:
             }
         }
     }
+    if skill_dir is not None:
+        srv = skill_dir / "tools" / "skill_server.py"
+        if srv.exists():
+            container_path = f"/opt/mmskills/skills/{skill_dir.name}/tools/skill_server.py"
+            config["mcpServers"]["skill-loader"] = {
+                "command": "python3",
+                "args": [container_path],
+            }
     (output_dir / "mcp_config.json").write_text(
         json.dumps(config, indent=2), encoding="utf-8"
     )
@@ -146,7 +241,12 @@ def _run_claude_in_docker(
         "--no-session-persistence",
         "--dangerously-skip-permissions",
     ]
-    if args.skill_mode in PLUGIN_DIRS:
+    # Per-task plugin dir built in run_task() (output_dir/plugin/).
+    # Falls back to the static PLUGIN_DIRS only if no per-task plugin exists.
+    per_task_plugin = output_dir / "plugin"
+    if per_task_plugin.is_dir():
+        cli_args.extend(["--plugin-dir", "/workspace/plugin"])
+    elif args.skill_mode in PLUGIN_DIRS:
         cli_args.extend(["--plugin-dir", PLUGIN_DIRS[args.skill_mode]])
 
     env_vars = {
@@ -154,7 +254,11 @@ def _run_claude_in_docker(
         "OSWORLD_VM_URL": f"http://host.docker.internal:{vm_host_port}",
     }
 
-    container_name = f"osworld-claude-{output_dir.name[:12]}"
+    # Container name: task id + random suffix. The slug must be unique across
+    # parallel workers (OSExpert tasks share a long common prefix, so a simple
+    # name truncation collides — we always append a random hex tag).
+    slug = output_dir.name[:40].replace("/", "_")
+    container_name = f"osworld-claude-{slug}-{secrets.token_hex(3)}"
     # Remove stale container if exists
     try:
         old = docker_client.containers.get(container_name)
@@ -205,6 +309,60 @@ def _run_claude_in_docker(
     return stdout, stderr
 
 
+# ── YAML config support ──────────────────────────────────────────────────────
+
+# Keys whose CLI defaults should be detected as "not explicitly set", so that
+# YAML values are allowed to override them.
+_YAML_KEYS = {
+    "model", "skill_mode", "skill_domain", "task_root", "domain_label", "task_list",
+    "result_dir", "task_timeout", "parallel", "require_a11y_tree",
+    "rerun", "log_level", "domain", "specific_task_id", "max_tasks",
+    "provider_name", "headless", "screen_width", "screen_height",
+    "test_config_base_dir", "test_all_meta_path", "path_to_vm",
+    "osworld_root",
+}
+
+
+def _load_yaml_config(args: argparse.Namespace, argv: list[str]) -> None:
+    """Merge values from args.config (yaml) onto args. Explicit CLI flags win.
+
+    `argv` is the original sys.argv[1:] used to detect which flags the user
+    passed explicitly (so we don't overwrite them with yaml values).
+    """
+    if not args.config:
+        return
+    import yaml  # noqa: PLC0415
+
+    cfg = yaml.safe_load(Path(args.config).read_text(encoding="utf-8")) or {}
+    if not isinstance(cfg, dict):
+        raise ValueError(f"Config {args.config!r} must be a YAML mapping")
+
+    # Compute set of CLI-provided dest names.
+    explicit: set[str] = set()
+    for tok in argv:
+        if tok.startswith("--"):
+            name = tok[2:].split("=", 1)[0].replace("-", "_")
+            explicit.add(name)
+        elif tok.startswith("-") and len(tok) > 1:
+            explicit.add(tok[1:])
+
+    # parallel may be specified as `num_parallel` in yaml (matches verify_setup
+    # / gym-anything style).
+    if "num_parallel" in cfg and "parallel" not in cfg:
+        cfg["parallel"] = cfg["num_parallel"]
+
+    # task_list: accept comma-separated string or list.
+    if isinstance(cfg.get("task_list"), str):
+        cfg["task_list"] = [t.strip() for t in cfg["task_list"].split(",") if t.strip()]
+
+    for key, val in cfg.items():
+        if key not in _YAML_KEYS:
+            continue
+        if key in explicit:
+            continue
+        setattr(args, key, val)
+
+
 # ── argument parsing ──────────────────────────────────────────────────────────
 
 def parse_args() -> argparse.Namespace:
@@ -212,9 +370,37 @@ def parse_args() -> argparse.Namespace:
         description="Run OSWorld evaluation with Claude CLI + computer-use MCP"
     )
     parser.add_argument(
+        "--config",
+        default=None,
+        help="YAML config file. Values populate args; explicit CLI flags still win.",
+    )
+    parser.add_argument(
         "--osworld_root",
         default=os.environ.get("OSWORLD_ROOT", str(MMSKILLS_ROOT / "vendor" / "OSWorld")),
         help="Path to the OSWorld repository root (default: vendor/OSWorld submodule or $OSWORLD_ROOT)",
+    )
+    parser.add_argument(
+        "--task_root",
+        default=None,
+        help="Path (relative to osworld_root) to a flat dir of <task_id>.json files. "
+             "When set, overrides test_all_meta_path / test_config_base_dir lookup.",
+    )
+    parser.add_argument(
+        "--domain_label",
+        default=None,
+        help="Domain label used for result_dir layout when --task_root is set.",
+    )
+    parser.add_argument(
+        "--task_list",
+        nargs="+",
+        default=None,
+        help="Explicit list of task IDs (used with --task_root). Comma or space separated.",
+    )
+    parser.add_argument(
+        "--require_a11y_tree",
+        type=lambda s: s.lower() not in ("0", "false", "no"),
+        default=True,
+        help="Whether DesktopEnv should fetch the a11y tree on reset (default: true).",
     )
     parser.add_argument("--path_to_vm", default=None, help="Path to the VM file (.vmx / .vbox). Not required for Docker provider.")
     parser.add_argument(
@@ -268,13 +454,31 @@ def parse_args() -> argparse.Namespace:
         "--rerun", action="store_true",
         help="Re-run tasks even if results already exist (default: skip existing)",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    _load_yaml_config(args, sys.argv[1:])
+    return args
 
 
 # ── task helpers ──────────────────────────────────────────────────────────────
 
 def select_tasks(args: argparse.Namespace) -> list[tuple[str, str]]:
     osworld = Path(args.osworld_root)
+
+    # task_root branch: flat dir of <task_id>.json files (e.g. OSExpert).
+    # task_root is interpreted relative to MMSKILLS_ROOT (matching verify_setup).
+    if args.task_root:
+        domain = args.domain_label or Path(args.task_root).name
+        root = (MMSKILLS_ROOT / args.task_root).resolve()
+        if args.task_list:
+            ids = list(args.task_list)
+        elif args.specific_task_id:
+            ids = []
+            for tid in args.specific_task_id:
+                ids.extend(t.strip() for t in tid.split(",") if t.strip())
+        else:
+            ids = sorted(p.stem for p in root.glob("*.json"))
+        return [(domain, tid) for tid in ids]
+
     meta = json.loads((osworld / args.test_all_meta_path).read_text(encoding="utf-8"))
     if args.specific_task_id:
         # Flatten: support both multiple args and comma-separated values
@@ -303,9 +507,15 @@ def select_tasks(args: argparse.Namespace) -> list[tuple[str, str]]:
 
 
 def load_example(args: argparse.Namespace, domain: str, task_id: str) -> dict:
-    osworld = Path(args.osworld_root)
-    path = osworld / args.test_config_base_dir / "examples" / domain / f"{task_id}.json"
-    return json.loads(path.read_text(encoding="utf-8"))
+    if args.task_root:
+        path = (MMSKILLS_ROOT / args.task_root / f"{task_id}.json").resolve()
+    else:
+        osworld = Path(args.osworld_root)
+        path = osworld / args.test_config_base_dir / "examples" / domain / f"{task_id}.json"
+    example = json.loads(path.read_text(encoding="utf-8"))
+    # OSExpert tasks lack a top-level "id"; inject so downstream code works.
+    example.setdefault("id", task_id)
+    return example
 
 
 def task_result_dir(args: argparse.Namespace, domain: str, task_id: str) -> Path:
@@ -349,12 +559,33 @@ def run_task(
     except Exception:
         lg.warning("Could not start recording")
 
-    # Build prompt and write to workspace
-    prompt = f"{SYSTEM_PROMPT}\n\nTask: {instruction}"
+    # Resolve skill + build per-task plugin BEFORE the prompt is written —
+    # the prompt builder needs to know whether a skill is mounted so it can
+    # inject the skill-consult nudge.
+    skill_dir = _resolve_skill_dir(
+        getattr(args, "skill_domain", None) or (args.domain_label or "").split("_")[0],
+        args.skill_mode,
+    )
+    plugin_path = _build_plugin_dir(skill_dir, output_dir)
+
+    # Build prompt and write to workspace. Inject the skill-consult nudge when
+    # a plugin was actually built; otherwise the agent has no skill to consult.
+    skill_nudge = ""
+    if plugin_path is not None:
+        skill_nudge = (
+            "\n\nBefore acting, you have a domain skill installed as a "
+            "plugin (visible in your registered skills list). Search "
+            "your installed skills for one matching this app and "
+            "task; if found, read its SKILL.md and load the topic "
+            "guide(s) most relevant to this task BEFORE issuing any "
+            "GUI actions. The skill contains screenshots and "
+            "step-by-step UI walkthroughs that will save you from "
+            "guessing menu paths."
+        )
+    prompt = f"{SYSTEM_PROMPT}{skill_nudge}\n\nTask: {instruction}"
     (output_dir / "prompt.txt").write_text(prompt, encoding="utf-8")
 
-    # Write MCP config for the container
-    _write_mcp_config(output_dir, args.skill_mode)
+    _write_mcp_config(output_dir, args.skill_mode, skill_dir)
 
     start_time = datetime.datetime.now()
 
@@ -478,7 +709,7 @@ def _make_desktop_env(args: argparse.Namespace, vm_path: str | None):
         screen_size=(args.screen_width, args.screen_height),
         headless=args.headless,
         os_type="Ubuntu",
-        require_a11y_tree=True,
+        require_a11y_tree=getattr(args, "require_a11y_tree", True),
         require_terminal=False,
     )
     if vm_path is not None:

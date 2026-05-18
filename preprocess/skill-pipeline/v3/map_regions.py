@@ -91,8 +91,11 @@ def map_regions(
     prompt = build_prompt(pipeline_dir, mm_v1_dir, target_skill_dir_rel)
     (pipeline_dir / "map_regions_prompt.txt").write_text(prompt, encoding="utf-8")
 
+    # The full prompt is large (~hundreds of KB: 8 region bodies + 112 guide
+    # excerpts + the whole SKILL.md). Passing it as a CLI arg trips Linux
+    # ARG_MAX (E2BIG / "Argument list too long"). Pipe via stdin instead.
     cli = [
-        "claude", "-p", prompt,
+        "claude", "--print",
         "--model", model,
         "--dangerously-skip-permissions",
         "--disallowed-tools", "Agent,AskUserQuestion,NotebookEdit,Bash",
@@ -105,10 +108,12 @@ def map_regions(
     with stdout_path.open("w") as out_f, stderr_path.open("w") as err_f:
         proc = subprocess.run(
             cli,
+            input=prompt,
             stdout=out_f,
             stderr=err_f,
             cwd=str(pipeline_dir),
             timeout=timeout,
+            text=True,
         )
     logger.info("mapper claude exit=%d", proc.returncode)
 
@@ -149,7 +154,7 @@ def main() -> int:
         if not args.domain:
             print("--mm-v1-dir or --domain is required", file=sys.stderr)
             return 2
-        args.mm_v1_dir = MMSKILLS_ROOT / "skills" / f"{args.domain}-knowledge-multimodal-v1"
+        args.mm_v1_dir = MMSKILLS_ROOT / "skills" / f"{args.domain}-knowledge-multimodal-stage1"
 
     if not args.mm_v1_dir.is_dir():
         print(f"mm-v1 dir does not exist: {args.mm_v1_dir}", file=sys.stderr)

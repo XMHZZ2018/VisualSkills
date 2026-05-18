@@ -74,8 +74,8 @@ def main() -> int:
         format="[%(asctime)s %(levelname)s %(name)s] %(message)s",
     )
 
-    mm_dir = args.mm_dir or (REPO_ROOT / "skills" / f"{args.domain}-knowledge-multimodal-v3")
-    text_dir = args.text_dir or (REPO_ROOT / "skills" / f"{args.domain}-knowledge-text-v3")
+    mm_dir = args.mm_dir or (REPO_ROOT / "skills" / f"{args.domain}-knowledge-multimodal-stage2")
+    text_dir = args.text_dir or (REPO_ROOT / "skills" / f"{args.domain}-knowledge-text-stage2")
     cache_dir = args.cache_dir or (
         Path(__file__).resolve().parent / "workspace" / args.domain / "text_v3_drafts"
     )
