@@ -1,11 +1,26 @@
 ---
 name: libreoffice_writer-knowledge-multimodal-v1
-description: "Practical with screenshots guides for LibreOffice Writer 7.3.7 tasks. LibreOffice Writer 7.3.7 UI may differ from what you expect — read the relevant guide before acting."
+description: "Practical with-screenshots guides for LibreOffice Writer 7.3.7. Consult via the load_topic MCP tool — it returns the guide text and every figure in one atomic call."
 ---
 
 # LibreOffice Writer 7.3.7 Knowledge (multimodal-v1)
 
-Practical with screenshots guides for common LibreOffice Writer tasks.
+## How to consult this skill
+
+This skill exposes two MCP tools (already registered for you):
+
+- **`load_topic(topic)`** — returns the chosen topic's `guide.md` AND every figure (PNG) in that topic folder as one tool response. **Use this instead of `Read` for any `*.md` or `figXX.png` inside this skill.**
+- **`list_topics()`** — returns every topic path available, one per line.
+
+Each entry in the TOC below has the form `[Title](<topic>/guide.md)`. The `<topic>` part (the path before `/guide.md`) is what you pass to `load_topic`. Example:
+
+> To consult "Numbering Pages", call `load_topic("page-layout-basics/page-numbering")`. You will receive the guide text plus the 4 figures in that folder in a single tool result — no extra `Read` calls needed.
+
+**Rules:**
+
+1. Before any GUI action where you are unsure of the menu path / dialog / icon, find the matching topic in the TOC and call `load_topic` first.
+2. You may call `load_topic` **at any step** of the trajectory, not only at the start. If the task moves into a new area (e.g. you started in page-layout and now need to deal with tables), call `load_topic` again for the new area.
+3. Do **not** issue separate `Read` calls for `figXX.png` files inside this skill — they are delivered by `load_topic` automatically.
 
 ## Guides
 

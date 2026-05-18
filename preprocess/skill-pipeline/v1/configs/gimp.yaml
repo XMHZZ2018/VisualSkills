@@ -1,0 +1,16 @@
+app_name: "GIMP"
+app_version: "2.10"
+domain: "gimp"
+
+# HTML-docs mode: GIMP 2.10 user manual (matches the OSWorld/OSExpert env image, GIMP 2.10.30).
+sources:
+  html_guide:
+    root_url: "https://docs.gimp.org/2.10/en/"
+    crawl_depth: 2
+    path_prefix: "/2.10/en/"
+
+parallel:
+  phase_2: 12
+  phase_3: 12
+  phase_4: 4
+  phase_5: 4

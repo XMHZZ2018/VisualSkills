@@ -2153,22 +2153,96 @@ def phase_use_when(
 # Phase 5b: Index (SKILL.md per modality)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
+def _loader_preamble(is_mm: bool) -> str:
+    """Standard load_topic / list_topics consultation preamble injected into
+    every SKILL.md emitted by Phase 5b. Matched between text and multimodal
+    forms — only the figXX.png clause differs.
+    """
+    if is_mm:
+        load_clause = (
+            "returns the chosen topic's `guide.md` AND every figure (PNG) in "
+            "that topic folder as one tool response. "
+            "**Use this instead of `Read` for any `*.md` or `figXX.png` "
+            "inside this skill.**"
+        )
+        example_tail = (
+            "You will receive the guide text plus the relevant figures in a "
+            "single tool result — no extra `Read` calls needed."
+        )
+        rule3 = (
+            "\n3. Do **not** issue separate `Read` calls for `figXX.png` "
+            "files inside this skill — they are delivered by `load_topic` "
+            "automatically."
+        )
+    else:
+        load_clause = (
+            "returns the chosen topic's `guide.md` as one tool response. "
+            "**Use this instead of `Read` for any `*.md` inside this skill.**"
+        )
+        example_tail = (
+            "You will receive the guide text in a single tool result — "
+            "no extra `Read` calls needed."
+        )
+        rule3 = ""
+
+    return (
+        "## How to consult this skill\n\n"
+        "This skill exposes two MCP tools (already registered for you):\n\n"
+        f"- **`load_topic(topic)`** — {load_clause}\n"
+        "- **`list_topics()`** — returns every topic path available, one per line.\n\n"
+        "Each entry in the TOC below has the form "
+        "`[Title](<topic>/guide.md)`. The `<topic>` part (the path before "
+        "`/guide.md`) is what you pass to `load_topic`.\n\n"
+        f"> {example_tail}\n\n"
+        "**Rules:**\n\n"
+        "1. Before any GUI action where you are unsure of the menu path / "
+        "dialog / icon, find the matching topic in the TOC and call "
+        "`load_topic` first.\n"
+        "2. You may call `load_topic` **at any step** of the trajectory, "
+        "not only at the start. If the task moves into a new area, call "
+        "`load_topic` again for the new area."
+        f"{rule3}\n"
+    )
+
+
+_SKILL_SERVER_TEMPLATE = Path(__file__).parent / "templates" / "skill_server.py"
+
+
+def _install_skill_server(skills_dir: Path) -> None:
+    """Copy the canonical load_topic MCP server into <skill_dir>/tools/skill_server.py
+    so the runner auto-mounts it (see scripts/run-gym-anything/run_task.py).
+    """
+    if not _SKILL_SERVER_TEMPLATE.exists():
+        return
+    tools = skills_dir / "tools"
+    tools.mkdir(parents=True, exist_ok=True)
+    dest = tools / "skill_server.py"
+    dest.write_text(_SKILL_SERVER_TEMPLATE.read_text())
+
+
 def phase_index(config: dict, domain: str, taxonomy: dict, mode: str) -> None:
     app = config["app_name"]
     ver = config["app_version"]
     modalities = ["text", "multimodal"] if mode == "both" else [mode]
     for modality in modalities:
         skills_dir = _skills_dir(domain, modality)
-        mm_suffix = " with screenshots" if modality == "multimodal" else ""
+        is_mm = (modality == "multimodal")
+        mm_suffix = " with-screenshots" if is_mm else " text-only"
+        fig_clause = " and every figure" if is_mm else ""
+        desc = (
+            f'Practical{mm_suffix} guides for {app} {ver}. '
+            f'Consult via the load_topic MCP tool — it returns the guide text'
+            f'{fig_clause} in one atomic call.'
+        )
+        preamble = _loader_preamble(is_mm)
         lines = [
             "---",
             f"name: {domain}-knowledge-{modality}-v1",
-            f'description: "Practical{mm_suffix} guides for {app} {ver} tasks. '
-            f'{app} {ver} UI may differ from what you expect — '
-            f'read the relevant guide before acting."',
+            f'description: "{desc}"',
             "---\n",
             f"# {app} {ver} Knowledge ({modality}-v1)\n",
-            f"Practical{mm_suffix} guides for common {app} tasks.\n",
+            preamble,
             "## Guides\n",
         ]
         for cat in taxonomy["categories"]:
@@ -2190,7 +2264,8 @@ def phase_index(config: dict, domain: str, taxonomy: dict, mode: str) -> None:
             lines.append("")
         skills_dir.mkdir(parents=True, exist_ok=True)
         (skills_dir / "SKILL.md").write_text("\n".join(lines) + "\n")
-        print(f"  {modality}-v1 SKILL.md updated")
+        _install_skill_server(skills_dir)
+        print(f"  {modality}-v1 SKILL.md updated (+ tools/skill_server.py)")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -108,9 +108,72 @@ python3 scripts/run-osworld/run.py \
 
 Skills are loaded automatically by Claude CLI via `--plugin-dir`. See [run-osworld/README.md](scripts/run-osworld/README.md) for details.
 
-### Preprocessing pipeline
+## Skill Generation
 
-Generate skills from YouTube tutorials:
+Every domain-specific skill in `skills/<env>-knowledge-{text,multimodal}-v1/`
+is built through a two-stage pipeline. Each stage produces a **matched pair**
+of artifacts: a `multimodal` form with cropped UI screenshots and a
+`text-only` form in which every figure has been replaced by a verbal
+description of the same image. The two artifacts share sub-guide structure
+and prose verbatim, so any score gap between them isolates the contribution
+of visual evidence.
+
+Both stages also auto-install a `tools/skill_server.py` MCP server that
+exposes `load_topic(topic)` and `list_topics()`. At inference the agent
+loads a topic's prose + figures atomically in one tool call, instead of
+issuing separate `Read`s for each figure.
+
+### Stage 1 — from official documentation
+
+Mines a skill from authored sources (HTML manuals, PDF guides, tutorial
+videos). The 5-phase pipeline lives at
+[`preprocess/skill-pipeline/v1/`](preprocess/skill-pipeline/v1/README.md).
+The taxonomy is derived from the docs' own structure; per-topic guides are
+synthesised from rendered pages or fetched HTML. Best when the target
+application has mature, well-maintained documentation.
+
+```bash
+./preprocess/skill-pipeline/v1/run.sh \
+    --config preprocess/skill-pipeline/v1/configs/libreoffice_writer.yaml \
+    --mode both    # builds both text and multimodal artifacts
+```
+
+### Stage 2 — from UI exploration + training tasks
+
+Augments the Stage 1 skill with knowledge that only exists in the running
+application. Implemented at
+[`preprocess/skill-pipeline/v3/`](preprocess/skill-pipeline/v3/README.md)
+and runs in two sub-passes:
+
+- **Free UI explorer.** An Opus planner inspects the idle app and proposes
+  ~8 UI regions; ~8 Sonnet workers drive the live application in parallel,
+  each scoped to one region, capturing screenshots and per-control notes.
+- **Training-task-targeted explorer.** Failed train-task trajectories are
+  reviewed (`review.py`) to surface UI regions the agent measurably
+  struggled with; additional Sonnet workers are dispatched against those
+  targets via `run_phase_2b.py`. Crucially the targets are scoped to *UI
+  regions*, not specific tasks, so the patch transfers to any test task
+  that touches the same UI surface.
+
+An assembler reconciles all worker notes into per-region reference
+sections, an LLM mapper merges them into the existing Stage 1 sub-guides,
+and the matched text artifact is derived from the new multimodal one.
+
+```bash
+# Stage 2 free explorer (Phase 0–3)
+./preprocess/skill-pipeline/v3/run.sh --config preprocess/skill-pipeline/v3/configs/writer.yaml
+
+# Stage 2 training-task-targeted explorer (after Phase 1 workers finish)
+python3 preprocess/skill-pipeline/v3/run_phase_2b.py \
+    --v3-config preprocess/skill-pipeline/v3/configs/writer.yaml \
+    --rollouts-config scripts/run-gym-anything/experiments/configs/writer_train16_mm_skill.yaml \
+    --app-name "LibreOffice Writer"
+```
+
+### Other preprocessing utilities
+
+For YouTube-tutorial-driven design skills (paper/logo/website), see
+`preprocess/skill-from-tutorial/`:
 
 ```bash
 # 1. Search and download videos
