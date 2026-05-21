@@ -15,7 +15,7 @@ One quick tip: from the Start Center, you can also click the **Templates** butto
 
 ## UI Reference  —  File Menu
 
-_Scope: Templates submenu, New from template_
+_Scope: Templates submenu, New from template workflow_
 
 The File menu manages the full document lifecycle: creating, opening, saving, exporting, printing, and closing documents.
 

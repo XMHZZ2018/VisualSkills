@@ -26,7 +26,7 @@ See `fig03.png`.
 
 ## UI Reference  —  Key Formatting Dialogs
 
-_Scope: Page Style dialog Area/Transparency tabs; Paragraph dialog Borders tab_
+_Scope: Page Style dialog Area and Transparency tabs; Paragraph dialog Borders tab_
 
 These multi-tab dialogs provide detailed control over character formatting, paragraph layout, page styles, and search/replace.
 

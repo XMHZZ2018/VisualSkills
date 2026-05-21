@@ -1,5 +1,5 @@
 ---
-name: libreoffice_writer-knowledge-text-stage2
+name: libreoffice_writer-knowledge-multimodal-stage1
 description: "Practical with-screenshots guides for LibreOffice Writer 7.3.7. Consult via the load_topic MCP tool — it returns the guide text and every figure in one atomic call."
 ---
 

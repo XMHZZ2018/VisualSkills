@@ -16,7 +16,7 @@ In the Thesaurus dialog, you'll see a more extensive list of alternative words a
 
 ## UI Reference  —  Tools Menu
 
-_Scope: Thesaurus… (Ctrl+F7)_
+_Scope: Thesaurus… (Ctrl+F7) command_
 
 The Tools menu provides document proofing, language settings, automation, and application-wide configuration.
 

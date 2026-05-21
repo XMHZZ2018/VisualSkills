@@ -28,7 +28,7 @@ Once you've seeded the sequence, you can delete the initial test fields; the "St
 
 ## UI Reference  —  Insert Menu
 
-_Scope: Field > More Fields… (Ctrl+F2) Variables tab_
+_Scope: Field > More Fields… (Ctrl+F2) for Variables tab number range fields_
 
 The Insert menu provides commands for adding content elements — breaks, images, tables, shapes, fields, footnotes, hyperlinks, and more — into the document.
 

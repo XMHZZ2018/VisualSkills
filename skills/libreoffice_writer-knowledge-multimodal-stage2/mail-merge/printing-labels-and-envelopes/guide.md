@@ -30,7 +30,7 @@ Click **New Document** to create the envelope template. To merge and print, choo
 
 ## UI Reference  —  Insert Menu
 
-_Scope: Envelope…_
+_Scope: Envelope… command opening envelope configuration dialog_
 
 The Insert menu provides commands for adding content elements — breaks, images, tables, shapes, fields, footnotes, hyperlinks, and more — into the document.
 

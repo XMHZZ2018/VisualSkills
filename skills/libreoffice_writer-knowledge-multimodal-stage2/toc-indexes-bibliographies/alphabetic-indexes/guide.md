@@ -24,7 +24,7 @@ Writer won't update the index automatically when you add or remove entries. Righ
 
 ## UI Reference  —  Insert Menu
 
-_Scope: Table of Contents and Index > Index Entry_
+_Scope: Table of Contents and Index > Index Entry command_
 
 The Insert menu provides commands for adding content elements — breaks, images, tables, shapes, fields, footnotes, hyperlinks, and more — into the document.
 

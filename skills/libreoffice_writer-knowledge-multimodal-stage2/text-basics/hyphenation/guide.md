@@ -22,9 +22,62 @@ When you need precise control, use a soft hyphen. Unlike a regular hyphen, a sof
 
 ---
 
+## UI Reference  —  Key Formatting Dialogs
+
+_Scope: Paragraph dialog Text Flow tab Hyphenation settings_
+
+These multi-tab dialogs provide detailed control over character formatting, paragraph layout, page styles, and search/replace.
+
+## Find and Replace (Ctrl+H)
+
+(see screenshot `ui-find-replace-dialog.png`)
+
+Opened via Edit > Find and Replace… or Ctrl+H.
+
+- **Find** text field (with history dropdown)
+- **Match case** / **Whole words only** checkboxes
+- **Replace** text field (with history dropdown)
+- **Buttons:** Find All, Find Previous, Find Next, Replace, Replace All
+- **Other options** (collapsible): Current selection only, Comments, Regular expressions, Similarity search (with Similarities… button), Diacritic-sensitive, Replace backwards, Paragraph Styles
+- **Attributes…** / **Format…** / **No Format** buttons for format-aware search
+
+## Character Dialog (Format > Character…)
+
+(see screenshot `ui-character-dialog.png`)
+
+**Tabs:** Font, Font Effects, Position, Hyperlink, Highlighting, Borders
+
+- **Font tab:** Family, Style (Regular/Bold/Italic/Bold Italic), Size, Language, Features… button, font preview.
+- **Font Effects tab:** Font Color + Transparency, Overlining style+color, Strikethrough style, Underlining style+color+Individual words, Case dropdown, Relief, Hidden/Outline/Shadow checkboxes.
+- **Position tab:** Normal/Superscript/Subscript radio + raise/lower %, Rotation (0°/90°/270°) + Scale width + Fit to line, Character spacing + Pair kerning.
+
+## Paragraph Dialog (Format > Paragraph…)
+
+(see screenshot `ui-paragraph-dialog.png`)
+
+**Tabs:** Indents & Spacing, Alignment, Text Flow, Outline & List, Tabs, Drop Caps, Borders, Area, Transparency
+
+- **Indents & Spacing:** Before/After text indent, First line indent, Automatic; Spacing above/below paragraph; Line Spacing dropdown (Single/1.15/1.5/Double/Proportional/At least/Leading/Fixed); Activate page line-spacing.
+- **Alignment:** Left/Center/Right/Justified radio; Last line dropdown; Expand single word; Text-to-text alignment; Text direction.
+- **Text Flow:** Hyphenation settings, page/column breaks, orphan/widow control.
+- **Tabs:** Tab stop position, type (Left/Right/Center/Decimal), fill character.
+
+## Page Style Dialog (Format > Page Style…, Shift+Alt+P)
+
+(see screenshot `ui-page-style-dialog.png`)
+
+**Tabs:** Organizer, Page, Area, Transparency, Header, Footer, Borders, Columns, Footnote
+
+- **Organizer:** Style name, Next style dropdown, Inherit from, Category, Contains description.
+- **Page:** Paper format (size, width, height, portrait/landscape, paper tray), Margins (left/right/top/bottom/gutter), Layout settings (page layout, page numbers, gutter position).
+- **Header/Footer:** Enable checkbox, margins, spacing, same content on left/right pages.
+- **Columns:** Column count, width/spacing, separator line options.
+
+---
+
 ## UI Reference  —  Tools Menu
 
-_Scope: Language > Hyphenation…_
+_Scope: Language > Hyphenation… command_
 
 The Tools menu provides document proofing, language settings, automation, and application-wide configuration.
 

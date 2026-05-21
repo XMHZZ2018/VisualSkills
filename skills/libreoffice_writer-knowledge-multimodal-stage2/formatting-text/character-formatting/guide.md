@@ -22,7 +22,7 @@ One thing to keep in mind: direct character formatting overrides character style
 
 ## UI Reference  —  Format Menu
 
-_Scope: Text submenu (Bold, Italic, Underline, case transforms), Character…, Clear Direct Formatting_
+_Scope: Character…, Text submenu (Bold, Italic, Underline, case transforms, etc.)_
 
 The Format menu controls text styling, paragraph formatting, page layout, and document-level formatting options.
 
@@ -51,7 +51,7 @@ Read the screenshot `ui-format-menu.png` in this directory.
 
 ## UI Reference  —  Key Formatting Dialogs
 
-_Scope: Character dialog tabs: Font, Font Effects, Position, Hyperlink, Highlighting, Borders_
+_Scope: Character dialog: Font tab (family/style/size), Font Effects tab (color/underline/case), Position tab_
 
 These multi-tab dialogs provide detailed control over character formatting, paragraph layout, page styles, and search/replace.
 
@@ -104,7 +104,7 @@ Opened via Edit > Find and Replace… or Ctrl+H.
 
 ## UI Reference  —  Formatting Toolbar
 
-_Scope: Font Name/Size, Bold, Italic, Underline, Strikethrough, Super/Subscript, Font Color, Highlighting_
+_Scope: Font Name/Size, Bold/Italic/Underline/Strikethrough, Super/Subscript, Font Color, Highlighting_
 
 The second toolbar row provides all character and paragraph formatting controls with split-button dropdowns.
 
@@ -151,37 +151,38 @@ Row (left → right):
 
 ---
 
-## UI Reference  —  Right Sidebar
+## UI Reference  —  Styles Menu & Styles Panel
 
-_Scope: Properties > Character section: font, size, bold/italic, color, highlighting_
+_Scope: Styles menu Character styles: Emphasis, Strong Emphasis, Quotation, Source Text_
 
-The collapsed right sidebar is a vertical strip of 8 icon buttons along the right edge of the window. Each opens a full docked panel. Toggle the sidebar with Ctrl+F5 or View > Sidebar.
+LibreOffice Writer uses a style-based formatting system. The Styles menu provides quick-apply shortcuts, while the Styles panel (F11) offers full management.
 
-Read the screenshot `ui-right-sidebar-location.png` in this directory.
+Read the screenshot `ui-styles-menu.png` in this directory.
 
-## Panel Buttons (top to bottom)
+## Styles Menu
 
-- **Properties** (Alt+1) — Formatting panel with three collapsible sections:
-  - *Style:* Paragraph style dropdown, Clone Formatting, Update/New Style buttons.
-  - *Character:* Font family, size, Bold/Italic/Underline/Strikethrough, Font Color, Highlighting, Change Case, Super/Subscript.
-  - *Paragraph:* Alignment, lists/indent toolbar, line spacing, above/below spacing fields, left/right/first-line indent.
+The menu has three radio-button sections for quick style application:
 
-- **Styles** (Alt+2 / F11) — Full style manager: category toolbar (Paragraph/Character/Frame/Page/List/Table Styles), hierarchical style list, Fill Format Mode, filter dropdown. See [Styles](styles.md).
+**Paragraph styles:**
+- Body Text (Ctrl+0), Title, Subtitle, Heading 1 (Ctrl+1), Heading 2 (Ctrl+2), Heading 3 (Ctrl+3), Block Quotation, Preformatted Text
 
-- **Gallery** (Alt+3) — Clip-art browser: categories (Arrows, BPMN, Bullets, Diagrams, Flow chart, Icons), thumbnail grid, Icon/Detailed view, New… button.
+**Character styles:**
+- No Character Style (default), Emphasis, Strong Emphasis, Quotation, Source Text
 
-- **Navigator** (Alt+4 / F5) — Document structure tree: Headings, Tables, Frames, Images, OLE objects, Bookmarks, Sections, Hyperlinks, References, Indexes, Comments, Drawing objects, Fields, Footnotes, Endnotes. Includes page navigation controls and drag-mode options.
+**List styles:**
+- No List (Shift+Ctrl+F12), Bullet • List Style, Numbering 123/ABC/abc/IVX/ivx List Styles
 
-- **Page** (Alt+5) — Page layout panel:
-  - *Format:* Size (A4), Width/Height, Orientation (Portrait/Landscape), Margins.
-  - *Styles:* Page number format, Background, Layout, Columns.
-  - *Header/Footer:* Enable toggles, margins, spacing, same-content options.
+**Management commands:**
+- Edit Style… (Alt+P), Update Selected Style (Shift+Ctrl+F11), New Style from Selection (Shift+F11), Load Styles from Template, Manage Styles (F11)
 
-- **Style Inspector** (Alt+6) — Two-column Properties/Value tree showing all applied styles: Paragraph Styles, Paragraph Direct Formatting, Character Styles, Character Direct Formatting (50+ properties per node).
+## Styles Panel (F11 / Alt+2)
 
-- **Manage Changes** (Alt+7) — Two tabs:
-  - *List:* Action/Author/Date/Comment table with Accept/Reject/Accept All/Reject All buttons.
-  - *Filter:* Date range, Author, Action, Comment filters.
+The Styles panel in the right sidebar provides full style management:
 
-- **Accessibility Check** (Alt+8) — Runs an accessibility audit and lists issues by category, each with a Fix… button.
+- **Category toolbar:** Paragraph Styles, Character Styles, Frame Styles, Page Styles, List Styles, Table Styles, Fill Format Mode, Styles actions ▼
+- **Style list:** Hierarchical tree of all styles (Default Paragraph Style, Body Text, Caption, Heading, Index, etc.)
+- **Right-click on a style:** New…, Edit Style…, Hide, Show, Delete…
+- **Show Previews** / **Spotlight** checkboxes
+- **Filter dropdown:** Hierarchical, All Styles, Hidden Styles, Applied Styles, Custom Styles, Automatic, Text/Document/List/Index/Special/HTML/Conditional Styles
+- **Styles actions dropdown:** New Style from Selection, Update Selected Style, Load Styles from Template
 

@@ -15,7 +15,7 @@ The toolbar gives you everything you need: **Play**, **Pause**, and **Stop** but
 
 ## UI Reference  —  Insert Menu
 
-_Scope: Media submenu: Gallery, Scan, Audio or Video…_
+_Scope: Media submenu: Audio or Video…, Gallery, Scan_
 
 The Insert menu provides commands for adding content elements — breaks, images, tables, shapes, fields, footnotes, hyperlinks, and more — into the document.
 

@@ -22,7 +22,7 @@ You can also find where templates are physically stored on disk via **Tools > Op
 
 ## UI Reference  —  File Menu
 
-_Scope: Templates submenu: Edit Template, Save as Template_
+_Scope: Templates > Save as Template, Edit Template_
 
 The File menu manages the full document lifecycle: creating, opening, saving, exporting, printing, and closing documents.
 

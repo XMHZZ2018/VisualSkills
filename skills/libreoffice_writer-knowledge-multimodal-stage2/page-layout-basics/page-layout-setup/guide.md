@@ -22,7 +22,7 @@ See `fig03.png`.
 
 ## UI Reference  —  Document Canvas, Rulers & Scrollbars
 
-_Scope: Margin bands on horizontal/vertical rulers; drag to adjust page margins_
+_Scope: Grey margin bands on rulers; dragging margins directly on rulers_
 
 The main editing surface and its surrounding controls for navigation, measurement, and layout.
 
@@ -66,7 +66,7 @@ Not visible by default. Enable via View > Rulers > Vertical Ruler. Shows top/bot
 
 ## UI Reference  —  Format Menu
 
-_Scope: Page Style… (Shift+Alt+P)_
+_Scope: Page Style… (Shift+Alt+P) opens page layout dialog_
 
 The Format menu controls text styling, paragraph formatting, page layout, and document-level formatting options.
 
@@ -95,7 +95,7 @@ Read the screenshot `ui-format-menu.png` in this directory.
 
 ## UI Reference  —  Key Formatting Dialogs
 
-_Scope: Page Style dialog Page tab: paper format, margins, gutter, layout settings_
+_Scope: Page Style dialog: Page tab (paper format, margins, gutter, layout settings), Organizer tab_
 
 These multi-tab dialogs provide detailed control over character formatting, paragraph layout, page styles, and search/replace.
 
@@ -148,7 +148,7 @@ Opened via Edit > Find and Replace… or Ctrl+H.
 
 ## UI Reference  —  Right Sidebar
 
-_Scope: Page panel (Alt+5): size, orientation, margins_
+_Scope: Page panel (Alt+5): Size, Margins, Orientation presets_
 
 The collapsed right sidebar is a vertical strip of 8 icon buttons along the right edge of the window. Each opens a full docked panel. Toggle the sidebar with Ctrl+F5 or View > Sidebar.
 

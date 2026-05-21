@@ -22,7 +22,7 @@ Finally, the **LibreOffice – Application Colors** page lets you toggle visibil
 
 ## UI Reference  —  Tools Menu
 
-_Scope: Options… (Alt+F12) opening comprehensive settings dialog_
+_Scope: Options… (Alt+F12) opening the comprehensive multi-tree Options dialog_
 
 The Tools menu provides document proofing, language settings, automation, and application-wide configuration.
 

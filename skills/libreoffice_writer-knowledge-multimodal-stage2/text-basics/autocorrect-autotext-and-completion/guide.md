@@ -18,7 +18,7 @@ To insert an AutoText entry later, just type its shortcut and press **F3** — t
 
 ## UI Reference  —  Tools Menu
 
-_Scope: AutoCorrect submenu (While Typing, Options…), AutoText… (Ctrl+F3)_
+_Scope: AutoCorrect submenu (While Typing, Apply, Options…), AutoText… (Ctrl+F3)_
 
 The Tools menu provides document proofing, language settings, automation, and application-wide configuration.
 

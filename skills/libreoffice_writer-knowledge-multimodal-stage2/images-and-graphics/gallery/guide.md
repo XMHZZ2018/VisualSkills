@@ -20,7 +20,7 @@ When it's time to clean up, right-click an image inside a theme and choose **Del
 
 ## UI Reference  —  Right Sidebar
 
-_Scope: Gallery panel (Alt+3): theme browser, thumbnail grid, New button_
+_Scope: Gallery panel (Alt+3) with theme categories and thumbnail browser_
 
 The collapsed right sidebar is a vertical strip of 8 icon buttons along the right edge of the window. Each opens a full docked panel. Toggle the sidebar with Ctrl+F5 or View > Sidebar.
 

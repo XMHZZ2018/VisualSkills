@@ -22,6 +22,35 @@ Keep your design simple: the fewer frames and anchor types you mix, the easier t
 
 ---
 
+## UI Reference  —  Format Menu
+
+_Scope: Frame and Object context-sensitive submenu_
+
+The Format menu controls text styling, paragraph formatting, page layout, and document-level formatting options.
+
+Read the screenshot `ui-format-menu.png` in this directory.
+
+## Elements
+
+- **Text** (►) — 19 text style commands: Bold (Ctrl+B), Italic (Ctrl+I), Single/Double Underline, Strikethrough, Overline, Superscript (Shift+Ctrl+P), Subscript (Shift+Ctrl+B), Shadow, Outline Font Effect, Increase/Decrease Size (Ctrl+]/[), case transforms (UPPERCASE, lowercase, Cycle Case Shift+F3, Sentence case, Capitalize Every Word, tOGGLE cASE), Small Capitals (Shift+Ctrl+K).
+- **Spacing** (►) — Line Spacing (1, 1.15, 1.5, 2), Increase/Decrease Paragraph Spacing, Increase/Decrease Indent.
+- **Align Text** (►) — Left (Ctrl+L), Centered (Ctrl+E), Right (Ctrl+R), Justified (Ctrl+J).
+- **Clone Formatting** — Paint formatting from selection to other text.
+- **Clear Direct Formatting** (Ctrl+M) — Remove all manual formatting, revert to style defaults.
+- **Spotlight** (►) — Highlight formatting in document: Character Direct Formatting, Paragraph Styles, Character Styles.
+- **Character…** — Opens the Character dialog (see [Formatting Dialogs](formatting-dialogs.md)).
+- **Paragraph…** — Opens the Paragraph dialog (see [Formatting Dialogs](formatting-dialogs.md)).
+- **Lists** (►) — No List (Shift+Ctrl+F12), Unordered List (Shift+F12), Ordered List (F12), Demote/Promote Outline Level, Move Item Down/Up (Ctrl+Alt+Down/Up), Insert Unnumbered Entry, Restart Numbering, Add to List.
+- **Bullets and Numbering…** — Full list formatting dialog.
+- **Theme…** — Document theme settings.
+- **Page Style…** (Shift+Alt+P) — Opens the Page Style dialog (see [Formatting Dialogs](formatting-dialogs.md)).
+- **Title Page…** — Add/configure title pages.
+- **Columns…** — Multi-column page layout dialog.
+- **Watermark…** — Insert or configure a watermark.
+- Context-sensitive submenus (active when an object is selected): Image, Text Box and Shape, Frame and Object, Anchor, Wrap, Arrange, Rotate or Flip, Group.
+
+---
+
 ## UI Reference  —  Insert Menu
 
 _Scope: Frame submenu: Frame Interactively, Frame… dialog_

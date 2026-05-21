@@ -18,7 +18,7 @@ Once the code is in your document, it behaves like any other embedded object. Yo
 
 ## UI Reference  —  Insert Menu
 
-_Scope: OLE Object > QR and Barcode…_
+_Scope: OLE Object > QR and Barcode… command_
 
 The Insert menu provides commands for adding content elements — breaks, images, tables, shapes, fields, footnotes, hyperlinks, and more — into the document.
 

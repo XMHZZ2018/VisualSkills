@@ -22,9 +22,38 @@ One more power move: **Fill Format Mode**. Click the paint-bucket icon at the to
 
 ---
 
+## UI Reference  —  Format Menu
+
+_Scope: Clone Formatting, Clear Direct Formatting (Ctrl+M)_
+
+The Format menu controls text styling, paragraph formatting, page layout, and document-level formatting options.
+
+Read the screenshot `ui-format-menu.png` in this directory.
+
+## Elements
+
+- **Text** (►) — 19 text style commands: Bold (Ctrl+B), Italic (Ctrl+I), Single/Double Underline, Strikethrough, Overline, Superscript (Shift+Ctrl+P), Subscript (Shift+Ctrl+B), Shadow, Outline Font Effect, Increase/Decrease Size (Ctrl+]/[), case transforms (UPPERCASE, lowercase, Cycle Case Shift+F3, Sentence case, Capitalize Every Word, tOGGLE cASE), Small Capitals (Shift+Ctrl+K).
+- **Spacing** (►) — Line Spacing (1, 1.15, 1.5, 2), Increase/Decrease Paragraph Spacing, Increase/Decrease Indent.
+- **Align Text** (►) — Left (Ctrl+L), Centered (Ctrl+E), Right (Ctrl+R), Justified (Ctrl+J).
+- **Clone Formatting** — Paint formatting from selection to other text.
+- **Clear Direct Formatting** (Ctrl+M) — Remove all manual formatting, revert to style defaults.
+- **Spotlight** (►) — Highlight formatting in document: Character Direct Formatting, Paragraph Styles, Character Styles.
+- **Character…** — Opens the Character dialog (see [Formatting Dialogs](formatting-dialogs.md)).
+- **Paragraph…** — Opens the Paragraph dialog (see [Formatting Dialogs](formatting-dialogs.md)).
+- **Lists** (►) — No List (Shift+Ctrl+F12), Unordered List (Shift+F12), Ordered List (F12), Demote/Promote Outline Level, Move Item Down/Up (Ctrl+Alt+Down/Up), Insert Unnumbered Entry, Restart Numbering, Add to List.
+- **Bullets and Numbering…** — Full list formatting dialog.
+- **Theme…** — Document theme settings.
+- **Page Style…** (Shift+Alt+P) — Opens the Page Style dialog (see [Formatting Dialogs](formatting-dialogs.md)).
+- **Title Page…** — Add/configure title pages.
+- **Columns…** — Multi-column page layout dialog.
+- **Watermark…** — Insert or configure a watermark.
+- Context-sensitive submenus (active when an object is selected): Image, Text Box and Shape, Frame and Object, Anchor, Wrap, Arrange, Rotate or Flip, Group.
+
+---
+
 ## UI Reference  —  Formatting Toolbar
 
-_Scope: Paragraph Style dropdown, Update Selected Style (Shift+Ctrl+F11), New Style from Selection_
+_Scope: Paragraph Style dropdown, Update Selected Style (Shift+Ctrl+F11), New Style from Selection (Shift+F11)_
 
 The second toolbar row provides all character and paragraph formatting controls with split-button dropdowns.
 
@@ -73,7 +102,7 @@ Row (left → right):
 
 ## UI Reference  —  Right Sidebar
 
-_Scope: Styles panel (Alt+2/F11): style categories, style list, Fill Format Mode, filter dropdown_
+_Scope: Styles panel: Fill Format Mode, style filter dropdown, double-click to apply_
 
 The collapsed right sidebar is a vertical strip of 8 icon buttons along the right edge of the window. Each opens a full docked panel. Toggle the sidebar with Ctrl+F5 or View > Sidebar.
 
@@ -107,9 +136,40 @@ Read the screenshot `ui-right-sidebar-location.png` in this directory.
 
 ---
 
+## UI Reference  —  Status Bar
+
+_Scope: Page Style segment: right-click for quick page style change list_
+
+The status bar runs across the bottom of the window. Every segment is interactive.
+
+Read the screenshot `ui-status-bar.png` in this directory.
+
+## Segments (left to right)
+
+- **Page Number** ("Page 1 of 1") — Left-click opens Go to Page dialog (page number spinner). Right-click shows bookmark list.
+
+- **Word / Character Count** ("0 words, 0 characters") — Left-click opens Word Count dialog showing Words, Characters (incl/excl spaces), Comments for both selection and whole document.
+
+- **Page Style** ("Default Page Style") — Left-click opens the Page Style dialog (9 tabs: Organizer, Page, Area, Transparency, Header, Footer, Borders, Columns, Footnote). Right-click shows quick-change list of all page styles: Default Page Style, First Page, Left Page, Right Page, Envelope, Index, HTML, Footnote, Endnote, Landscape.
+
+- **Language** ("English (USA)") — Click opens language popup: current language (checked), None (no spell-check), Reset to Default Language, More…, Set Language for Paragraph (►).
+
+- **Selection Mode** — Click opens radio-button popup: Standard selection, Extending selection, Adding selection, Block selection.
+
+- **View Layout buttons** — Three icons:
+  - Single-page view (one page at a time)
+  - Multiple-page view (pages side by side)
+  - Book view (two-page spread)
+
+- **Zoom controls** — Zoom Out (−) button, drag slider, Zoom In (+) button.
+
+- **Zoom Percentage** ("100%") — Left-click opens Zoom & View Layout dialog (Optimal, Fit width and height, Fit width, 100%, Custom; View Layout: Automatic, Single page, Columns, Book mode). Right-click shows quick-pick presets: Entire Page, Page Width, Optimal View, 50%–200%.
+
+---
+
 ## UI Reference  —  Styles Menu & Styles Panel
 
-_Scope: Styles menu quick-apply (Ctrl+0-3), Fill Format Mode, Edit/Update/New Style_
+_Scope: Styles menu quick-apply (paragraph/character/list with shortcuts), Fill Format Mode_
 
 LibreOffice Writer uses a style-based formatting system. The Styles menu provides quick-apply shortcuts, while the Styles panel (F11) offers full management.
 

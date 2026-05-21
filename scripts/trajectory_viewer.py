@@ -1,15 +1,13 @@
 """
 Trajectory Viewer — Streamlit app for comparing agent runs across skill modes.
 
-Data lives on the remote VM; this app fetches on demand via gcloud SSH.
+Runs on the VM (in tmux session `viewer`) and reads workspaces directly.
+Access locally via SSH tunnel: `ssh -fN -L 8502:127.0.0.1:8502 osworld`.
 
-Usage:
-    streamlit run scripts/trajectory_viewer.py
+Usage on VM:
+    streamlit run scripts/trajectory_viewer.py --server.port 8502 --server.address 127.0.0.1 --server.headless true
 """
-import base64
 import json
-import os
-import subprocess
 from pathlib import Path
 
 import streamlit as st
@@ -17,82 +15,91 @@ import streamlit as st
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-VM_NAME = os.environ.get("VM_NAME", "osworld")
-VM_ZONE = os.environ.get("VM_ZONE", "us-west1-c")
-WORKSPACE_ROOT = "/home/ziyan/MMSkills/scripts/run-gym-anything/workspaces"
+WORKSPACE_ROOTS = {
+    "gym-anything": "/home/ziyan/MMSkills/scripts/run-gym-anything/workspaces",
+    "osworld (OSExpert)": "/home/ziyan/MMSkills/scripts/run-osworld/workspaces",
+}
+WORKSPACE_ROOT = WORKSPACE_ROOTS["gym-anything"]
 
-SKILL_MODES = ["skill-none", "skill-text", "skill-multimodal", "skill-multimodal-v2"]
+SKILL_MODES = [
+    "skill-none",
+    "skill-text",
+    "skill-text-v2",
+    "skill-multimodal",
+    "skill-multimodal-v0",
+    "skill-multimodal-v2",
+    "skill-multimodal-loader",
+]
 SKILL_LABELS = {
     "skill-none": "No Skill",
     "skill-text": "Text Skill (v1)",
+    "skill-text-v2": "Text Skill (v2)",
     "skill-multimodal": "Multimodal Skill (v1)",
+    "skill-multimodal-v0": "Multimodal Skill (v0: v1 + UI ref)",
     "skill-multimodal-v2": "Multimodal Skill (v2)",
+    "skill-multimodal-loader": "Multimodal Skill (loader, load_topic MCP)",
 }
 MODE_COLORS = {
     "skill-none": "#ff6b6b",
     "skill-text": "#4ecdc4",
+    "skill-text-v2": "#2b9348",
     "skill-multimodal": "#45b7d1",
+    "skill-multimodal-v0": "#8338ec",
     "skill-multimodal-v2": "#2a9d8f",
+    "skill-multimodal-loader": "#f4a261",
 }
 
 
 # ---------------------------------------------------------------------------
-# Remote helpers
+# Filesystem helpers (viewer runs on the VM; reads workspaces directly)
 # ---------------------------------------------------------------------------
-@st.cache_data(ttl=300)
-def ssh_run(cmd: str) -> str:
-    full = f'gcloud compute ssh {VM_NAME} --zone={VM_ZONE} -- "{cmd}"'
-    result = subprocess.run(full, shell=True, capture_output=True, text=True, timeout=30)
-    return result.stdout.strip()
+@st.cache_data(ttl=120)
+def list_dir(path: str) -> list[str]:
+    try:
+        return sorted(p.name for p in Path(path).iterdir())
+    except (FileNotFoundError, NotADirectoryError):
+        return []
 
 
 @st.cache_data(ttl=300)
-def ssh_read_file(path: str) -> str:
-    return ssh_run(f"cat {path}")
+def read_file(path: str) -> str:
+    try:
+        return Path(path).read_text(encoding="utf-8", errors="replace")
+    except FileNotFoundError:
+        return ""
 
 
 @st.cache_data(ttl=600)
-def ssh_read_image(path: str) -> bytes:
-    full = f"gcloud compute ssh {VM_NAME} --zone={VM_ZONE} -- 'base64 {path}'"
-    result = subprocess.run(full, shell=True, capture_output=True, text=True, timeout=30)
-    return base64.b64decode(result.stdout.strip())
+def read_image(path: str) -> bytes:
+    try:
+        return Path(path).read_bytes()
+    except FileNotFoundError:
+        return b""
 
 
 # ---------------------------------------------------------------------------
 # Discovery
 # ---------------------------------------------------------------------------
-@st.cache_data(ttl=120)
 def list_experiments() -> list[str]:
-    out = ssh_run(f"ls {WORKSPACE_ROOT}")
-    return sorted(out.split()) if out else []
+    return list_dir(WORKSPACE_ROOT)
 
 
-@st.cache_data(ttl=120)
 def list_available_modes(exp: str) -> list[str]:
-    out = ssh_run(f"ls {WORKSPACE_ROOT}/{exp}")
-    dirs = out.split() if out else []
+    dirs = list_dir(f"{WORKSPACE_ROOT}/{exp}")
     return [d for d in SKILL_MODES if d in dirs]
 
 
-@st.cache_data(ttl=120)
 def list_softwares(exp: str, mode: str) -> list[str]:
-    out = ssh_run(f"ls {WORKSPACE_ROOT}/{exp}/{mode}")
-    return sorted(out.split()) if out else []
+    return list_dir(f"{WORKSPACE_ROOT}/{exp}/{mode}")
 
 
-@st.cache_data(ttl=120)
 def list_tasks(exp: str, mode: str, software: str) -> list[str]:
-    out = ssh_run(f"ls {WORKSPACE_ROOT}/{exp}/{mode}/{software}")
-    return sorted(out.split()) if out else []
+    return list_dir(f"{WORKSPACE_ROOT}/{exp}/{mode}/{software}")
 
 
-@st.cache_data(ttl=120)
 def list_screenshots(exp: str, mode: str, software: str, task: str) -> list[str]:
     path = f"{WORKSPACE_ROOT}/{exp}/{mode}/{software}/{task}/screenshots"
-    out = ssh_run(f"ls {path} 2>/dev/null")
-    if not out:
-        return []
-    return sorted([f for f in out.split() if f.endswith(".png")])
+    return [f for f in list_dir(path) if f.endswith(".png")]
 
 
 # ---------------------------------------------------------------------------
@@ -100,12 +107,31 @@ def list_screenshots(exp: str, mode: str, software: str, task: str) -> list[str]
 # ---------------------------------------------------------------------------
 @st.cache_data(ttl=300)
 def load_result(exp: str, mode: str, software: str, task: str) -> dict:
-    path = f"{WORKSPACE_ROOT}/{exp}/{mode}/{software}/{task}/result.json"
-    text = ssh_read_file(path)
-    try:
-        return json.loads(text)
-    except (json.JSONDecodeError, ValueError):
-        return {"error": f"Could not parse: {text[:200]}"}
+    base = f"{WORKSPACE_ROOT}/{exp}/{mode}/{software}/{task}"
+    # Preferred (gym-anything): result.json
+    text = read_file(f"{base}/result.json")
+    if text:
+        try:
+            return json.loads(text)
+        except (json.JSONDecodeError, ValueError):
+            pass
+    # OSExpert layout: meta.json + result.txt (alias `result` → `score`)
+    meta_text = read_file(f"{base}/meta.json")
+    if meta_text:
+        try:
+            d = json.loads(meta_text)
+            if "result" in d and "score" not in d:
+                d["score"] = d["result"]
+            return d
+        except (json.JSONDecodeError, ValueError):
+            pass
+    score_text = read_file(f"{base}/result.txt").strip()
+    if score_text:
+        try:
+            return {"score": float(score_text)}
+        except ValueError:
+            return {"score": score_text}
+    return {}
 
 
 @st.cache_data(ttl=600)
@@ -115,7 +141,7 @@ def load_task_json(software: str, task: str) -> dict:
         "/home/ziyan/MMSkills/vendor/gym-anything/benchmarks/cua_world"
         f"/environments/{software}/tasks/{task}/task.json"
     )
-    text = ssh_read_file(ga_tasks)
+    text = read_file(ga_tasks)
     try:
         return json.loads(text)
     except (json.JSONDecodeError, ValueError):
@@ -125,19 +151,45 @@ def load_task_json(software: str, task: str) -> dict:
 @st.cache_data(ttl=300)
 def load_prompt(exp: str, mode: str, software: str, task: str) -> str:
     path = f"{WORKSPACE_ROOT}/{exp}/{mode}/{software}/{task}/prompt.txt"
-    return ssh_read_file(path)
+    return read_file(path)
 
 
-MCP_PREFIX = "mcp__gym-anything-controller__"
-# Tools that are internal to Claude CLI, not GUI actions
+MCP_PREFIXES = ("mcp__gym-anything-controller__", "mcp__osworld-controller__")
+# Tools that are internal to Claude CLI, not GUI actions and not worth showing
 SKIP_TOOLS = {"ToolSearch"}
-# Tools that represent skill/file reading, not GUI actions
-SKILL_TOOLS = {"Read", "Glob", "Grep"}
+# Tools that read files; we fold these into the following GUI step as
+# "preparation reads" rather than rendering them as their own steps.
+FILE_READ_TOOLS = {"Read", "Glob", "Grep"}
+# Substrings that identify a skill-directory read (vs. a task-input read).
+SKILL_PATH_MARKERS = ("/plugin/", "/skills/", "/.claude/plugins/")
+
+
+def _is_skill_path(fp: str) -> bool:
+    return any(m in fp for m in SKILL_PATH_MARKERS)
+
+
+def _format_read(tool_name: str, tool_input: dict) -> tuple[str, str, bool]:
+    """Return (short_name, file_basename, is_skill) for a file-read tool call."""
+    short = tool_name
+    if short == "Read":
+        fp = tool_input.get("file_path", "")
+    elif short == "Glob":
+        fp = tool_input.get("pattern", "")
+    elif short == "Grep":
+        fp = tool_input.get("path", "") or tool_input.get("pattern", "")
+    else:
+        fp = ""
+    basename = fp.split("/")[-1] if "/" in fp else fp
+    return short, basename, _is_skill_path(fp)
 
 
 def _format_action(tool_name: str, tool_input: dict) -> tuple[str, str]:
-    """Return (short_name, detail) for a tool call."""
-    short = tool_name.replace(MCP_PREFIX, "")
+    """Return (short_name, detail) for a GUI action tool call."""
+    short = tool_name
+    for _p in MCP_PREFIXES:
+        if short.startswith(_p):
+            short = short[len(_p):]
+            break
     detail = ""
     if short in ("click", "double_click"):
         detail = f"({tool_input.get('x', '?')}, {tool_input.get('y', '?')})"
@@ -152,9 +204,6 @@ def _format_action(tool_name: str, tool_input: dict) -> tuple[str, str]:
         detail = f"({tool_input.get('x', '?')}, {tool_input.get('y', '?')}, clicks={tool_input.get('clicks', '?')})"
     elif short == "drag_to":
         detail = f"({tool_input.get('start_x', '?')},{tool_input.get('start_y', '?')}) -> ({tool_input.get('end_x', '?')},{tool_input.get('end_y', '?')})"
-    elif short == "Read":
-        fp = tool_input.get("file_path", "")
-        detail = fp.split("/")[-1] if "/" in fp else fp
     return short, detail
 
 
@@ -162,15 +211,21 @@ def _format_action(tool_name: str, tool_input: dict) -> tuple[str, str]:
 def parse_trajectory(exp: str, mode: str, software: str, task: str) -> list[dict]:
     """Parse claude_output.txt into a list of agent steps.
 
-    Screenshot files are named step_NNN.png where NNN = the overall tool_use
-    index (1-based). Only MCP controller tool calls produce screenshot files.
-    ToolSearch and Claude CLI tools (Read, Glob) don't produce screenshots.
+    A "step" is one MCP (GUI) tool call. Non-MCP reads (Read/Glob/Grep) that
+    precede a step are folded into it as `reads_before` so they don't inflate
+    the step count. Reads that hit the skill/plugin directory are labeled
+    `is_skill=True`; others (e.g. task inputs like json_snippet.txt) are plain
+    file reads.
 
-    We merge consecutive assistant messages (thinking → text → tool_use) into
-    one logical step.
+    Screenshot files on disk (`step_NNN.png`) are named by the bridge's
+    per-`/screenshot`-call counter (bridge.py:136). The MCP server's
+    `_action_and_screenshot` (tools/gym-anything-controller/server.py:76)
+    calls `/screenshot` after every action, and the explicit `screenshot`
+    tool does the same. So effectively every MCP tool call produces one
+    `step_{k:03d}.png` where k is the MCP-call index.
     """
     path = f"{WORKSPACE_ROOT}/{exp}/{mode}/{software}/{task}/claude_output.txt"
-    raw = ssh_read_file(path)
+    raw = read_file(path)
     if not raw:
         return []
 
@@ -183,10 +238,34 @@ def parse_trajectory(exp: str, mode: str, software: str, task: str) -> list[dict
         except json.JSONDecodeError:
             continue
 
-    # First pass: collect all tool_use calls to build the index → screenshot mapping
-    # The bridge saves screenshots as step_{tool_use_index}.png for MCP calls only
-    tool_use_index = 0
-    mcp_call_indices = {}  # tool_use_index → True if MCP call
+    # Pass 0: map tool_use_id → whether its result carried an image. Only tool
+    # calls whose result contains an image actually produced a step_NNN.png on
+    # disk; the rest (failed /screenshot calls, errored actions) did not.
+    tool_use_has_image: dict[str, bool] = {}
+    for ev in events:
+        if ev.get("type") != "user":
+            continue
+        content = ev.get("message", {}).get("content", [])
+        if not isinstance(content, list):
+            continue
+        for block in content:
+            if not isinstance(block, dict) or block.get("type") != "tool_result":
+                continue
+            tid = block.get("tool_use_id", "")
+            rc = block.get("content", [])
+            has_img = False
+            if isinstance(rc, list):
+                has_img = any(
+                    isinstance(c, dict) and c.get("type") == "image"
+                    for c in rc
+                )
+            tool_use_has_image[tid] = has_img
+
+    steps = []
+    pending_reads = []      # file-reads waiting to attach to next GUI step
+    cur_thinking = []
+    cur_text = []
+    screenshot_idx = 0      # increments only when an image was actually saved
 
     for ev in events:
         if ev.get("type") != "assistant":
@@ -195,65 +274,60 @@ def parse_trajectory(exp: str, mode: str, software: str, task: str) -> list[dict
         if not isinstance(content, list):
             continue
         for block in content:
-            if isinstance(block, dict) and block.get("type") == "tool_use":
-                tool_use_index += 1
-                name = block.get("name", "")
-                is_mcp = name.startswith(MCP_PREFIX)
-                mcp_call_indices[tool_use_index] = is_mcp
-
-    # Second pass: build steps
-    steps = []
-    tool_use_counter = 0
-    cur_thinking = []
-    cur_text = []
-
-    for ev in events:
-        ev_type = ev.get("type", "")
-
-        if ev_type == "assistant":
-            content = ev.get("message", {}).get("content", [])
-            if not isinstance(content, list):
+            if not isinstance(block, dict):
                 continue
-            for block in content:
-                if not isinstance(block, dict):
+            bt = block.get("type", "")
+            if bt == "thinking":
+                cur_thinking.append(block.get("thinking", ""))
+            elif bt == "text":
+                cur_text.append(block.get("text", ""))
+            elif bt == "tool_use":
+                name = block.get("name", "")
+                inp = block.get("input", {})
+
+                if name in SKIP_TOOLS:
                     continue
-                bt = block.get("type", "")
-                if bt == "thinking":
-                    cur_thinking.append(block.get("thinking", ""))
-                elif bt == "text":
-                    cur_text.append(block.get("text", ""))
-                elif bt == "tool_use":
-                    tool_use_counter += 1
-                    name = block.get("name", "")
-                    inp = block.get("input", {})
 
-                    # Skip ToolSearch entirely
-                    if name in SKIP_TOOLS:
-                        continue
-
-                    short, detail = _format_action(name, inp)
-                    is_mcp = name.startswith(MCP_PREFIX)
-
-                    # MCP calls have a screenshot file
-                    screenshot_file = None
-                    if is_mcp:
-                        screenshot_file = f"step_{tool_use_counter:03d}.png"
-
-                    # Determine if this is a skill-loading action
-                    is_skill_load = name in SKILL_TOOLS
-
-                    steps.append({
-                        "thinking": "\n\n".join(t for t in cur_thinking if t),
-                        "text": "\n".join(t for t in cur_text if t),
-                        "action": short,
-                        "action_detail": detail,
-                        "action_input": inp,
-                        "screenshot_file": screenshot_file,
-                        "is_skill_load": is_skill_load,
-                        "is_mcp": is_mcp,
+                if name in FILE_READ_TOOLS:
+                    short, basename, is_skill = _format_read(name, inp)
+                    pending_reads.append({
+                        "tool": short,
+                        "target": basename,
+                        "is_skill": is_skill,
                     })
-                    cur_thinking = []
-                    cur_text = []
+                    continue
+
+                if not any(name.startswith(p) for p in MCP_PREFIXES):
+                    # Unknown non-MCP tool — show as a read for visibility.
+                    pending_reads.append({
+                        "tool": name, "target": "", "is_skill": False,
+                    })
+                    continue
+
+                # GUI action = one step. Every *successful* MCP call triggers
+                # a `/screenshot` on the bridge and saves one file. If the
+                # action errored or /screenshot failed, no image came back —
+                # those calls don't advance the disk counter.
+                short, detail = _format_action(name, inp)
+                tid = block.get("id", "")
+                if tool_use_has_image.get(tid, False):
+                    screenshot_idx += 1
+                    screenshot_file = f"step_{screenshot_idx:03d}.png"
+                else:
+                    screenshot_file = None
+
+                steps.append({
+                    "thinking": "\n\n".join(t for t in cur_thinking if t),
+                    "text": "\n".join(t for t in cur_text if t),
+                    "action": short,
+                    "action_detail": detail,
+                    "action_input": inp,
+                    "screenshot_file": screenshot_file,
+                    "reads_before": pending_reads,
+                })
+                pending_reads = []
+                cur_thinking = []
+                cur_text = []
 
     return steps
 
@@ -266,25 +340,37 @@ def render_step(step: dict, step_num: int, exp: str, mode: str, software: str,
     """Render a single step in the trajectory."""
     action = step["action"]
     detail = step["action_detail"]
-    is_skill = step.get("is_skill_load", False)
 
-    # Action badge colors
-    if is_skill:
-        st.markdown(f"**Step {step_num}** — :green[**Skill Load**] `{action}({detail})`")
-    else:
-        action_colors = {
-            "screenshot": "blue",
-            "click": "red",
-            "double_click": "red",
-            "type_text": "green",
-            "key_press": "orange",
-            "hotkey": "orange",
-            "scroll": "violet",
-            "drag_to": "violet",
-            "move_to": "violet",
-        }
-        color = action_colors.get(action, "gray")
-        st.markdown(f"**Step {step_num}** — :{color}[**{action}**] `{detail}`")
+    action_colors = {
+        "screenshot": "blue",
+        "click": "red",
+        "double_click": "red",
+        "type_text": "green",
+        "key_press": "orange",
+        "hotkey": "orange",
+        "scroll": "violet",
+        "drag_to": "violet",
+        "move_to": "violet",
+    }
+    color = action_colors.get(action, "gray")
+    st.markdown(f"**Step {step_num}** — :{color}[**{action}**] `{detail}`")
+
+    # Preparation reads that preceded this action (skill files, task inputs, ...)
+    reads = step.get("reads_before", [])
+    if reads:
+        skill_reads = [r for r in reads if r["is_skill"]]
+        other_reads = [r for r in reads if not r["is_skill"]]
+        parts = []
+        if skill_reads:
+            items = ", ".join(f"`{r['target']}`" for r in skill_reads)
+            parts.append(f":green[loaded skill:] {items}")
+        if other_reads:
+            items = ", ".join(
+                f"`{r['target']}`" if r["target"] else f"`{r['tool']}`"
+                for r in other_reads
+            )
+            parts.append(f":gray[read:] {items}")
+        st.caption(" · ".join(parts))
 
     # Thinking
     if step["thinking"]:
@@ -295,14 +381,18 @@ def render_step(step: dict, step_num: int, exp: str, mode: str, software: str,
     if step["text"]:
         st.caption(step["text"][:500])
 
-    # Screenshot (only for MCP actions)
-    if show_screenshot and step.get("screenshot_file"):
-        path = f"{WORKSPACE_ROOT}/{exp}/{mode}/{software}/{task}/screenshots/{step['screenshot_file']}"
-        try:
-            img_bytes = ssh_read_image(path)
-            st.image(img_bytes, caption=step["screenshot_file"], use_container_width=True)
-        except Exception:
-            pass  # screenshot doesn't exist for this step — skip silently
+    # Every MCP call produces its own screenshot (captured by the bridge
+    # after the action); it shows the state *after* this step.
+    if show_screenshot:
+        fname = step.get("screenshot_file")
+        if fname:
+            path = f"{WORKSPACE_ROOT}/{exp}/{mode}/{software}/{task}/screenshots/{fname}"
+            try:
+                img_bytes = read_image(path)
+                if img_bytes:
+                    st.image(img_bytes, caption=fname, use_container_width=True)
+            except Exception:
+                pass
 
 
 def main():
@@ -312,6 +402,10 @@ def main():
     # Sidebar: selection
     with st.sidebar:
         st.header("Select Run")
+
+        benchmark = st.selectbox("Benchmark", list(WORKSPACE_ROOTS.keys()))
+        global WORKSPACE_ROOT
+        WORKSPACE_ROOT = WORKSPACE_ROOTS[benchmark]
 
         experiments = list_experiments()
         if not experiments:
@@ -366,6 +460,17 @@ def main():
     # Task description & evaluation criteria
     # -----------------------------------------------------------------------
     task_json = load_task_json(software, task)
+    if not task_json:
+        # OSExpert/etc.: pull instruction from any selected mode's meta.json
+        for _m in selected_modes:
+            _r = load_result(exp, _m, software, task)
+            _instr = _r.get("instruction")
+            if _instr:
+                st.subheader("Task")
+                st.markdown(f"**{task}**")
+                st.info(_instr)
+                st.divider()
+                break
     if task_json:
         st.subheader("Task")
         st.markdown(f"**{task}**" + (f" — `{task_json.get('difficulty', '')}`"
@@ -391,11 +496,17 @@ def main():
                         cols_meta = st.columns(min(len(eval_keys), 4))
                         for i, (k, v) in enumerate(eval_keys.items()):
                             label = k.replace("_", " ").title()
+                            col = cols_meta[i % len(cols_meta)]
                             if isinstance(v, list):
-                                cols_meta[i % len(cols_meta)].markdown(
+                                col.markdown(
                                     f"**{label}:**\n" + "\n".join(f"- {item}" for item in v))
+                            elif isinstance(v, dict):
+                                lines = [f"- `{kk}`: {vv}" for kk, vv in v.items()]
+                                col.markdown(f"**{label}:**\n" + "\n".join(lines))
+                            elif isinstance(v, (str, int, float)):
+                                col.metric(label, v)
                             else:
-                                cols_meta[i % len(cols_meta)].metric(label, v)
+                                col.markdown(f"**{label}:** `{v}`")
 
         st.divider()
 

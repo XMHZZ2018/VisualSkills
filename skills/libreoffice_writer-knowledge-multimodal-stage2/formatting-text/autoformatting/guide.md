@@ -18,7 +18,7 @@ Most people leave smart quotes on and use **Insert > Special Characters** for th
 
 ## UI Reference  —  Format Menu
 
-_Scope: Clone Formatting, Clear Direct Formatting (Ctrl+M)_
+_Scope: Clear Direct Formatting (Ctrl+M) command_
 
 The Format menu controls text styling, paragraph formatting, page layout, and document-level formatting options.
 
@@ -47,7 +47,7 @@ Read the screenshot `ui-format-menu.png` in this directory.
 
 ## UI Reference  —  Tools Menu
 
-_Scope: AutoCorrect submenu: While Typing, Apply, AutoCorrect Options…_
+_Scope: AutoCorrect submenu: While Typing, Apply, Apply and Edit Changes, AutoCorrect Options…_
 
 The Tools menu provides document proofing, language settings, automation, and application-wide configuration.
 

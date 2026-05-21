@@ -24,7 +24,7 @@ Once you click **Finish**, you're back in a normal Writer document with merge fi
 
 ## UI Reference  —  Tools Menu
 
-_Scope: Mail Merge Wizard…_
+_Scope: Mail Merge Wizard… command_
 
 The Tools menu provides document proofing, language settings, automation, and application-wide configuration.
 

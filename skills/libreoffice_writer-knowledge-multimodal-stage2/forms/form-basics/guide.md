@@ -19,7 +19,7 @@ Hold **Shift** while creating or resizing a control to keep it perfectly square 
 
 ## UI Reference  —  Table & Form Menus
 
-_Scope: Design Mode toggle, form control types (Label through Navigation Bar), Control/Form Properties_
+_Scope: Form menu: Design Mode toggle, form control icons (Label, Text Box, Check Box, etc.)_
 
 The Table menu manages table creation and editing. The Form menu provides form controls and design tools. Most Table items are context-sensitive and greyed when the cursor is not in a table.
 

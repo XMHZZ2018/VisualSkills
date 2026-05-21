@@ -18,7 +18,7 @@ One handy tip: the default toolbar icons for lists apply a fixed style you can't
 
 ## UI Reference  —  Formatting Toolbar
 
-_Scope: Toggle Unordered/Ordered List buttons, Select Outline Format_
+_Scope: Toggle Unordered/Ordered List buttons with 8 bullet/numbering style palettes_
 
 The second toolbar row provides all character and paragraph formatting controls with split-button dropdowns.
 

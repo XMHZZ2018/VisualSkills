@@ -20,7 +20,7 @@ You can also set custom color metadata field shadings on annotated text ranges t
 
 ## UI Reference  —  Right Sidebar
 
-_Scope: Style Inspector panel (Alt+6): paragraph/character styles and direct formatting tree_
+_Scope: Style Inspector panel (Alt+6): paragraph/character styles and direct formatting property tree_
 
 The collapsed right sidebar is a vertical strip of 8 icon buttons along the right edge of the window. Each opens a full docked panel. Toggle the sidebar with Ctrl+F5 or View > Sidebar.
 

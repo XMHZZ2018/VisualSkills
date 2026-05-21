@@ -26,7 +26,7 @@ Once the bibliography is in your document, right-click anywhere inside it to **U
 
 ## UI Reference  —  Insert Menu
 
-_Scope: Table of Contents and Index > Bibliography Entry_
+_Scope: Table of Contents and Index > Bibliography Entry command_
 
 The Insert menu provides commands for adding content elements — breaks, images, tables, shapes, fields, footnotes, hyperlinks, and more — into the document.
 
@@ -60,4 +60,38 @@ Read the screenshot `ui-insert-menu.png` in this directory.
 - **Header and Footer** (►) — Enable/disable headers and footers per page style.
 - **Envelope…** — Envelope configuration dialog.
 - **Signature Line…** — Digital-signature placeholder line.
+
+---
+
+## UI Reference  —  Tools Menu
+
+_Scope: Bibliography Database command_
+
+The Tools menu provides document proofing, language settings, automation, and application-wide configuration.
+
+Read the screenshot `ui-tools-menu.png` in this directory.
+
+## Elements
+
+- **Spelling…** (F7) — Open the spelling dialog.
+- **Automatic Spell Checking** (Shift+F7) — Toggle live spell-check underlines.
+- **Thesaurus…** (Ctrl+F7) — Look up synonyms (requires thesaurus dictionary).
+- **Language** (►) — Set language For Selection / For Paragraph / For All Text, Hyphenation…, More Dictionaries Online…
+- **Word Count…** — Show detailed word/character counts.
+- **Accessibility Check…** (Alt+8) / **Automatic Accessibility Checking** — Audit document for accessibility issues.
+- **AutoCorrect** (►) — While Typing (toggle), Apply, Apply and Edit Changes, AutoCorrect Options… (5-tab dialog: Replace, Exceptions, Options, Localized Options, Word Completion).
+- **AutoText…** (Ctrl+F3) — Manage reusable text blocks.
+- **Redact** / **Auto-Redact** — Document redaction tools.
+- **Heading Numbering…** — Configure outline numbering for headings.
+- **Line Numbering…** — Enable/configure line numbers (position, interval, separator).
+- **Footnote/Endnote Settings…** — Configure footnote/endnote formatting.
+- **Mail Merge Wizard…** — Step-by-step mail merge.
+- **Bibliography Database** / **Address Book Source…** — Database connections.
+- **Update** (►) — Refresh: Update All, Page Formatting, Fields (F9), Indexes and Tables, Links, Charts.
+- **Protect Document** (►) — Protect Fields (checkbox), Protect Bookmarks (checkbox).
+- **Calculate** (Ctrl++) / **Sort…** — In-document calculation and sorting.
+- **Macros** (►) — Run Macro…, Edit Macros…, Organize Macros, Digital Signature…, Organize Dialogs…
+- **Development Tools** — Toggle developer panel.
+- **XML Filter Settings…** / **Extensions…** (Ctrl+Alt+E) / **Customize…**
+- **Options…** (Alt+F12) — Opens the comprehensive Options dialog with tree navigation: LibreOffice (User Data, General, View, Print, Paths, Fonts, Security, etc.), Load/Save, Languages, LibreOffice Writer, and more.
 

@@ -28,7 +28,7 @@ If your landscape pages sit between portrait pages and the document will be prin
 
 ## UI Reference  —  Key Formatting Dialogs
 
-_Scope: Page Style dialog Page tab: orientation setting_
+_Scope: Page Style dialog Page tab orientation (Portrait/Landscape) setting_
 
 These multi-tab dialogs provide detailed control over character formatting, paragraph layout, page styles, and search/replace.
 

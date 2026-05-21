@@ -34,7 +34,7 @@ See `fig03.png`.
 
 ## UI Reference  —  File Menu
 
-_Scope: Send submenu (email as ODF/Word/PDF), Digital Signatures_
+_Scope: Send submenu (email in ODF/Word/PDF), Digital Signatures submenu_
 
 The File menu manages the full document lifecycle: creating, opening, saving, exporting, printing, and closing documents.
 
@@ -71,7 +71,7 @@ Read the screenshot `ui-file-menu.png` in this directory.
 
 ## UI Reference  —  Insert Menu
 
-_Scope: Signature Line…_
+_Scope: Signature Line… command for digital signature placeholder_
 
 The Insert menu provides commands for adding content elements — breaks, images, tables, shapes, fields, footnotes, hyperlinks, and more — into the document.
 

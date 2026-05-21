@@ -18,7 +18,7 @@ Double-click any control to open its **Properties** dialog, which has three tabs
 
 ## UI Reference  —  Table & Form Menus
 
-_Scope: Full form control list, More Fields submenu, Control Properties, Form Navigator_
+_Scope: All form control types listed, More Fields submenu, Control/Form Properties, Form Navigator_
 
 The Table menu manages table creation and editing. The Form menu provides form controls and design tools. Most Table items are context-sensitive and greyed when the cursor is not in a table.
 

@@ -18,7 +18,7 @@ To wipe a shortcut you no longer need, select it in the **Shortcut Keys** list a
 
 ## UI Reference  —  Tools Menu
 
-_Scope: Customize… (opens Keyboard tab)_
+_Scope: Customize… command (Keyboard tab for shortcut assignment)_
 
 The Tools menu provides document proofing, language settings, automation, and application-wide configuration.
 

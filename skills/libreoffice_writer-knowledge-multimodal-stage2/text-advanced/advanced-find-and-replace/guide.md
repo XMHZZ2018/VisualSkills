@@ -28,7 +28,7 @@ Click **Find All**, **Replace**, or **Replace All** once your pattern is set. Pr
 
 ## UI Reference  —  Key Formatting Dialogs
 
-_Scope: Find and Replace Other options: Regular expressions, Similarity, Paragraph Styles, Format_
+_Scope: Find and Replace Other options: Regular expressions, Similarity, Paragraph Styles, Attributes/Format buttons_
 
 These multi-tab dialogs provide detailed control over character formatting, paragraph layout, page styles, and search/replace.
 

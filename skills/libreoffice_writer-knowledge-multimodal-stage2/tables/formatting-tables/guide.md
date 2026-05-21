@@ -28,7 +28,7 @@ Once the layout is set, format the text in cells just as you would any other par
 
 ## UI Reference  —  Table & Form Menus
 
-_Scope: Size submenu, Merge/Split Cells, AutoFormat Styles, Number Format, Properties_
+_Scope: Size submenu, Merge/Split Cells, AutoFormat Styles, Number Format, Properties, Header Rows_
 
 The Table menu manages table creation and editing. The Form menu provides form controls and design tools. Most Table items are context-sensitive and greyed when the cursor is not in a table.
 

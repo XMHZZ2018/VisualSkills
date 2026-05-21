@@ -15,7 +15,7 @@ From the Styles deck you can apply an existing style (just double-click it), mod
 
 ## UI Reference  —  Right Sidebar
 
-_Scope: Styles panel: category toolbar icons, hierarchical style list, filter dropdown_
+_Scope: Styles panel (Alt+2/F11) with category toolbar and hierarchical style list_
 
 The collapsed right sidebar is a vertical strip of 8 icon buttons along the right edge of the window. Each opens a full docked panel. Toggle the sidebar with Ctrl+F5 or View > Sidebar.
 
@@ -51,7 +51,7 @@ Read the screenshot `ui-right-sidebar-location.png` in this directory.
 
 ## UI Reference  —  Styles Menu & Styles Panel
 
-_Scope: Styles panel structure: category toolbar, style list, filter dropdown_
+_Scope: Styles panel (F11): category toolbar, hierarchical style list, filter dropdown, style categories_
 
 LibreOffice Writer uses a style-based formatting system. The Styles menu provides quick-apply shortcuts, while the Styles panel (F11) offers full management.
 

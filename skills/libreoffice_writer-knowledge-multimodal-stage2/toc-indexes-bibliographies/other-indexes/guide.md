@@ -26,7 +26,7 @@ You can also create a completely custom index. In the same **Type** drop-down, c
 
 ## UI Reference  —  Insert Menu
 
-_Scope: Table of Contents and Index > TOC/Index/Bibliography dialog_
+_Scope: Table of Contents and Index submenu for user-defined and illustration indexes_
 
 The Insert menu provides commands for adding content elements — breaks, images, tables, shapes, fields, footnotes, hyperlinks, and more — into the document.
 

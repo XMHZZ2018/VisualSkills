@@ -28,7 +28,7 @@ You can customize the appearance and behavior of any control through its **Contr
 
 ## UI Reference  —  Table & Form Menus
 
-_Scope: Control Properties…, Form Properties…, Activation Order…_
+_Scope: Control Properties…, Form Properties… commands for advanced customization_
 
 The Table menu manages table creation and editing. The Form menu provides form controls and design tools. Most Table items are context-sensitive and greyed when the cursor is not in a table.
 

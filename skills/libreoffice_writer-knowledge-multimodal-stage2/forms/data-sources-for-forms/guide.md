@@ -30,7 +30,7 @@ If the database already has data, use the navigation controls to browse records 
 
 ## UI Reference  —  Table & Form Menus
 
-_Scope: Form Properties…, Form Navigator…_
+_Scope: Form Properties… > Data tab, Form Navigator for database-connected forms_
 
 The Table menu manages table creation and editing. The Form menu provides form controls and design tools. Most Table items are context-sensitive and greyed when the cursor is not in a table.
 

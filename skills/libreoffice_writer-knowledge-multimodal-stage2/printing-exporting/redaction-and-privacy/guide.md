@@ -28,46 +28,9 @@ See `fig02.png` for the Automatic Redaction dialog.
 
 ---
 
-## UI Reference  —  File Menu
-
-_Scope: Properties… (document metadata on General tab)_
-
-The File menu manages the full document lifecycle: creating, opening, saving, exporting, printing, and closing documents.
-
-Read the screenshot `ui-file-menu.png` in this directory.
-
-## Elements
-
-- **New** (►) — Create a new document of any type (Text, Spreadsheet, Presentation, Drawing, etc.). Ctrl+N for Text Document.
-- **Open…** (Ctrl+O) — Open an existing file.
-- **Open Remote…** — Open a file from a remote server.
-- **Recent Documents** (►) — List of recently opened files.
-- **Close** — Close the current document.
-- **Wizards** (►) — Step-by-step creation wizards: Letter, Fax, Agenda, Document Converter, Address Data Source.
-- **Templates** (►) — Edit Template, Save as Template, Manage Templates (Shift+Ctrl+N).
-- **Reload** — Reload document from disk (greyed on unsaved documents).
-- **Versions…** — Manage saved versions of the document.
-- **Save** (Ctrl+S) — Save in current format.
-- **Save As…** (Shift+Ctrl+S) — Save with a new name or format.
-- **Save Remote…** — Save to a remote server.
-- **Save a Copy…** — Save a copy without changing the working file.
-- **Save All** — Save all open documents.
-- **Export…** — Export in a non-native format.
-- **Export As** (►) — Export as PDF (dialog or direct), Export as EPUB (dialog or direct).
-- **Send** (►) — Email document in various formats (ODF, Word, PDF), send via Bluetooth, create Master/HTML document.
-- **Preview in Web Browser** — Open document preview in default browser.
-- **Print Preview** (Shift+Ctrl+O) — Toggle print-preview layout.
-- **Print…** (Ctrl+P) — Open the Print dialog.
-- **Printer Settings…** — Configure printer options.
-- **Properties…** — Open the 6-tab document properties dialog (General, Description, Custom Properties, Security, Font, Statistics).
-- **Digital Signatures** (►) — Digital Signatures…, Sign Existing PDF…
-- **Exit LibreOffice** (Ctrl+Q) — Quit the entire suite.
-
----
-
 ## UI Reference  —  Tools Menu
 
-_Scope: Redact, Auto-Redact tools_
+_Scope: Redact and Auto-Redact commands_
 
 The Tools menu provides document proofing, language settings, automation, and application-wide configuration.
 

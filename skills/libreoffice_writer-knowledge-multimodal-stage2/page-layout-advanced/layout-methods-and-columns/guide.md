@@ -28,7 +28,7 @@ By default, **AutoWidth** is selected, which divides space equally among all col
 
 ## UI Reference  —  Format Menu
 
-_Scope: Columns… dialog_
+_Scope: Columns… dialog entry_
 
 The Format menu controls text styling, paragraph formatting, page layout, and document-level formatting options.
 

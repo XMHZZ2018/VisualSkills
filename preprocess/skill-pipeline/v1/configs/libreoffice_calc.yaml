@@ -1,0 +1,16 @@
+app_name: "LibreOffice Calc"
+app_version: "7.3.7"
+domain: "libreoffice_calc"
+
+sources:
+  pdf_guide:
+    url: "https://documentation.libreoffice.org/assets/Uploads/Documentation/en/CG7.2/CG72-CalcGuide.pdf"
+
+tasks:
+  # gym-anything (cua_world) task source.
+  # Default: enumerate every subfolder of <env_dir>/tasks/ that has a valid task.json.
+  env_dir: "vendor/gym-anything/benchmarks/cua_world/environments/libreoffice_calc_env"
+
+  # Optional: restrict to a split subset. Leave unset to use all on-disk tasks.
+  # split: "vendor/gym-anything/benchmarks/cua_world/splits/libreoffice_calc_split.json"
+  # use: "test_tasks"

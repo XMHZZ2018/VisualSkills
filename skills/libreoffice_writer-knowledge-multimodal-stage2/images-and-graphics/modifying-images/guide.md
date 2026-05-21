@@ -17,33 +17,3 @@ To **resize** an image, just drag its sizing handles. Hold **Shift** while dragg
 For **color and appearance** tweaks, use the Image toolbar's controls. The **Image Mode** dropdown lets you switch to grayscale, black-and-white, or watermark. The **Color** toolbar adjusts individual RGB channels plus brightness, contrast, and gamma. Various **Image Filters** — Smooth, Sharpen, Solarization, Aging, Posterize, and more — are available for quick special effects. If something goes wrong, just press **Ctrl+Z** to undo.
 
 Bump up the **Transparency** percentage on the Image toolbar to make an image see-through — handy for watermarks or background images. And if you need to slim down your document's file size, right-click the image, choose **Compress**, and adjust quality or dimensions in the **Compress Image** dialog. Hit **Calculate New Size** to preview the savings before committing.
-
----
-
-## UI Reference  —  Format Menu
-
-_Scope: Image context submenu (when image selected)_
-
-The Format menu controls text styling, paragraph formatting, page layout, and document-level formatting options.
-
-Read the screenshot `ui-format-menu.png` in this directory.
-
-## Elements
-
-- **Text** (►) — 19 text style commands: Bold (Ctrl+B), Italic (Ctrl+I), Single/Double Underline, Strikethrough, Overline, Superscript (Shift+Ctrl+P), Subscript (Shift+Ctrl+B), Shadow, Outline Font Effect, Increase/Decrease Size (Ctrl+]/[), case transforms (UPPERCASE, lowercase, Cycle Case Shift+F3, Sentence case, Capitalize Every Word, tOGGLE cASE), Small Capitals (Shift+Ctrl+K).
-- **Spacing** (►) — Line Spacing (1, 1.15, 1.5, 2), Increase/Decrease Paragraph Spacing, Increase/Decrease Indent.
-- **Align Text** (►) — Left (Ctrl+L), Centered (Ctrl+E), Right (Ctrl+R), Justified (Ctrl+J).
-- **Clone Formatting** — Paint formatting from selection to other text.
-- **Clear Direct Formatting** (Ctrl+M) — Remove all manual formatting, revert to style defaults.
-- **Spotlight** (►) — Highlight formatting in document: Character Direct Formatting, Paragraph Styles, Character Styles.
-- **Character…** — Opens the Character dialog (see [Formatting Dialogs](formatting-dialogs.md)).
-- **Paragraph…** — Opens the Paragraph dialog (see [Formatting Dialogs](formatting-dialogs.md)).
-- **Lists** (►) — No List (Shift+Ctrl+F12), Unordered List (Shift+F12), Ordered List (F12), Demote/Promote Outline Level, Move Item Down/Up (Ctrl+Alt+Down/Up), Insert Unnumbered Entry, Restart Numbering, Add to List.
-- **Bullets and Numbering…** — Full list formatting dialog.
-- **Theme…** — Document theme settings.
-- **Page Style…** (Shift+Alt+P) — Opens the Page Style dialog (see [Formatting Dialogs](formatting-dialogs.md)).
-- **Title Page…** — Add/configure title pages.
-- **Columns…** — Multi-column page layout dialog.
-- **Watermark…** — Insert or configure a watermark.
-- Context-sensitive submenus (active when an object is selected): Image, Text Box and Shape, Frame and Object, Anchor, Wrap, Arrange, Rotate or Flip, Group.
-

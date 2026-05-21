@@ -45,7 +45,12 @@ def _get(path: str) -> dict:
 
 
 def _post(path: str, data: dict) -> dict:
+    """POST to the bridge. Returns parsed JSON for both 2xx and 409 (episode
+    already ended) so callers can branch on the `done` field. Other errors
+    still raise."""
     r = _client.post(f"{BRIDGE_URL}{path}", json=data)
+    if r.status_code == 409:
+        return r.json()
     r.raise_for_status()
     return r.json()
 
@@ -78,8 +83,19 @@ def _action_and_screenshot(action: dict, pause: float = 2.0) -> list:
 
     The action dict uses the MCP-level format; the bridge translates it to
     gym-anything's internal {"mouse": {...}} / {"keyboard": {...}} format.
+
+    If the bridge reports `done=True` (e.g. the env hit its max_steps cap),
+    we DO NOT execute another screenshot/action — we return a clear stop
+    message so the agent terminates instead of burning budget on no-ops.
     """
-    _post("/execute_action", action)
+    resp = _post("/execute_action", action)
+    if resp.get("done"):
+        reason = resp.get("reason") or "done"
+        msg = (
+            f"EPISODE ENDED ({reason}). The environment will not accept any "
+            "further actions. Stop calling tools and end your turn now."
+        )
+        return [json.dumps({"ok": False, "done": True, "reason": reason, "message": msg})]
     time.sleep(pause)
     img = _screenshot()
     return [json.dumps({"ok": True}), img]

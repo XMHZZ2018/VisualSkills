@@ -26,7 +26,7 @@ A word of caution: don't try to change a page style for a single page without in
 
 ## UI Reference  —  Insert Menu
 
-_Scope: Page Break (Ctrl+Return), More Breaks submenu_
+_Scope: Page Break (Ctrl+Return), More Breaks submenu (Manual Break dialog)_
 
 The Insert menu provides commands for adding content elements — breaks, images, tables, shapes, fields, footnotes, hyperlinks, and more — into the document.
 

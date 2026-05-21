@@ -24,7 +24,7 @@ If you can't find the format you need under **File > Save As** or **File > Expor
 
 ## UI Reference  —  File Menu
 
-_Scope: Export…, Export As > EPUB entries_
+_Scope: Export As > Export as EPUB, Export Directly as EPUB entries_
 
 The File menu manages the full document lifecycle: creating, opening, saving, exporting, printing, and closing documents.
 

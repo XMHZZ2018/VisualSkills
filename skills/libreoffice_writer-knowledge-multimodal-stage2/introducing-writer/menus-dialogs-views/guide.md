@@ -16,45 +16,95 @@ Between context menus for quick access, dialogs for detailed settings, and view 
 
 ---
 
-## UI Reference  —  Document Canvas, Rulers & Scrollbars
+## UI Reference  —  Edit, View, Window & Help Menus
 
-_Scope: Right-click context menus on canvas (Character, Paragraph, List submenus)_
+_Scope: View menu: Normal/Web views, Zoom submenu with presets, Full Screen toggle_
 
-The main editing surface and its surrounding controls for navigation, measurement, and layout.
+These menus provide standard editing operations, display controls, window management, and help access.
 
-## Canvas
+## Edit Menu
 
-The white rectangular area represents the printable page, surrounded by a grey pasteboard.
+(see screenshot `ui-edit-menu.png`)
 
-**Mouse interactions:**
-- **Click** — Place the text cursor.
-- **Click-drag** — Select a range of text.
-- **Double-click** — Select the word under the cursor.
-- **Right-click** — Context menu with: Paste, Clone Formatting, Clear Direct Formatting, Character (►), Paragraph (►), List (►), Insert Comment, Page Style…
-- **Right-click with selection** — Adds Cut and Copy to the context menu.
+- **Undo** (Ctrl+Z) / **Redo** (Ctrl+Y) / **Repeat** (Shift+Ctrl+Y)
+- **Cut** (Ctrl+X) / **Copy** (Ctrl+C) / **Paste** (Ctrl+V) — standard clipboard operations.
+- **Paste Special** (►) — Paste Unformatted Text (Shift+Ctrl+Alt+V), Paste Special… (Shift+Ctrl+V), Paste as Nested Table, Paste as Rows Above, Paste as Columns Before.
+- **Select All** (Ctrl+A)
+- **Selection Mode** (►) — Standard (default) or Block Area (Shift+Alt+F8) for column selection.
+- **Find…** (Ctrl+F) — Opens the inline Find toolbar.
+- **Find and Replace…** (Ctrl+H) — Opens the Find and Replace dialog (see [Formatting Dialogs](formatting-dialogs.md)).
+- **Go to Page…** (Ctrl+G) — Jump to a specific page number.
+- **Track Changes** (►) — Record, Show, Manage, Accept/Reject individual or all changes, Compare/Merge documents.
+- **Comment** (►) — Reply, Resolve, Delete comments and comment threads.
+- **Reference** (►) — Insert Footnote/Endnote, Index Entry, Bibliography Entry.
+- **Fields…** / **External Links…** / **OLE Object** (►) — Context-sensitive editing commands.
+- **Exchange Database…** — Switch the document's database source.
+- **Direct Cursor Mode** — Toggle: click anywhere on the page to place the cursor.
+- **Edit Mode** (Shift+Ctrl+M) — Toggle between edit and read-only mode.
 
-The **Character** submenu offers: Character…, No Character Style, Emphasis, Strong Emphasis, Quotation, Source Text.
+## View Menu
 
-## Horizontal Ruler
+(see screenshot `ui-view-menu.png`)
 
-Visible by default (toggle: View > Rulers, Shift+Ctrl+R). Displays page margins as grey bands on each end, with the white writable area between them.
+- **Normal** / **Web** — Radio pair for print-layout vs web-layout editing view.
+- **User Interface…** — Choose from 7 UI variants (Standard Toolbar, Tabbed, Single Toolbar, Sidebar, etc.).
+- **Toolbars** (►) — Toggle ~27 available toolbars on/off. Includes Customize… and Lock Toolbars.
+- **Status Bar** — Toggle status bar visibility.
+- **Rulers** (►) — Toggle horizontal ruler (Shift+Ctrl+R) and vertical ruler.
+- **Scrollbars** (►) — Toggle horizontal and vertical scrollbars.
+- **Grid and Helplines** (►) — Display Grid, Snap to Grid, Helplines While Moving.
+- **Formatting Marks** (Ctrl+F10) — Show/hide paragraph marks, spaces, tabs.
+- **Text/Table/Section Boundaries**, **Images and Charts**, **Whitespace** — Visibility toggles (all on by default).
+- **Show Tracked Changes** — Toggle track-change markup display.
+- **Field Shadings** (Ctrl+F8) / **Field Names** (Ctrl+F9) / **Field Hidden Paragraphs** — Field display options.
+- **Sidebar** (Ctrl+F5) — Toggle the right sidebar panel.
+- **Styles** (F11) / **Gallery** — Quick access to sidebar panels.
+- **Navigator** (F5) — Toggle the document structure navigator.
+- **Data Sources** (Shift+Ctrl+F4) — Toggle the database data-source view.
+- **Full Screen** (Shift+Ctrl+J) — Hide menus/toolbars for maximum editing area.
+- **Zoom** (►) — Presets (Entire Page, Page Width, 50%–200%) and full Zoom & View Layout dialog.
 
-**Controls:**
-- **Tab-type selector** (far left button) — Click to cycle: Left, Right, Center, Decimal tab stop, First-Line Indent, Hanging Indent.
-- **First-line indent** (top triangle) — Drag to set first-line paragraph indent.
-- **Left indent** (bottom-left triangle) — Drag to set left indent for wrapped lines.
-- **Right indent** (right triangle) — Drag to set right indent.
-- **Tab stops** — Click in the white area to add; drag to move; drag off the ruler to delete.
-- **Right-click** — Change measurement units: Millimeter, Centimeter, Inch, Point, Pica, Char.
-- **Double-click** — Opens the Paragraph dialog.
+## Window Menu
 
-## Vertical Ruler
+- **New Window** — Open a second window for the same document.
+- **Close Window** (Ctrl+W) — Close the current window.
+- Active document list — bullet marks the current window.
 
-Not visible by default. Enable via View > Rulers > Vertical Ruler. Shows top/bottom margins as grey bands. Right-click to change units (Millimeter, Centimeter, Inch, Point, Pica, Line).
+## Help Menu
 
-## Scrollbars
+- **LibreOffice Help** (F1), **What's This?**, **User Guides**
+- **Show Tip of the Day**, **Search Commands** (Shift+Escape)
+- **Get Help Online**, **Send Feedback**, **Restart in Safe Mode…**
+- **Get Involved**, **Donate to LibreOffice**, **License Information**, **About LibreOffice**
 
-- **Vertical scrollbar** — Right edge, for vertical document navigation.
-- **Horizontal scrollbar** — Bottom edge, for horizontal navigation.
-- Toggle via View > Scrollbars (both enabled by default).
+---
+
+## UI Reference  —  Status Bar
+
+_Scope: View Layout buttons and Zoom slider/percentage with presets_
+
+The status bar runs across the bottom of the window. Every segment is interactive.
+
+Read the screenshot `ui-status-bar.png` in this directory.
+
+## Segments (left to right)
+
+- **Page Number** ("Page 1 of 1") — Left-click opens Go to Page dialog (page number spinner). Right-click shows bookmark list.
+
+- **Word / Character Count** ("0 words, 0 characters") — Left-click opens Word Count dialog showing Words, Characters (incl/excl spaces), Comments for both selection and whole document.
+
+- **Page Style** ("Default Page Style") — Left-click opens the Page Style dialog (9 tabs: Organizer, Page, Area, Transparency, Header, Footer, Borders, Columns, Footnote). Right-click shows quick-change list of all page styles: Default Page Style, First Page, Left Page, Right Page, Envelope, Index, HTML, Footnote, Endnote, Landscape.
+
+- **Language** ("English (USA)") — Click opens language popup: current language (checked), None (no spell-check), Reset to Default Language, More…, Set Language for Paragraph (►).
+
+- **Selection Mode** — Click opens radio-button popup: Standard selection, Extending selection, Adding selection, Block selection.
+
+- **View Layout buttons** — Three icons:
+  - Single-page view (one page at a time)
+  - Multiple-page view (pages side by side)
+  - Book view (two-page spread)
+
+- **Zoom controls** — Zoom Out (−) button, drag slider, Zoom In (+) button.
+
+- **Zoom Percentage** ("100%") — Left-click opens Zoom & View Layout dialog (Optimal, Fit width and height, Fit width, 100%, Custom; View Layout: Automatic, Single page, Columns, Book mode). Right-click shows quick-pick presets: Entire Page, Page Width, Optimal View, 50%–200%.
 

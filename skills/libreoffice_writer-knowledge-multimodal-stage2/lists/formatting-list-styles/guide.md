@@ -24,79 +24,38 @@ To connect everything, create a paragraph style for your list items and go to it
 
 ---
 
-## UI Reference  —  Format Menu
+## UI Reference  —  Styles Menu & Styles Panel
 
-_Scope: Bullets and Numbering… dialog_
+_Scope: List Styles in Styles panel: right-click Edit Style… to format_
 
-The Format menu controls text styling, paragraph formatting, page layout, and document-level formatting options.
+LibreOffice Writer uses a style-based formatting system. The Styles menu provides quick-apply shortcuts, while the Styles panel (F11) offers full management.
 
-Read the screenshot `ui-format-menu.png` in this directory.
+Read the screenshot `ui-styles-menu.png` in this directory.
 
-## Elements
+## Styles Menu
 
-- **Text** (►) — 19 text style commands: Bold (Ctrl+B), Italic (Ctrl+I), Single/Double Underline, Strikethrough, Overline, Superscript (Shift+Ctrl+P), Subscript (Shift+Ctrl+B), Shadow, Outline Font Effect, Increase/Decrease Size (Ctrl+]/[), case transforms (UPPERCASE, lowercase, Cycle Case Shift+F3, Sentence case, Capitalize Every Word, tOGGLE cASE), Small Capitals (Shift+Ctrl+K).
-- **Spacing** (►) — Line Spacing (1, 1.15, 1.5, 2), Increase/Decrease Paragraph Spacing, Increase/Decrease Indent.
-- **Align Text** (►) — Left (Ctrl+L), Centered (Ctrl+E), Right (Ctrl+R), Justified (Ctrl+J).
-- **Clone Formatting** — Paint formatting from selection to other text.
-- **Clear Direct Formatting** (Ctrl+M) — Remove all manual formatting, revert to style defaults.
-- **Spotlight** (►) — Highlight formatting in document: Character Direct Formatting, Paragraph Styles, Character Styles.
-- **Character…** — Opens the Character dialog (see [Formatting Dialogs](formatting-dialogs.md)).
-- **Paragraph…** — Opens the Paragraph dialog (see [Formatting Dialogs](formatting-dialogs.md)).
-- **Lists** (►) — No List (Shift+Ctrl+F12), Unordered List (Shift+F12), Ordered List (F12), Demote/Promote Outline Level, Move Item Down/Up (Ctrl+Alt+Down/Up), Insert Unnumbered Entry, Restart Numbering, Add to List.
-- **Bullets and Numbering…** — Full list formatting dialog.
-- **Theme…** — Document theme settings.
-- **Page Style…** (Shift+Alt+P) — Opens the Page Style dialog (see [Formatting Dialogs](formatting-dialogs.md)).
-- **Title Page…** — Add/configure title pages.
-- **Columns…** — Multi-column page layout dialog.
-- **Watermark…** — Insert or configure a watermark.
-- Context-sensitive submenus (active when an object is selected): Image, Text Box and Shape, Frame and Object, Anchor, Wrap, Arrange, Rotate or Flip, Group.
+The menu has three radio-button sections for quick style application:
 
----
+**Paragraph styles:**
+- Body Text (Ctrl+0), Title, Subtitle, Heading 1 (Ctrl+1), Heading 2 (Ctrl+2), Heading 3 (Ctrl+3), Block Quotation, Preformatted Text
 
-## UI Reference  —  Formatting Toolbar
+**Character styles:**
+- No Character Style (default), Emphasis, Strong Emphasis, Quotation, Source Text
 
-_Scope: List split-button dropdowns with Customize… option_
+**List styles:**
+- No List (Shift+Ctrl+F12), Bullet • List Style, Numbering 123/ABC/abc/IVX/ivx List Styles
 
-The second toolbar row provides all character and paragraph formatting controls with split-button dropdowns.
+**Management commands:**
+- Edit Style… (Alt+P), Update Selected Style (Shift+Ctrl+F11), New Style from Selection (Shift+F11), Load Styles from Template, Manage Styles (F11)
 
-Read the screenshot `ui-formatting-toolbar.png` in this directory.
+## Styles Panel (F11 / Alt+2)
 
-## Elements
+The Styles panel in the right sidebar provides full style management:
 
-Row (left → right):
-
-- **Paragraph Style** dropdown — Shows current style (e.g. "Default Paragraph Style"). Dropdown lists: Clear formatting, Default Paragraph Style, Body Text, Title, Subtitle, Heading 1–4, Block Quotation, Preformatted Text, More Styles…
-- **Update Selected Style** (Shift+Ctrl+F11) — Update current style to match cursor formatting.
-- **New Style from Selection** (Shift+F11) — Create a new style from current formatting.
-- **Font Name** dropdown — Shows/changes the font (e.g. "Liberation Serif"). Lists all installed fonts rendered in their own typeface.
-- **Font Size** dropdown — Shows/changes size in pt (6–48, plus custom values).
-
-| *(separator)* |
-
-- **Bold** (Ctrl+B) / **Italic** (Ctrl+I)
-- **Underline** (Ctrl+U, split-button ▼) — Toggle; dropdown offers 11 underline styles (single, double, bold, dotted, dashed, wavy, etc.) plus More Options…
-- **Strikethrough**
-- **Superscript** (Shift+Ctrl+P) / **Subscript** (Shift+Ctrl+B)
-- **Clear Direct Formatting** (Ctrl+M) — Eraser icon; removes all manual formatting.
-
-| *(separator)* |
-
-- **Font Color** (split-button ▼) — Applies current color; dropdown opens ~120-swatch color picker with Custom Color… option.
-- **Character Highlighting Color** (split-button ▼) — Marker-pen highlight; dropdown opens color picker.
-
-| *(separator)* |
-
-- **Align Left** (Ctrl+L) / **Align Center** (Ctrl+E) / **Align Right** (Ctrl+R) / **Justified** (Ctrl+J)
-
-| *(separator)* |
-
-- **Toggle Unordered List** (Shift+F12, split-button ▼) — Bullet list; dropdown shows 8 bullet styles + Customize…
-- **Toggle Ordered List** (F12, split-button ▼) — Numbered list; dropdown shows 8 numbering styles + Customize…
-- **Select Outline Format** (split-button ▼) — Multi-level outline presets.
-- **Increase Indent** / **Decrease Indent**
-
-| *(separator)* |
-
-- **Set Line Spacing** (split-button ▼) — Presets (1, 1.15, 1.5, 2) plus custom value editor.
-- **Increase Paragraph Spacing** / **Decrease Paragraph Spacing**
+- **Category toolbar:** Paragraph Styles, Character Styles, Frame Styles, Page Styles, List Styles, Table Styles, Fill Format Mode, Styles actions ▼
+- **Style list:** Hierarchical tree of all styles (Default Paragraph Style, Body Text, Caption, Heading, Index, etc.)
+- **Right-click on a style:** New…, Edit Style…, Hide, Show, Delete…
+- **Show Previews** / **Spotlight** checkboxes
+- **Filter dropdown:** Hierarchical, All Styles, Hidden Styles, Applied Styles, Custom Styles, Automatic, Text/Document/List/Index/Special/HTML/Conditional Styles
+- **Styles actions dropdown:** New Style from Selection, Update Selected Style, Load Styles from Template
 

@@ -18,7 +18,7 @@ You can insert or delete rows and columns through **Sheet > Insert Columns** or 
 
 ## UI Reference  —  Insert Menu
 
-_Scope: OLE Object… for embedding Calc spreadsheets_
+_Scope: OLE Object submenu for inserting embedded spreadsheets_
 
 The Insert menu provides commands for adding content elements — breaks, images, tables, shapes, fields, footnotes, hyperlinks, and more — into the document.
 

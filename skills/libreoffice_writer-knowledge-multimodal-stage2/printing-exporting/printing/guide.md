@@ -24,7 +24,7 @@ See `fig03.png`.
 
 ## UI Reference  —  File Menu
 
-_Scope: Print (Ctrl+P), Print Preview (Shift+Ctrl+O), Printer Settings_
+_Scope: Print (Ctrl+P), Print Preview (Shift+Ctrl+O), Printer Settings commands_
 
 The File menu manages the full document lifecycle: creating, opening, saving, exporting, printing, and closing documents.
 
@@ -56,4 +56,65 @@ Read the screenshot `ui-file-menu.png` in this directory.
 - **Properties…** — Open the 6-tab document properties dialog (General, Description, Custom Properties, Security, Font, Statistics).
 - **Digital Signatures** (►) — Digital Signatures…, Sign Existing PDF…
 - **Exit LibreOffice** (Ctrl+Q) — Quit the entire suite.
+
+---
+
+## UI Reference  —  Standard Toolbar
+
+_Scope: Print (Ctrl+P) and Toggle Print Preview buttons_
+
+The first toolbar row below the menu bar provides quick access to file operations, clipboard, editing, and insert commands.
+
+Read the screenshot `ui-standard-toolbar.png` in this directory.
+
+## Elements
+
+Row (left → right):
+
+- **New** (Ctrl+N, split-button ▼) — New document; dropdown lists all document types.
+- **Open** (Ctrl+O) — Open file dialog.
+- **Save** (Ctrl+S, split-button ▼) — Save; dropdown: Save As…, Export…, Save a Copy…, Save as Template…, Save Remote File…
+- **Export Directly as PDF** — One-click PDF export.
+- **Print** (Ctrl+P) — Print dialog.
+- **Toggle Print Preview** (Shift+Ctrl+O)
+
+| *(separator)* |
+
+- **Cut** (Ctrl+X) / **Copy** (Ctrl+C) / **Paste** (Ctrl+V, split-button ▼)
+- **Clone Formatting** — Paint-format brush; double-click for persistent mode.
+
+| *(separator)* |
+
+- **Undo** (Ctrl+Z, split-button ▼) / **Redo** (Ctrl+Y)
+
+| *(separator)* |
+
+- **Find and Replace** (Ctrl+H) — Opens Find & Replace dialog.
+- **Check Spelling** (F7)
+- **Toggle Formatting Marks** (Ctrl+F10) — Show/hide ¶ marks, spaces, tabs.
+
+| *(separator)* |
+
+- **Insert Table** (Ctrl+F12, split-button ▼) — Dialog or visual grid picker for row×column count.
+- **Insert Image** — File picker for images.
+- **Insert Chart** — Embed chart OLE object.
+- **Insert Text Box** — Draw a text frame on canvas.
+- **Insert Page Break** (Ctrl+Return)
+- **Insert Field** (split-button ▼) — Page Number, Page Count, Date/Time, Title, Author, Subject, More Fields…
+- **Insert Special Characters** (split-button ▼) — Full character picker or favorites quick-pick.
+
+| *(separator)* |
+
+- **Insert Hyperlink** (Ctrl+K) — Hyperlink dialog.
+- **Insert Footnote** / **Insert Endnote**
+- **Insert Bookmark** — Bookmark dialog.
+- **Insert Cross-reference** — Cross-reference dialog.
+- **Insert Comment** (Ctrl+Alt+C)
+- **Show Track Changes Functions** — Toggle Track Changes toolbar.
+
+| *(separator)* |
+
+- **Insert Line** — Line-drawing mode; double-click for persistent mode.
+- **Basic Shapes** (split-button ▼) — 4×6 shape palette.
+- **Show Draw Functions** — Toggle Drawing toolbar.
 

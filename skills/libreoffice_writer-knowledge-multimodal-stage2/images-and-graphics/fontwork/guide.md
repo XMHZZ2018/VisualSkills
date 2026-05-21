@@ -22,7 +22,7 @@ Finally, **Toggle Extrusion** flips your Fontwork between a flat 2D look and a 3
 
 ## UI Reference  —  Insert Menu
 
-_Scope: Fontwork… gallery_
+_Scope: Fontwork… command opening decorative text gallery_
 
 The Insert menu provides commands for adding content elements — breaks, images, tables, shapes, fields, footnotes, hyperlinks, and more — into the document.
 

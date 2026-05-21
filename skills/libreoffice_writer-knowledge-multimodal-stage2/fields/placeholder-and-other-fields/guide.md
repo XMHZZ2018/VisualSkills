@@ -24,7 +24,7 @@ One handy safeguard: content from a document with a higher classification level 
 
 ## UI Reference  —  Insert Menu
 
-_Scope: Field > More Fields… (Ctrl+F2) Functions tab_
+_Scope: Field > More Fields… (Ctrl+F2) for Functions tab placeholder fields_
 
 The Insert menu provides commands for adding content elements — breaks, images, tables, shapes, fields, footnotes, hyperlinks, and more — into the document.
 

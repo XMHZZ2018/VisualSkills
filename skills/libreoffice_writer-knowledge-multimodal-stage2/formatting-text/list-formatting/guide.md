@@ -32,7 +32,7 @@ One thing to keep in mind: direct list formatting applied this way can't be remo
 
 ## UI Reference  —  Format Menu
 
-_Scope: Lists submenu (Unordered/Ordered, Demote/Promote), Bullets and Numbering…_
+_Scope: Lists submenu (Unordered/Ordered List, Demote/Promote, Restart), Bullets and Numbering…_
 
 The Format menu controls text styling, paragraph formatting, page layout, and document-level formatting options.
 
@@ -61,7 +61,7 @@ Read the screenshot `ui-format-menu.png` in this directory.
 
 ## UI Reference  —  Formatting Toolbar
 
-_Scope: Toggle Unordered/Ordered List, Select Outline Format, Increase/Decrease Indent_
+_Scope: Toggle Unordered/Ordered List (with style palettes), Outline Format, Increase/Decrease Indent_
 
 The second toolbar row provides all character and paragraph formatting controls with split-button dropdowns.
 
@@ -110,7 +110,7 @@ Row (left → right):
 
 ## UI Reference  —  Styles Menu & Styles Panel
 
-_Scope: Styles menu List styles section: Bullet, Numbering presets_
+_Scope: Styles menu List styles section: No List, Bullet, Numbering variants_
 
 LibreOffice Writer uses a style-based formatting system. The Styles menu provides quick-apply shortcuts, while the Styles panel (F11) offers full management.
 

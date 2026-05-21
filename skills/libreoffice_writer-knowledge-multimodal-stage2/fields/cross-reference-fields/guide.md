@@ -18,7 +18,7 @@ One practical tip: some people reach for hyperlinks instead of cross-references,
 
 ## UI Reference  —  Insert Menu
 
-_Scope: Cross-reference… dialog_
+_Scope: Cross-reference… command for automatic cross-references_
 
 The Insert menu provides commands for adding content elements — breaks, images, tables, shapes, fields, footnotes, hyperlinks, and more — into the document.
 

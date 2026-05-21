@@ -24,7 +24,7 @@ On Windows, you'll also see a **Further Objects** option in the Object Type list
 
 ## UI Reference  —  Insert Menu
 
-_Scope: OLE Object submenu: OLE Object… dialog_
+_Scope: OLE Object > OLE Object… command for embedding/linking_
 
 The Insert menu provides commands for adding content elements — breaks, images, tables, shapes, fields, footnotes, hyperlinks, and more — into the document.
 

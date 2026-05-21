@@ -24,7 +24,7 @@ Deleting a table is straightforward: right-click inside it and pick **Delete > T
 
 ## UI Reference  —  Table & Form Menus
 
-_Scope: Sort…, Edit Formula (F2), Protect/Unprotect Cells, Select, Delete_
+_Scope: Select submenu, Protect/Unprotect Cells, Sort…, Edit Formula (F2), Number Recognition_
 
 The Table menu manages table creation and editing. The Form menu provides form controls and design tools. Most Table items are context-sensitive and greyed when the cursor is not in a table.
 

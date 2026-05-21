@@ -16,9 +16,58 @@ To restart numbering, right-click the paragraph and select **List > Restart Numb
 
 ---
 
+## UI Reference  —  Formatting Toolbar
+
+_Scope: Toggle Unordered/Ordered List buttons, indent controls for list level changes_
+
+The second toolbar row provides all character and paragraph formatting controls with split-button dropdowns.
+
+Read the screenshot `ui-formatting-toolbar.png` in this directory.
+
+## Elements
+
+Row (left → right):
+
+- **Paragraph Style** dropdown — Shows current style (e.g. "Default Paragraph Style"). Dropdown lists: Clear formatting, Default Paragraph Style, Body Text, Title, Subtitle, Heading 1–4, Block Quotation, Preformatted Text, More Styles…
+- **Update Selected Style** (Shift+Ctrl+F11) — Update current style to match cursor formatting.
+- **New Style from Selection** (Shift+F11) — Create a new style from current formatting.
+- **Font Name** dropdown — Shows/changes the font (e.g. "Liberation Serif"). Lists all installed fonts rendered in their own typeface.
+- **Font Size** dropdown — Shows/changes size in pt (6–48, plus custom values).
+
+| *(separator)* |
+
+- **Bold** (Ctrl+B) / **Italic** (Ctrl+I)
+- **Underline** (Ctrl+U, split-button ▼) — Toggle; dropdown offers 11 underline styles (single, double, bold, dotted, dashed, wavy, etc.) plus More Options…
+- **Strikethrough**
+- **Superscript** (Shift+Ctrl+P) / **Subscript** (Shift+Ctrl+B)
+- **Clear Direct Formatting** (Ctrl+M) — Eraser icon; removes all manual formatting.
+
+| *(separator)* |
+
+- **Font Color** (split-button ▼) — Applies current color; dropdown opens ~120-swatch color picker with Custom Color… option.
+- **Character Highlighting Color** (split-button ▼) — Marker-pen highlight; dropdown opens color picker.
+
+| *(separator)* |
+
+- **Align Left** (Ctrl+L) / **Align Center** (Ctrl+E) / **Align Right** (Ctrl+R) / **Justified** (Ctrl+J)
+
+| *(separator)* |
+
+- **Toggle Unordered List** (Shift+F12, split-button ▼) — Bullet list; dropdown shows 8 bullet styles + Customize…
+- **Toggle Ordered List** (F12, split-button ▼) — Numbered list; dropdown shows 8 numbering styles + Customize…
+- **Select Outline Format** (split-button ▼) — Multi-level outline presets.
+- **Increase Indent** / **Decrease Indent**
+
+| *(separator)* |
+
+- **Set Line Spacing** (split-button ▼) — Presets (1, 1.15, 1.5, 2) plus custom value editor.
+- **Increase Paragraph Spacing** / **Decrease Paragraph Spacing**
+
+---
+
 ## UI Reference  —  Styles Menu & Styles Panel
 
-_Scope: Styles menu: List styles (Bullet, Numbering 123/ABC/abc/IVX/ivx)_
+_Scope: List Styles category; Styles menu list style entries_
 
 LibreOffice Writer uses a style-based formatting system. The Styles menu provides quick-apply shortcuts, while the Styles panel (F11) offers full management.
 

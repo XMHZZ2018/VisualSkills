@@ -22,9 +22,40 @@ Finally, the quickest way to check or change the language is right on the **Stat
 
 ---
 
+## UI Reference  —  Status Bar
+
+_Scope: Language segment: click to change language for selection/paragraph or set to None_
+
+The status bar runs across the bottom of the window. Every segment is interactive.
+
+Read the screenshot `ui-status-bar.png` in this directory.
+
+## Segments (left to right)
+
+- **Page Number** ("Page 1 of 1") — Left-click opens Go to Page dialog (page number spinner). Right-click shows bookmark list.
+
+- **Word / Character Count** ("0 words, 0 characters") — Left-click opens Word Count dialog showing Words, Characters (incl/excl spaces), Comments for both selection and whole document.
+
+- **Page Style** ("Default Page Style") — Left-click opens the Page Style dialog (9 tabs: Organizer, Page, Area, Transparency, Header, Footer, Borders, Columns, Footnote). Right-click shows quick-change list of all page styles: Default Page Style, First Page, Left Page, Right Page, Envelope, Index, HTML, Footnote, Endnote, Landscape.
+
+- **Language** ("English (USA)") — Click opens language popup: current language (checked), None (no spell-check), Reset to Default Language, More…, Set Language for Paragraph (►).
+
+- **Selection Mode** — Click opens radio-button popup: Standard selection, Extending selection, Adding selection, Block selection.
+
+- **View Layout buttons** — Three icons:
+  - Single-page view (one page at a time)
+  - Multiple-page view (pages side by side)
+  - Book view (two-page spread)
+
+- **Zoom controls** — Zoom Out (−) button, drag slider, Zoom In (+) button.
+
+- **Zoom Percentage** ("100%") — Left-click opens Zoom & View Layout dialog (Optimal, Fit width and height, Fit width, 100%, Custom; View Layout: Automatic, Single page, Columns, Book mode). Right-click shows quick-pick presets: Entire Page, Page Width, Optimal View, 50%–200%.
+
+---
+
 ## UI Reference  —  Tools Menu
 
-_Scope: Language submenu: For Selection/Paragraph/All Text, More Dictionaries Online_
+_Scope: Language submenu: For Selection/Paragraph/All Text, More Dictionaries Online…_
 
 The Tools menu provides document proofing, language settings, automation, and application-wide configuration.
 

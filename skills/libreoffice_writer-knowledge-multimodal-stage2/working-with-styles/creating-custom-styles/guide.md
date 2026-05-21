@@ -16,45 +16,9 @@ See `fig02.png` for the hierarchical view showing style inheritance between Head
 
 ---
 
-## UI Reference  —  Right Sidebar
-
-_Scope: Styles actions dropdown: New Style from Selection, Update Selected Style_
-
-The collapsed right sidebar is a vertical strip of 8 icon buttons along the right edge of the window. Each opens a full docked panel. Toggle the sidebar with Ctrl+F5 or View > Sidebar.
-
-Read the screenshot `ui-right-sidebar-location.png` in this directory.
-
-## Panel Buttons (top to bottom)
-
-- **Properties** (Alt+1) — Formatting panel with three collapsible sections:
-  - *Style:* Paragraph style dropdown, Clone Formatting, Update/New Style buttons.
-  - *Character:* Font family, size, Bold/Italic/Underline/Strikethrough, Font Color, Highlighting, Change Case, Super/Subscript.
-  - *Paragraph:* Alignment, lists/indent toolbar, line spacing, above/below spacing fields, left/right/first-line indent.
-
-- **Styles** (Alt+2 / F11) — Full style manager: category toolbar (Paragraph/Character/Frame/Page/List/Table Styles), hierarchical style list, Fill Format Mode, filter dropdown. See [Styles](styles.md).
-
-- **Gallery** (Alt+3) — Clip-art browser: categories (Arrows, BPMN, Bullets, Diagrams, Flow chart, Icons), thumbnail grid, Icon/Detailed view, New… button.
-
-- **Navigator** (Alt+4 / F5) — Document structure tree: Headings, Tables, Frames, Images, OLE objects, Bookmarks, Sections, Hyperlinks, References, Indexes, Comments, Drawing objects, Fields, Footnotes, Endnotes. Includes page navigation controls and drag-mode options.
-
-- **Page** (Alt+5) — Page layout panel:
-  - *Format:* Size (A4), Width/Height, Orientation (Portrait/Landscape), Margins.
-  - *Styles:* Page number format, Background, Layout, Columns.
-  - *Header/Footer:* Enable toggles, margins, spacing, same-content options.
-
-- **Style Inspector** (Alt+6) — Two-column Properties/Value tree showing all applied styles: Paragraph Styles, Paragraph Direct Formatting, Character Styles, Character Direct Formatting (50+ properties per node).
-
-- **Manage Changes** (Alt+7) — Two tabs:
-  - *List:* Action/Author/Date/Comment table with Accept/Reject/Accept All/Reject All buttons.
-  - *Filter:* Date range, Author, Action, Comment filters.
-
-- **Accessibility Check** (Alt+8) — Runs an accessibility audit and lists issues by category, each with a Fix… button.
-
----
-
 ## UI Reference  —  Styles Menu & Styles Panel
 
-_Scope: Styles actions: New Style from Selection (Shift+F11)_
+_Scope: Styles panel right-click New…, Styles actions > New Style from Selection_
 
 LibreOffice Writer uses a style-based formatting system. The Styles menu provides quick-apply shortcuts, while the Styles panel (F11) offers full management.
 

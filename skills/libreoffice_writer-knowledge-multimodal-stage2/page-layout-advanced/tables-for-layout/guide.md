@@ -28,7 +28,7 @@ If you'd rather have each paragraph break onto its own row (handy when content g
 
 ## UI Reference  —  Table & Form Menus
 
-_Scope: Insert Table, Size, Properties for layout tables_
+_Scope: Insert Table dialog and table size/properties commands for layout use_
 
 The Table menu manages table creation and editing. The Form menu provides form controls and design tools. Most Table items are context-sensitive and greyed when the cursor is not in a table.
 

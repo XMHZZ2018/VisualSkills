@@ -26,7 +26,7 @@ See `fig03.png` for the initial configuration of the Poem style.
 
 ## UI Reference  —  Styles Menu & Styles Panel
 
-_Scope: Styles actions: New from Selection, Update Selected Style, Load from Template; right-click New/Edit/Delete_
+_Scope: Styles actions: New Style from Selection, Update Selected Style, Load from Template; right-click New/Edit/Delete_
 
 LibreOffice Writer uses a style-based formatting system. The Styles menu provides quick-apply shortcuts, while the Styles panel (F11) offers full management.
 

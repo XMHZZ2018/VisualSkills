@@ -22,7 +22,7 @@ If you need numbering to start at a specific value, click in the target paragrap
 
 ## UI Reference  —  Tools Menu
 
-_Scope: Line Numbering… dialog_
+_Scope: Line Numbering… command_
 
 The Tools menu provides document proofing, language settings, automation, and application-wide configuration.
 

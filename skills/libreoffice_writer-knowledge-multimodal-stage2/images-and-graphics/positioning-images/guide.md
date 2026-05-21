@@ -20,7 +20,7 @@ Note: when an image is anchored *As Character*, wrapping options are disabled â€
 
 ## UI Reference  â€”  Format Menu
 
-_Scope: Anchor, Wrap, Arrange context-sensitive submenus_
+_Scope: Anchor, Wrap, Arrange context-sensitive submenus for selected objects_
 
 The Format menu controls text styling, paragraph formatting, page layout, and document-level formatting options.
 

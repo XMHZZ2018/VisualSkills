@@ -38,7 +38,7 @@ Finally, the **AutoCaption** page lets Writer automatically insert captions when
 
 ## UI Reference  —  Tools Menu
 
-_Scope: Options… > LibreOffice Writer subtree_
+_Scope: Options > LibreOffice Writer sub-tree (General, View, Formatting Aids, Table, Changes)_
 
 The Tools menu provides document proofing, language settings, automation, and application-wide configuration.
 

@@ -18,30 +18,82 @@ Between these three methods — toggling first-page content within one style, ch
 
 ---
 
-## UI Reference  —  Format Menu
+## UI Reference  —  Document Structure: Sections, Headers/Footers & Heading Numbering
 
-_Scope: Title Page… dialog_
+_Scope: Header/footer Same content on first page checkbox_
 
-The Format menu controls text styling, paragraph formatting, page layout, and document-level formatting options.
+These features control document organization beyond basic paragraph flow.
 
-Read the screenshot `ui-format-menu.png` in this directory.
+## Insert Section Dialog (Insert > Section...)
 
-## Elements
+(see screenshot `ui-insert-section-dialog.png`)
 
-- **Text** (►) — 19 text style commands: Bold (Ctrl+B), Italic (Ctrl+I), Single/Double Underline, Strikethrough, Overline, Superscript (Shift+Ctrl+P), Subscript (Shift+Ctrl+B), Shadow, Outline Font Effect, Increase/Decrease Size (Ctrl+]/[), case transforms (UPPERCASE, lowercase, Cycle Case Shift+F3, Sentence case, Capitalize Every Word, tOGGLE cASE), Small Capitals (Shift+Ctrl+K).
-- **Spacing** (►) — Line Spacing (1, 1.15, 1.5, 2), Increase/Decrease Paragraph Spacing, Increase/Decrease Indent.
-- **Align Text** (►) — Left (Ctrl+L), Centered (Ctrl+E), Right (Ctrl+R), Justified (Ctrl+J).
-- **Clone Formatting** — Paint formatting from selection to other text.
-- **Clear Direct Formatting** (Ctrl+M) — Remove all manual formatting, revert to style defaults.
-- **Spotlight** (►) — Highlight formatting in document: Character Direct Formatting, Paragraph Styles, Character Styles.
-- **Character…** — Opens the Character dialog (see [Formatting Dialogs](formatting-dialogs.md)).
-- **Paragraph…** — Opens the Paragraph dialog (see [Formatting Dialogs](formatting-dialogs.md)).
-- **Lists** (►) — No List (Shift+Ctrl+F12), Unordered List (Shift+F12), Ordered List (F12), Demote/Promote Outline Level, Move Item Down/Up (Ctrl+Alt+Down/Up), Insert Unnumbered Entry, Restart Numbering, Add to List.
-- **Bullets and Numbering…** — Full list formatting dialog.
-- **Theme…** — Document theme settings.
-- **Page Style…** (Shift+Alt+P) — Opens the Page Style dialog (see [Formatting Dialogs](formatting-dialogs.md)).
-- **Title Page…** — Add/configure title pages.
-- **Columns…** — Multi-column page layout dialog.
-- **Watermark…** — Insert or configure a watermark.
-- Context-sensitive submenus (active when an object is selected): Image, Text Box and Shape, Frame and Object, Anchor, Wrap, Arrange, Rotate or Flip, Group.
+Creates named, nestable document regions with independent formatting. **Tabs:** Section, Columns, Indents, Area, Footnotes/Endnotes.
+
+**Section tab:**
+- **Section name** field — auto-increments (Section1, Section2...). Section tree below shows existing sections for nesting.
+- **Link** group — Link checkbox enables: File name field + Browse... button (import content from external file), DDE checkbox (Dynamic Data Exchange), Section dropdown (choose which section of the linked file).
+- **Write Protection** — Protect checkbox (makes section read-only), With password checkbox (opens Enter Password sub-dialog, min 5 chars).
+- **Hide** — Hide checkbox (makes section invisible), With Condition field (boolean expression for conditional hiding).
+- **Properties** — Editable in read-only document checkbox.
+
+**Columns tab:** Column count spinner (1-n), 5 preset layout icons, AutoWidth, per-column width/spacing spinners, separator line options (style, width, color, height, position).
+
+**Indents tab:** Before section / After section indent spinners with preview.
+
+**Area tab:** Background fill: None, Color (swatch grid + RGB/hex + Pick...), or Image (built-in textures, import, style/position/tiling controls).
+
+**Footnotes/Endnotes tab:** Collect at end of text/section, restart numbering, custom format (before/after text + numbering style).
+
+### Edit Sections Dialog (Format > Sections...)
+
+Manages all document sections. Hierarchical section tree with state icons (lock = protected, arrow = hidden/linked). Controls mirror Insert Section but add **Options...** button (opens Columns/Indents/Background/Footnotes sub-dialog) and **Remove** button (no confirmation; reverted by Cancel).
+
+## Headers & Footers
+
+Headers/footers are enabled per page style via Insert > Header and Footer > Header/Footer > Default Page Style (toggle).
+
+(see screenshot `ui-header-dropdown.png`)
+
+**Inline editing:** Click the header/footer zone at the top/bottom of the page canvas. A dashed separator line and a label button ("Header/Footer (Default Page Style)") appear.
+
+**Dropdown menu (▼ on label button):**
+- Format Header/Footer... — opens Page Style dialog at Header/Footer tab
+- Border and Background... — opens Border/Background dialog (Borders, Area, Transparency tabs)
+- Delete Header/Footer... — confirmation dialog (irreversible)
+- Insert Page Number — inserts page number field at cursor
+- Insert Page Count — inserts total page count field at cursor
+
+**Page Style Header/Footer tabs** (via Format Header/Footer... or right-click > Page Style...):
+- Header/Footer on checkbox, Same content on left/right pages, Same content on first page
+- Left/Right margins, Spacing (gap between header/footer and body), Height, AutoFit height
+- More... button opens Border/Background sub-dialog
+
+**Visibility:** Dashed lines and label button only appear when "Use header/footer menu" is enabled (Insert > Header and Footer) AND cursor is in the header/footer zone.
+
+## Heading Numbering Dialog (Tools > Heading Numbering...)
+
+(see screenshot `ui-heading-numbering-dialog.png`)
+
+Configures automated numbering for heading levels 1-10. **Tabs:** Numbering, Position.
+
+**Level selector** (left column): Click levels 1-10 individually, or "1 - 10" to edit all levels at once.
+
+**Numbering tab:**
+- **Number** dropdown — None, 1/2/3, A/B/C, a/b/c, I/II/III, i/ii/iii, ordinals, words, Cyrillic variants, symbols
+- **Start at** spinner (default 1)
+- **Paragraph style** dropdown — maps each level to a heading style (Level N → Heading N by default)
+- **Character style** dropdown — applies a character style to the number portion only
+- **Show sublevels** spinner — how many ancestor numbers to prepend (e.g., 2 on level 2 → "1.1")
+- **Separator** Before/After fields — text around the number (e.g., "Chapter " before, "." after)
+- **Preview panel** — live 10-level preview
+
+**Position tab:**
+- **Alignment** dropdown (Left/Centered/Right)
+- **Aligned at** spinner — distance from left margin for the number
+- **Followed by** dropdown — Tab stop (with Tab stop at spinner), Space, Nothing, or New Line
+- **Indent at** spinner — body text indent for the heading
+- **Default** button — resets position settings to built-in defaults
+
+**Bottom bar:** Help, Load/Save (9 preset slots + Save As...), Reset, Cancel, OK.
 

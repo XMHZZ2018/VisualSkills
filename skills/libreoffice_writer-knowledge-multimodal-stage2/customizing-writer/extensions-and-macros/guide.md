@@ -27,7 +27,7 @@ If you've reassigned shortcut keys and want to start fresh, open the **Customize
 
 ## UI Reference  —  Tools Menu
 
-_Scope: Macros submenu (Run, Edit, Organize), Extensions… (Ctrl+Alt+E)_
+_Scope: Extensions… (Ctrl+Alt+E), Macros submenu (Run, Edit, Organize, Digital Signature)_
 
 The Tools menu provides document proofing, language settings, automation, and application-wide configuration.
 

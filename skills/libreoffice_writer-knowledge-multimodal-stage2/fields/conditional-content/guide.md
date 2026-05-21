@@ -26,7 +26,7 @@ When you're ready to switch editions — say, from Lite to Pro — just find the
 
 ## UI Reference  —  Insert Menu
 
-_Scope: Field > More Fields… (Ctrl+F2) for conditional/hidden fields_
+_Scope: Field > More Fields… (Ctrl+F2) for Functions tab conditional text and hidden fields_
 
 The Insert menu provides commands for adding content elements — breaks, images, tables, shapes, fields, footnotes, hyperlinks, and more — into the document.
 

@@ -22,7 +22,7 @@ On the **Styles** tab you can assign a different paragraph style to each TOC lev
 
 ## UI Reference  —  Insert Menu
 
-_Scope: Table of Contents and Index > TOC/Index/Bibliography dialog_
+_Scope: Table of Contents and Index submenu: TOC/Index/Bibliography dialog_
 
 The Insert menu provides commands for adding content elements — breaks, images, tables, shapes, fields, footnotes, hyperlinks, and more — into the document.
 

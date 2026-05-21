@@ -24,7 +24,7 @@ The Paragraph dialog (**Format > Paragraph…**) has several other useful tabs. 
 
 ## UI Reference  —  Document Canvas, Rulers & Scrollbars
 
-_Scope: Ruler indent triangles (first-line, left, right), tab stops, double-click opens Paragraph dialog_
+_Scope: Tab stops on ruler, first-line/hanging/left/right indent triangles, double-click opens Paragraph dialog_
 
 The main editing surface and its surrounding controls for navigation, measurement, and layout.
 
@@ -68,7 +68,7 @@ Not visible by default. Enable via View > Rulers > Vertical Ruler. Shows top/bot
 
 ## UI Reference  —  Format Menu
 
-_Scope: Paragraph…, Spacing submenu, Align Text submenu_
+_Scope: Paragraph…, Spacing submenu (line spacing, paragraph spacing), Align Text submenu_
 
 The Format menu controls text styling, paragraph formatting, page layout, and document-level formatting options.
 
@@ -97,7 +97,7 @@ Read the screenshot `ui-format-menu.png` in this directory.
 
 ## UI Reference  —  Key Formatting Dialogs
 
-_Scope: Paragraph dialog tabs: Indents & Spacing, Alignment, Text Flow, Tabs, Drop Caps_
+_Scope: Paragraph dialog: Indents & Spacing, Alignment, Text Flow, Tabs, Drop Caps tabs_
 
 These multi-tab dialogs provide detailed control over character formatting, paragraph layout, page styles, and search/replace.
 
@@ -150,7 +150,7 @@ Opened via Edit > Find and Replace… or Ctrl+H.
 
 ## UI Reference  —  Formatting Toolbar
 
-_Scope: Align Left/Center/Right/Justified, Increase/Decrease Indent, Line Spacing, Paragraph Spacing_
+_Scope: Align Left/Center/Right/Justified, Set Line Spacing, Increase/Decrease Paragraph Spacing_
 
 The second toolbar row provides all character and paragraph formatting controls with split-button dropdowns.
 
@@ -194,40 +194,4 @@ Row (left → right):
 
 - **Set Line Spacing** (split-button ▼) — Presets (1, 1.15, 1.5, 2) plus custom value editor.
 - **Increase Paragraph Spacing** / **Decrease Paragraph Spacing**
-
----
-
-## UI Reference  —  Right Sidebar
-
-_Scope: Properties > Paragraph section: alignment, spacing, indent fields_
-
-The collapsed right sidebar is a vertical strip of 8 icon buttons along the right edge of the window. Each opens a full docked panel. Toggle the sidebar with Ctrl+F5 or View > Sidebar.
-
-Read the screenshot `ui-right-sidebar-location.png` in this directory.
-
-## Panel Buttons (top to bottom)
-
-- **Properties** (Alt+1) — Formatting panel with three collapsible sections:
-  - *Style:* Paragraph style dropdown, Clone Formatting, Update/New Style buttons.
-  - *Character:* Font family, size, Bold/Italic/Underline/Strikethrough, Font Color, Highlighting, Change Case, Super/Subscript.
-  - *Paragraph:* Alignment, lists/indent toolbar, line spacing, above/below spacing fields, left/right/first-line indent.
-
-- **Styles** (Alt+2 / F11) — Full style manager: category toolbar (Paragraph/Character/Frame/Page/List/Table Styles), hierarchical style list, Fill Format Mode, filter dropdown. See [Styles](styles.md).
-
-- **Gallery** (Alt+3) — Clip-art browser: categories (Arrows, BPMN, Bullets, Diagrams, Flow chart, Icons), thumbnail grid, Icon/Detailed view, New… button.
-
-- **Navigator** (Alt+4 / F5) — Document structure tree: Headings, Tables, Frames, Images, OLE objects, Bookmarks, Sections, Hyperlinks, References, Indexes, Comments, Drawing objects, Fields, Footnotes, Endnotes. Includes page navigation controls and drag-mode options.
-
-- **Page** (Alt+5) — Page layout panel:
-  - *Format:* Size (A4), Width/Height, Orientation (Portrait/Landscape), Margins.
-  - *Styles:* Page number format, Background, Layout, Columns.
-  - *Header/Footer:* Enable toggles, margins, spacing, same-content options.
-
-- **Style Inspector** (Alt+6) — Two-column Properties/Value tree showing all applied styles: Paragraph Styles, Paragraph Direct Formatting, Character Styles, Character Direct Formatting (50+ properties per node).
-
-- **Manage Changes** (Alt+7) — Two tabs:
-  - *List:* Action/Author/Date/Comment table with Accept/Reject/Accept All/Reject All buttons.
-  - *Filter:* Date range, Author, Action, Comment filters.
-
-- **Accessibility Check** (Alt+8) — Runs an accessibility audit and lists issues by category, each with a Fix… button.
 

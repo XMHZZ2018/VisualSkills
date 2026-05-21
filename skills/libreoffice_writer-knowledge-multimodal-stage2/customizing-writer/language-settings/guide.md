@@ -22,7 +22,7 @@ For sentence-level grammar checking, LibreOffice uses checkers that are enabled 
 
 ## UI Reference  —  Tools Menu
 
-_Scope: Options… > Language Settings subtree_
+_Scope: Options > Language Settings path; Language > More Dictionaries Online…_
 
 The Tools menu provides document proofing, language settings, automation, and application-wide configuration.
 

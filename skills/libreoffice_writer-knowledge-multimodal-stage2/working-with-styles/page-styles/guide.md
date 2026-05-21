@@ -20,7 +20,7 @@ Use the **Page numbers** dropdown to choose a numbering style (1, 2, 3 or i, ii,
 
 ## UI Reference  —  Right Sidebar
 
-_Scope: Page panel (Alt+5) and Styles > Page Styles category_
+_Scope: Page panel: page number format, background, layout, columns, header/footer toggles_
 
 The collapsed right sidebar is a vertical strip of 8 icon buttons along the right edge of the window. Each opens a full docked panel. Toggle the sidebar with Ctrl+F5 or View > Sidebar.
 
@@ -51,4 +51,41 @@ Read the screenshot `ui-right-sidebar-location.png` in this directory.
   - *Filter:* Date range, Author, Action, Comment filters.
 
 - **Accessibility Check** (Alt+8) — Runs an accessibility audit and lists issues by category, each with a Fix… button.
+
+---
+
+## UI Reference  —  Styles Menu & Styles Panel
+
+_Scope: Page Styles category in Styles panel toolbar_
+
+LibreOffice Writer uses a style-based formatting system. The Styles menu provides quick-apply shortcuts, while the Styles panel (F11) offers full management.
+
+Read the screenshot `ui-styles-menu.png` in this directory.
+
+## Styles Menu
+
+The menu has three radio-button sections for quick style application:
+
+**Paragraph styles:**
+- Body Text (Ctrl+0), Title, Subtitle, Heading 1 (Ctrl+1), Heading 2 (Ctrl+2), Heading 3 (Ctrl+3), Block Quotation, Preformatted Text
+
+**Character styles:**
+- No Character Style (default), Emphasis, Strong Emphasis, Quotation, Source Text
+
+**List styles:**
+- No List (Shift+Ctrl+F12), Bullet • List Style, Numbering 123/ABC/abc/IVX/ivx List Styles
+
+**Management commands:**
+- Edit Style… (Alt+P), Update Selected Style (Shift+Ctrl+F11), New Style from Selection (Shift+F11), Load Styles from Template, Manage Styles (F11)
+
+## Styles Panel (F11 / Alt+2)
+
+The Styles panel in the right sidebar provides full style management:
+
+- **Category toolbar:** Paragraph Styles, Character Styles, Frame Styles, Page Styles, List Styles, Table Styles, Fill Format Mode, Styles actions ▼
+- **Style list:** Hierarchical tree of all styles (Default Paragraph Style, Body Text, Caption, Heading, Index, etc.)
+- **Right-click on a style:** New…, Edit Style…, Hide, Show, Delete…
+- **Show Previews** / **Spotlight** checkboxes
+- **Filter dropdown:** Hierarchical, All Styles, Hidden Styles, Applied Styles, Custom Styles, Automatic, Text/Document/List/Index/Special/HTML/Conditional Styles
+- **Styles actions dropdown:** New Style from Selection, Update Selected Style, Load Styles from Template
 
