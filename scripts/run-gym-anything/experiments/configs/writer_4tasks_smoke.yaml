@@ -1,0 +1,14 @@
+# LibreOffice Writer — smoke test: 1 medium task, no skill.
+# Verifies the container-kill watcher fires on max_steps cap.
+model: claude-opus-4-6
+skill_mode: none
+env_dir: vendor/gym-anything/benchmarks/cua_world/environments/libreoffice_writer_env
+result_dir: scripts/run-gym-anything/workspaces
+task_timeout: 1800
+
+task_list:
+  - emergency_action_cards_layout
+
+num_parallel: 1
+rerun: true
+log_level: INFO

@@ -1,0 +1,26 @@
+# 16 test-split Calc tasks for Phase 2b (deterministic seed=42 sample from 38 test tasks).
+model: claude-opus-4-6
+skill_mode: multimodal
+env_dir: vendor/gym-anything/benchmarks/cua_world/environments/libreoffice_calc_env
+result_dir: scripts/run-gym-anything/workspaces
+task_timeout: 1800
+num_parallel: 4
+rerun: false
+log_level: INFO
+task_list:
+  - raffle_ticket_validator
+  - reaction_yield_verifier
+  - recipe_optimizer
+  - science_fair_scoresheet
+  - secret_santa_fixer
+  - seed_viability
+  - soccer_carpool_coordinator
+  - soccer_league_standings
+  - soccer_snack_scheduler
+  - spreadsheet_cleanup
+  - streaming_audit
+  - thru_hike_resupply
+  - tide_window_calculator
+  - version_diff_highlighter
+  - wildlife_log_cleanup
+  - wine_tasting_organizer

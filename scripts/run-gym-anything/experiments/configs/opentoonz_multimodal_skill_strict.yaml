@@ -1,0 +1,21 @@
+# OpenToonz mm-v1 with strict per-step skill_check protocol — 4 failed tasks
+# from the train-split (score = 0 under the plain mm-v1 SKILL.md).
+#
+# Same skill artefacts as opentoonz_multimodal_skill.yaml; only difference is
+# the SKILL.md preamble (skill-check protocol enforces per-step consultation).
+model: claude-opus-4-6
+skill_mode: multimodal
+env_dir: vendor/gym-anything/benchmarks/cua_world/environments/opentoonz_env
+result_dir: scripts/run-gym-anything/workspaces
+task_timeout: 600
+
+task_list:
+  - animate_ghibli_scene
+  - animation_mp4_export
+  - background_composite_render
+  - render_animation
+
+num_parallel: 4
+rerun: true
+use_cache: false
+log_level: INFO

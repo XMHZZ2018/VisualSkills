@@ -24,6 +24,8 @@ import logging
 import os
 import shutil
 import sys
+import threading
+import time
 from pathlib import Path
 
 import docker
@@ -47,6 +49,8 @@ def _resolve_skill_dir(env_name: str, skill_mode: str) -> Path | None:
       skills/<env>-workflow-<mode>         (workflow-style skills, e.g. qgis)
     """
     candidates = [
+        MMSKILLS_ROOT / "skills" / f"{env_name}-knowledge-{skill_mode}-stage1",
+        MMSKILLS_ROOT / "skills" / f"{env_name}-knowledge-{skill_mode}-loader-v1",
         MMSKILLS_ROOT / "skills" / f"{env_name}-knowledge-{skill_mode}-v1",
         MMSKILLS_ROOT / "skills" / f"{env_name}-knowledge-{skill_mode}",
         MMSKILLS_ROOT / "skills" / f"{env_name}-workflow-{skill_mode}",
@@ -148,6 +152,7 @@ DEFAULTS = {
     "model": "claude-opus-4-6",
     "skill_mode": "none",
     "task_timeout": 1800,
+    "max_steps": None,
     "bridge_port_base": 8766,
     "result_dir": "scripts/run-gym-anything/workspaces",
     "claude_cli_image": "ga-claude-cli",
@@ -213,7 +218,11 @@ def discover_tasks(cfg: dict) -> list[str]:
 
 # ── MCP config ──────────────────────────────────────────────────────────────
 
-def _write_mcp_config(output_dir: Path, bridge_port: int) -> None:
+def _write_mcp_config(
+    output_dir: Path,
+    bridge_port: int,
+    skill_dir: Path | None = None,
+) -> None:
     config = {
         "mcpServers": {
             "gym-anything-controller": {
@@ -223,6 +232,20 @@ def _write_mcp_config(output_dir: Path, bridge_port: int) -> None:
             }
         }
     }
+    # If the chosen skill ships its own MCP server at tools/skill_server.py,
+    # register it as an additional MCP server. The skill is mounted read-only
+    # under /opt/mmskills/skills/<skill_name>/.
+    if skill_dir is not None:
+        srv = skill_dir / "tools" / "skill_server.py"
+        if srv.exists():
+            container_srv_path = (
+                f"{CONTAINER_MMSKILLS_ROOT}/skills/{skill_dir.name}"
+                "/tools/skill_server.py"
+            )
+            config["mcpServers"]["skill-loader"] = {
+                "command": "python3",
+                "args": [container_srv_path],
+            }
     (output_dir / "mcp_config.json").write_text(
         json.dumps(config, indent=2), encoding="utf-8"
     )
@@ -237,6 +260,7 @@ def _run_claude_in_docker(
     cfg: dict,
     logger: logging.Logger,
     plugin_dir: str | None = None,
+    bridge_server=None,
 ) -> tuple[str, str]:
     """Run Claude CLI in an isolated Docker container. Returns (stdout, stderr)."""
     cli_args = [
@@ -282,12 +306,38 @@ def _run_claude_in_docker(
         detach=True,
     )
 
+    # Watcher thread: as soon as the env signals episode_done (max_steps
+    # reached or timeout), kill the Claude container so it cannot burn
+    # tokens on EPISODE-ENDED retries. Polls every 1s.
+    killed_by_watcher = threading.Event()
+
+    def _episode_done_watcher() -> None:
+        while not killed_by_watcher.is_set():
+            if bridge_server is not None and getattr(bridge_server, "episode_done", False):
+                logger.info(
+                    "Episode done (%s) — killing Claude container",
+                    getattr(bridge_server, "done_reason", "?"),
+                )
+                try:
+                    container.kill()
+                except Exception:
+                    pass
+                killed_by_watcher.set()
+                return
+            time.sleep(1.0)
+
+    watcher = threading.Thread(target=_episode_done_watcher, daemon=True)
+    watcher.start()
+
     try:
         result = container.wait(timeout=cfg["task_timeout"])
         stdout = container.logs(stdout=True, stderr=False).decode(errors="replace")
         stderr = container.logs(stdout=False, stderr=True).decode(errors="replace")
         exit_code = result.get("StatusCode", -1)
-        logger.info("Claude container exited with code %d", exit_code)
+        if killed_by_watcher.is_set():
+            logger.info("Claude container killed by episode_done watcher")
+        else:
+            logger.info("Claude container exited with code %d", exit_code)
     except Exception as exc:
         logger.warning("Claude container timed out or errored: %s", exc)
         try:
@@ -297,6 +347,7 @@ def _run_claude_in_docker(
         stdout = container.logs(stdout=True, stderr=False).decode(errors="replace")
         stderr = container.logs(stdout=False, stderr=True).decode(errors="replace")
     finally:
+        killed_by_watcher.set()  # stop the watcher
         try:
             container.remove(force=True)
         except Exception:
@@ -344,8 +395,21 @@ def run_single_task(cfg: dict, task_id: str, bridge_port: int) -> int:
     try:
         logger.info("Resetting environment...")
         env.reset(use_cache=cfg["use_cache"])
-        env.set_episode_limits(timeout_sec=cfg["task_timeout"])
-        logger.info("Environment ready (timeout=%ds)", cfg["task_timeout"])
+        # Step budget is the ONLY episode budget. Per-task `init.max_steps`
+        # from task.json drives the cap (or yaml override if set). The env
+        # time budget (`timeout_sec`) is always disabled here so heavier
+        # skill modes are not penalised for slower per-turn inference. The
+        # yaml `task_timeout` (docker container-wait) remains the wall-clock
+        # safety net — see _run_claude_in_docker.
+        max_steps = cfg["max_steps"] if cfg.get("max_steps") is not None else env.max_steps
+        env.set_episode_limits(max_steps=max_steps, timeout_sec=None)
+        logger.info(
+            "Environment ready (env max_steps=%s, env timeout_sec=%s, "
+            "docker wait=%ds)",
+            env.max_steps,
+            getattr(env, "_timeout_sec", None),
+            cfg["task_timeout"],
+        )
     except Exception as exc:
         logger.error("Failed to set up environment: %s", exc)
         env.close()
@@ -369,21 +433,59 @@ def run_single_task(cfg: dict, task_id: str, bridge_port: int) -> int:
             task_data = json.loads(task_json_path.read_text(encoding="utf-8"))
             task_desc = task_data.get("description", "")
 
-        # Skills are exposed to Claude via a per-task plugin dir (no inline
-        # prompt injection). When skill_mode != "none", we build a
-        # single-skill plugin dir scoped to the current env so cross-domain
-        # skills don't leak in.
+        # Skills are exposed to Claude via a per-task plugin dir. When
+        # skill_mode != "none", we build a single-skill plugin dir scoped
+        # to the current env so cross-domain skills don't leak in, AND we
+        # add a one-line nudge to the prompt instructing Claude to consult
+        # the skill before acting (otherwise it tends to ignore registered
+        # plugins and proceed straight to GUI actions).
         plugin_dir = None
+        skill_dir_resolved: Path | None = None
+        skill_nudge = ""
         if cfg["skill_mode"] != "none":
             env_name_for_skill = Path(cfg["env_dir"]).name.removesuffix("_env")
+            skill_dir_resolved = _resolve_skill_dir(
+                env_name_for_skill, cfg["skill_mode"],
+            )
             plugin_dir = _build_plugin_dir(
                 env_name_for_skill, cfg["skill_mode"], output_dir, logger,
             )
+            if plugin_dir is not None:
+                skill_nudge = (
+                    "\n\nBefore acting, you have a domain skill installed as a "
+                    "plugin (visible in your registered skills list). Search "
+                    "your installed skills for one matching this app and "
+                    "task; if found, read its SKILL.md and load the topic "
+                    "guide(s) most relevant to this task BEFORE issuing any "
+                    "GUI actions. The skill contains screenshots and "
+                    "step-by-step UI walkthroughs that will save you from "
+                    "guessing menu paths."
+                )
 
-        prompt = f"{SYSTEM_PROMPT}\n\nTask: {task_desc}"
+        prompt = f"{SYSTEM_PROMPT}{skill_nudge}\n\nTask: {task_desc}"
         (output_dir / "prompt.txt").write_text(prompt, encoding="utf-8")
 
-        _write_mcp_config(output_dir, bridge_port)
+        _write_mcp_config(output_dir, bridge_port, skill_dir=skill_dir_resolved)
+
+        # Project-scoped Claude settings: enforces a <skill_check> block
+        # before every action tool call via a PreToolUse hook.  Picked up
+        # automatically because CWD inside the container is /workspace,
+        # which is bound to output_dir.  Skipped when the skill ships its
+        # own MCP loader (tools/skill_server.py) — those experiments use
+        # an atomic load_topic tool instead of a per-step gate.
+        skill_has_loader = (
+            skill_dir_resolved is not None
+            and (skill_dir_resolved / "tools" / "skill_server.py").exists()
+        )
+        if cfg["skill_mode"] != "none" and not skill_has_loader:
+            claude_dir = output_dir / ".claude"
+            claude_dir.mkdir(exist_ok=True)
+            settings_src = (
+                Path(__file__).parent / "hooks" / "settings.template.json"
+            )
+            (claude_dir / "settings.json").write_text(
+                settings_src.read_text(), encoding="utf-8"
+            )
 
         start_time = datetime.datetime.now()
         docker_client = docker.from_env()
@@ -395,6 +497,7 @@ def run_single_task(cfg: dict, task_id: str, bridge_port: int) -> int:
             stdout, stderr = _run_claude_in_docker(
                 docker_client, output_dir, bridge_port, cfg, logger,
                 plugin_dir=plugin_dir,
+                bridge_server=bridge_server,
             )
             if "API Error: 500" in stdout or "API Error: 500" in stderr:
                 logger.warning("API 500 on attempt %d/%d, retrying...", attempt, max_retries)

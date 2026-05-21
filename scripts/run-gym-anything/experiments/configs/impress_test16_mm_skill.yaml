@@ -1,0 +1,27 @@
+# 16 Impress tasks for Phase 2b (deterministic seed=42 sample from 28 on-disk tasks;
+# no formal test split exists for Impress, so contamination caveat applies).
+model: claude-opus-4-6
+skill_mode: multimodal
+env_dir: vendor/gym-anything/benchmarks/cua_world/environments/libreoffice_impress_env
+result_dir: scripts/run-gym-anything/workspaces
+task_timeout: 1800
+num_parallel: 4
+rerun: false
+log_level: INFO
+task_list:
+  - add_animations
+  - align_and_distribute_images
+  - apply_distinct_master_slides
+  - bcp_training_deck
+  - bulk_text_replace
+  - create_academic_poster_from_slides
+  - create_agenda_summary_slide
+  - create_polaroid_photo_stack
+  - create_product_comparison_table
+  - create_vertical_digital_signage
+  - duplicate_regional_slides
+  - embed_linked_images
+  - fix_typos_and_language
+  - format_code_block_slide
+  - insert_math_equations
+  - recolor_shapes_brand_palette

@@ -168,6 +168,23 @@ class BridgeHandler(BaseHTTPRequestHandler):
         """Translate MCP action and execute on gym-anything env."""
         bridge = self._bridge
         with bridge.env_lock:
+            # Refuse further actions once the episode has ended (e.g. the env
+            # hit its max_steps cap on a previous step). Without this guard the
+            # env.step() counter keeps incrementing past max_steps and the agent
+            # burns budget on no-op actions because the MCP controller used to
+            # ignore the `done` field on every response.
+            if getattr(bridge, "episode_done", False):
+                reason = getattr(bridge, "done_reason", "done")
+                self._json(
+                    {
+                        "ok": False,
+                        "done": True,
+                        "reason": reason,
+                        "error": f"Episode already ended ({reason}); no further actions accepted.",
+                    },
+                    status=409,
+                )
+                return
             try:
                 ga_actions = _translate_action(body)
                 obs, reward, done, info = bridge.env.step(ga_actions)
@@ -175,7 +192,18 @@ class BridgeHandler(BaseHTTPRequestHandler):
                     "action": body.get("action", "unknown"),
                     "output": "Executed",
                 })
-                self._json({"ok": True, "result": action_result, "done": done})
+                reason = info.get("reason") if done else None
+                if done:
+                    bridge.episode_done = True
+                    bridge.done_reason = reason or "done"
+                self._json(
+                    {
+                        "ok": True,
+                        "result": action_result,
+                        "done": done,
+                        "reason": reason,
+                    }
+                )
             except Exception as exc:
                 self._json({"ok": False, "error": str(exc)}, status=500)
 
@@ -204,6 +232,8 @@ def start_bridge_server(env, port: int = LISTEN_PORT, workspace: str | Path | No
     server.env = env
     server.workspace = Path(workspace) if workspace is not None else Path(os.environ.get("WORKSPACE", "/workspace"))
     server.step_counter = 0
+    server.episode_done = False
+    server.done_reason = None
     server.env_lock = threading.Lock()
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
