@@ -25,6 +25,7 @@ import logging
 import re
 import sys
 from pathlib import Path
+import shutil
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 V1_DIR = Path(__file__).resolve().parents[1] / "v1"
@@ -97,6 +98,20 @@ def main() -> int:
     if mm_skill_md.exists():
         (text_dir / "SKILL.md").write_text(mm_skill_md.read_text())
         logger.info("Copied SKILL.md verbatim")
+
+    # Copy tools/skill_server.py so the text variant also exposes the
+    # load_topic MCP tool.  Without this, load_topic is silently unavailable
+    # for the text-only skill and the matched-pair comparison degrades to
+    # text-with-Read vs multimodal-with-load_topic, which is no longer a
+    # clean modality contrast.
+    mm_tools = mm_dir / "tools"
+    if mm_tools.is_dir():
+        text_tools = text_dir / "tools"
+        text_tools.mkdir(parents=True, exist_ok=True)
+        for f in mm_tools.iterdir():
+            if f.is_file() and not f.name.startswith("__pycache__"):
+                shutil.copy2(f, text_tools / f.name)
+        logger.info("Copied tools/ (load_topic MCP server) verbatim")
 
     counts = derive_text_from_multimodal_dir(
         mm_dir=mm_dir,

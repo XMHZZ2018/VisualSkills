@@ -81,19 +81,20 @@ def _run_rollouts(rollouts_config_rel: str, log_dir: Path) -> Path:
     return rollouts_dir
 
 
-def _run_review(rollouts_dir: Path, output_dir: Path, app_name: str, model: str) -> Path:
+def _run_review(rollouts_dir: Path, output_dir: Path, app_name: str,
+                model: str, task_list: list[str] | None = None) -> Path:
     """Call review.py; returns path to targeted_targets.json."""
     review_out = output_dir / "review"
     review_out.mkdir(parents=True, exist_ok=True)
     logger.info("running review → %s", review_out)
-    subprocess.run(
-        [sys.executable, str(REVIEW_PY),
-         "--rollouts-dir", str(rollouts_dir),
-         "--app-name", app_name,
-         "--output-dir", str(review_out),
-         "--model", model],
-        check=True,
-    )
+    cmd = [sys.executable, str(REVIEW_PY),
+           "--rollouts-dir", str(rollouts_dir),
+           "--app-name", app_name,
+           "--output-dir", str(review_out),
+           "--model", model]
+    if task_list:
+        cmd.extend(["--task-list", ",".join(task_list)])
+    subprocess.run(cmd, check=True)
     return review_out / "targeted_targets.json"
 
 
@@ -202,10 +203,13 @@ def main() -> int:
         output_dir = MMSKILLS_ROOT / output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    # Load rollouts config once — used for both skip-rollouts dir computation
+    # and for the task_list whitelist passed to review.py.
+    ga_cfg = _load_yaml(MMSKILLS_ROOT / "scripts" / "run-gym-anything" / args.rollouts_config)
+    domain = Path(ga_cfg["env_dir"]).name
+
     # 1. Rollouts
     if args.skip_rollouts:
-        ga_cfg = _load_yaml(MMSKILLS_ROOT / "scripts" / "run-gym-anything" / args.rollouts_config)
-        domain = Path(ga_cfg["env_dir"]).name
         rollouts_dir = (MMSKILLS_ROOT / ga_cfg["result_dir"] / ga_cfg["model"]
                         / f"skill-{ga_cfg.get('skill_mode','none')}" / domain)
         logger.info("--skip-rollouts: reusing %s", rollouts_dir)
@@ -213,7 +217,9 @@ def main() -> int:
         rollouts_dir = _run_rollouts(args.rollouts_config, output_dir / "rollouts_log")
 
     # 2. Review
-    targets_json = _run_review(rollouts_dir, output_dir, args.app_name, args.review_model)
+    targets_json = _run_review(rollouts_dir, output_dir, args.app_name,
+                                args.review_model,
+                                task_list=list(ga_cfg.get("task_list", [])))
     targets = json.loads(targets_json.read_text())
     if not targets:
         logger.error("review produced 0 targets — nothing to dispatch")

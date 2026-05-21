@@ -227,7 +227,16 @@ def main() -> int:
                     help="Include passed tasks in the review (default: failures only)")
     ap.add_argument("--max-tasks", type=int, default=24,
                     help="Cap the number of trajectories sent to Opus")
+    ap.add_argument("--task-list", type=str, default=None,
+                    help="Comma-separated whitelist of task names; if set, "
+                         "only these subdirs of --rollouts-dir are reviewed")
     args = ap.parse_args()
+
+    allowed = None
+    if args.task_list:
+        allowed = {t.strip() for t in args.task_list.split(",") if t.strip()}
+        print(f"[review] task whitelist active ({len(allowed)} tasks): "
+              + ", ".join(sorted(allowed)))
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s %(levelname)s %(name)s] %(message)s")
 
@@ -237,6 +246,9 @@ def main() -> int:
     blocks: list[str] = []
     for task_dir in sorted(args.rollouts_dir.iterdir()):
         if not task_dir.is_dir():
+            continue
+        if allowed is not None and task_dir.name not in allowed:
+            logger.info("skipping %s (not in --task-list whitelist)", task_dir.name)
             continue
         result = _load_result(task_dir)
         if result is None:

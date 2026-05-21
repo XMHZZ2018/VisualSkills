@@ -307,7 +307,7 @@ def phase_taxonomy(config: dict, tasks: list[dict], ws: Path) -> dict:
         app_version=config["app_version"],
         task_list=task_list,
     )
-    result = call_claude(prompt, timeout=300)
+    result = call_claude(prompt, timeout=600)
     if not result:
         print("  FAILED: no response from Claude")
         sys.exit(1)
