@@ -1,4 +1,4 @@
-# MMSkills
+# VisualSkills
 
 Multimodal skills for [Claude Code](https://claude.ai/claude-code) — learning from visual references (papers, logos, websites, video tutorials) to improve agent performance.
 
