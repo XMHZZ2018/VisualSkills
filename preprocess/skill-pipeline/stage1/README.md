@@ -121,8 +121,8 @@ Collect figures used in phase 4 (multimodal). Skipped for `--mode text`.
 Generate a `guide.md` per topic. Text and multimodal are independent code
 paths with their own Claude calls and caches — multimodal does not derive
 from the text draft. **Output:**
-- `skills/<domain>-knowledge-text-stage1/<cat>/<topic>/guide.md`
-- `skills/<domain>-knowledge-multimodal-stage1/<cat>/<topic>/{guide.md, figNN.png}`
+- `skills/<domain>-text-stage1/<cat>/<topic>/guide.md`
+- `skills/<domain>-multimodal-stage1/<cat>/<topic>/{guide.md, figNN.png}`
 
 - **Text:** ask Claude to read all of a topic's page images and write
   concise prose (no figure references). Cached at
@@ -183,7 +183,7 @@ to scan all 100+ guides.
 Topics whose guides aren't generated yet appear as
 `*(not yet generated)*` and have no use-when bullet.
 
-**Output:** `skills/<domain>-knowledge-{text,multimodal}-stage1/SKILL.md`
+**Output:** `skills/<domain>-{text,multimodal}-stage1/SKILL.md`
 
 ### Phase 6 (optional) — Text-stage1 derived from multimodal-stage1
 
@@ -202,18 +202,18 @@ For each topic:
   do not modify any other text, do not include any image syntax or
   filenames in the output.
 - Write the rewritten markdown to
-  `skills/<domain>-knowledge-text-stage1/<cat>/<topic>/guide.md`.
+  `skills/<domain>-text-stage1/<cat>/<topic>/guide.md`.
 - Topics whose multimodal guide had no figure refs are copied verbatim
   with no Claude call.
 
 After all topics are processed, the multimodal use-when cache is mirrored
 to the text-stage1 cache (the topic semantics are unchanged, so the routing
 keywords apply equally), and `phase_index` runs for `text` mode to write
-`skills/<domain>-knowledge-text-stage1/SKILL.md`.
+`skills/<domain>-text-stage1/SKILL.md`.
 
 - **Workspace cache:** `workspace/<domain>/text_stage1_drafts/<cat>/<topic>.md`
-- **Final output:** `skills/<domain>-knowledge-text-stage1/<cat>/<topic>/guide.md`
-  and `skills/<domain>-knowledge-text-stage1/SKILL.md`
+- **Final output:** `skills/<domain>-text-stage1/<cat>/<topic>/guide.md`
+  and `skills/<domain>-text-stage1/SKILL.md`
 - **Parallelism:** `phase_6` (default 4 — Claude rate-limit bound).
 - **Idempotent:** topics whose final `guide.md` already exists are skipped.
 
@@ -326,10 +326,10 @@ paths back-to-back; neither modality reuses the other's prose.
 
 ```
 skills/
-├── <domain>-knowledge-text-stage1/
+├── <domain>-text-stage1/
 │   ├── SKILL.md
 │   └── <category>/<topic>/guide.md
-└── <domain>-knowledge-multimodal-stage1/
+└── <domain>-multimodal-stage1/
     ├── SKILL.md
     └── <category>/<topic>/
         ├── guide.md          # same prose, with figure-reference paragraphs

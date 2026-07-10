@@ -1677,7 +1677,7 @@ Output ONLY the markdown guide.
 
 
 def _skills_dir(domain: str, modality: str) -> Path:
-    return MMSKILLS_ROOT / "skills" / f"{domain}-knowledge-{modality}-stage1"
+    return MMSKILLS_ROOT / "skills" / f"{domain}-{modality}-stage1"
 
 
 def _draft_topic_prose(
@@ -2238,7 +2238,7 @@ def phase_index(config: dict, domain: str, taxonomy: dict, mode: str) -> None:
         preamble = _loader_preamble(is_mm)
         lines = [
             "---",
-            f"name: {domain}-knowledge-{modality}-stage1",
+            f"name: {domain}-{modality}-stage1",
             f'description: "{desc}"',
             "---\n",
             f"# {app} {ver} Knowledge ({modality}-stage1)\n",
@@ -2590,6 +2590,22 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Task-driven skill generation (Stage 1)")
     parser.add_argument("--config", required=True, help="Path to domain YAML config")
     parser.add_argument("--mode", choices=["text", "multimodal", "both"], default="both")
+    parser.add_argument(
+        "--text-source", dest="text_source",
+        choices=["independent", "derived"], default="derived",
+        help=(
+            "How the text-stage1 artifact is produced (only relevant when "
+            "--mode includes 'text' or 'both'). "
+            "'independent': text is written by its own Claude pass over the "
+            "source pages, in parallel with the multimodal pass — prose "
+            "between the two artifacts can diverge. "
+            "'derived' (default, matches paper): the multimodal pass runs "
+            "first, then the text artifact is produced by verbalizing each "
+            "figure reference in the multimodal guide (Phase 6). Prose is "
+            "identical up to the figure-reference sentences, giving a tight "
+            "ablation of what the visual modality contributes."
+        ),
+    )
     parser.add_argument("--task_ids", nargs="*", help="Filter to specific task id prefixes")
     parser.add_argument(
         "--phase", type=int, choices=[1, 2, 3, 4, 5, 6], default=None,
@@ -2637,6 +2653,25 @@ def main() -> None:
             print("--task_ids ignored: config has no `tasks:` block")
         tasks = []
 
+    # Resolve --mode + --text-source into a concrete per-phase plan.
+    # `phase_produce_mode` = what phases 3-5 write ("text", "multimodal", "both").
+    # `run_phase_6_after` = whether to derive text-stage1 from multimodal at the end.
+    if args.mode == "multimodal":
+        phase_produce_mode = "multimodal"
+        run_phase_6_after = False
+    elif args.mode == "text" and args.text_source == "independent":
+        phase_produce_mode = "text"
+        run_phase_6_after = False
+    elif args.mode == "text" and args.text_source == "derived":
+        phase_produce_mode = "multimodal"  # need mm to derive from
+        run_phase_6_after = True
+    elif args.mode == "both" and args.text_source == "independent":
+        phase_produce_mode = "both"
+        run_phase_6_after = False
+    else:  # both + derived
+        phase_produce_mode = "multimodal"
+        run_phase_6_after = True
+
     print(f"=== Skill Pipeline Stage 1: {config['app_name']} {config['app_version']} ===")
     if task_mode:
         src_label = f"Tasks: {len(tasks)}"
@@ -2645,8 +2680,12 @@ def main() -> None:
     else:
         src_label = "Source: full PDF"
     p = config["parallel"]
+    text_src_label = (
+        f" (text-source: {args.text_source})"
+        if args.mode != "multimodal" else ""
+    )
     print(
-        f"Domain: {domain} | {src_label} | Mode: {args.mode} | "
+        f"Domain: {domain} | {src_label} | Mode: {args.mode}{text_src_label} | "
         f"Parallel: phase_2={p['phase_2']}, phase_3={p['phase_3']}, "
         f"phase_4={p['phase_4']}, phase_5={p['phase_5']}, phase_6={p['phase_6']}"
     )
@@ -2694,7 +2733,7 @@ def main() -> None:
 
     # --- Phase 3: Figures (only needed for multimodal) ---
     figures_by_topic: dict[str, list[dict]] = {}
-    if topic_pages and args.mode in ("multimodal", "both"):
+    if topic_pages and phase_produce_mode in ("multimodal", "both"):
         header(3, "Phase 3: Figures")
         if has_html:
             figures_by_topic = phase_html_figures(taxonomy, ws)
@@ -2723,7 +2762,7 @@ def main() -> None:
             pairs = topic_pages.get(topic["id"], [])
             images = [p for _, p in pairs]
             figs = figures_by_topic.get(topic["id"], [])
-            return process_topic(topic, cat, config, domain, args.mode, images, figs)
+            return process_topic(topic, cat, config, domain, phase_produce_mode, images, figs)
 
         phase4_parallel = config["parallel"]["phase_4"]
         success = 0
@@ -2754,16 +2793,18 @@ def main() -> None:
     if target is None or target == 5:
         print("Phase 5a: Use-when routing hints")
         phase_use_when(
-            config, domain, taxonomy, args.mode, parallel=p["phase_5"],
+            config, domain, taxonomy, phase_produce_mode, parallel=p["phase_5"],
         )
         print()
         print("Phase 5b: Index")
-        phase_index(config, domain, taxonomy, args.mode)
+        phase_index(config, domain, taxonomy, phase_produce_mode)
         print()
 
-    # --- Phase 6 (optional): derive text-stage1 from multimodal-stage1 ---
-    # Not part of the default flow — only runs when explicitly requested.
-    if target == 6:
+    # --- Phase 6 (opt-in for --phase 6, auto-run when --text-source derived) ---
+    # Phase 6 derives text-stage1 from multimodal-stage1 by verbalizing figure
+    # references. It runs either when explicitly requested (--phase 6) or as
+    # part of the default flow when --text-source derived and --mode covers text.
+    if target == 6 or (target is None and run_phase_6_after):
         print("Phase 6: Text-stage1 from multimodal-stage1")
         phase_text_v1_from_multimodal(
             config, domain, taxonomy, parallel=p["phase_6"],

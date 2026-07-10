@@ -14,7 +14,7 @@
       "source": "./",
       "strict": false,
       "skills": [
-        "./skills/qgis-knowledge-text"
+        "./skills/qgis-text"
       ]
     }
   ]

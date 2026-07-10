@@ -1,6 +1,6 @@
 # LibreOffice Writer with the multimodal-loader skill — full 24-task test set.
 #
-# Skill: skills/libreoffice_writer-knowledge-multimodal-loader-v1/
+# Skill: skills/libreoffice_writer-multimodal-loader-v1/
 #   - Same 23 topic folders as multimodal-v1 (symlinked).
 #   - Adds tools/skill_server.py exposing load_topic(topic) MCP tool that
 #     returns guide.md + every adjacent figXX.png atomically.

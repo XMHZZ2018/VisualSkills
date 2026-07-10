@@ -44,15 +44,15 @@ def _resolve_skill_dir(env_name: str, skill_mode: str) -> Path | None:
     """Find the on-disk skill directory for this env + mode.
 
     Tries, in order:
-      skills/<env>-knowledge-<mode>-v1     (current v1 layout)
-      skills/<env>-knowledge-<mode>        (legacy layout)
+      skills/<env>-<mode>-v1     (current v1 layout)
+      skills/<env>-<mode>        (legacy layout)
       skills/<env>-workflow-<mode>         (workflow-style skills, e.g. qgis)
     """
     candidates = [
-        MMSKILLS_ROOT / "skills" / f"{env_name}-knowledge-{skill_mode}-stage1",
-        MMSKILLS_ROOT / "skills" / f"{env_name}-knowledge-{skill_mode}-loader-v1",
-        MMSKILLS_ROOT / "skills" / f"{env_name}-knowledge-{skill_mode}-v1",
-        MMSKILLS_ROOT / "skills" / f"{env_name}-knowledge-{skill_mode}",
+        MMSKILLS_ROOT / "skills" / f"{env_name}-{skill_mode}-stage1",
+        MMSKILLS_ROOT / "skills" / f"{env_name}-{skill_mode}-loader-v1",
+        MMSKILLS_ROOT / "skills" / f"{env_name}-{skill_mode}-v1",
+        MMSKILLS_ROOT / "skills" / f"{env_name}-{skill_mode}",
         MMSKILLS_ROOT / "skills" / f"{env_name}-workflow-{skill_mode}",
     ]
     for p in candidates:

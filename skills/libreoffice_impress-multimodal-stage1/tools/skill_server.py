@@ -28,7 +28,7 @@ def _img(path: Path) -> Image:
     return Image(data=path.read_bytes(), format=fmt)
 
 
-# MCP server name auto-derived from the skill dir, e.g. "gimp-multimodal-stage1".
+# MCP server name auto-derived from the skill dir, e.g. "gimp-multimodal-v1".
 mcp = FastMCP(SKILL_ROOT.name)
 
 

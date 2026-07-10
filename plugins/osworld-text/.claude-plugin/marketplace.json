@@ -14,7 +14,7 @@
       "source": "./",
       "strict": false,
       "skills": [
-        "./skills/chrome-knowledge-text",
+        "./skills/chrome-text",
         "./skills/libreoffice-impress-text"
       ]
     }

@@ -154,7 +154,7 @@ def main() -> int:
         if not args.domain:
             print("--mm-v1-dir or --domain is required", file=sys.stderr)
             return 2
-        args.mm_v1_dir = MMSKILLS_ROOT / "skills" / f"{args.domain}-knowledge-multimodal-stage1"
+        args.mm_v1_dir = MMSKILLS_ROOT / "skills" / f"{args.domain}-multimodal-stage1"
 
     if not args.mm_v1_dir.is_dir():
         print(f"mm-stage1 dir does not exist: {args.mm_v1_dir}", file=sys.stderr)

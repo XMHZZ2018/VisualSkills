@@ -1,6 +1,6 @@
 # UI-explorer pipeline config — LibreOffice Impress.
 
-# Identifies the skill output (skills/<domain>-knowledge-{multimodal,text}-stage2/).
+# Identifies the skill output (skills/<domain>-{multimodal,text}-stage2/).
 # Used by phases 4 (inline) and 5 (text-stage2 derivation).
 domain: libreoffice_impress
 app_name: "LibreOffice Impress"

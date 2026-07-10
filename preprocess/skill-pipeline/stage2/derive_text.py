@@ -1,6 +1,6 @@
 """Phase 5 (Stage 2): derive text-skill-stage2 from multimodal-skill-stage2.
 
-For every `guide.md` under `skills/<domain>-knowledge-multimodal-stage2/`, replace
+For every `guide.md` under `skills/<domain>-multimodal-stage2/`, replace
 each inline image reference with 1-3 sentences of verbal description. Output is
 markdown-only — no PNGs are copied to the text-stage2 tree.
 
@@ -63,9 +63,9 @@ def main() -> int:
     ap.add_argument("--parallel", type=int, default=4,
                     help="Concurrent Claude calls (rate-limit bound; default 4)")
     ap.add_argument("--mm-dir", type=Path, default=None,
-                    help="Override input dir (default: skills/<domain>-knowledge-multimodal-stage2)")
+                    help="Override input dir (default: skills/<domain>-multimodal-stage2)")
     ap.add_argument("--text-dir", type=Path, default=None,
-                    help="Override output dir (default: skills/<domain>-knowledge-text-stage2)")
+                    help="Override output dir (default: skills/<domain>-text-stage2)")
     ap.add_argument("--cache-dir", type=Path, default=None,
                     help="Override cache dir (default: workspace/<domain>/text_stage2_drafts)")
     args = ap.parse_args()
@@ -75,8 +75,8 @@ def main() -> int:
         format="[%(asctime)s %(levelname)s %(name)s] %(message)s",
     )
 
-    mm_dir = args.mm_dir or (REPO_ROOT / "skills" / f"{args.domain}-knowledge-multimodal-stage2")
-    text_dir = args.text_dir or (REPO_ROOT / "skills" / f"{args.domain}-knowledge-text-stage2")
+    mm_dir = args.mm_dir or (REPO_ROOT / "skills" / f"{args.domain}-multimodal-stage2")
+    text_dir = args.text_dir or (REPO_ROOT / "skills" / f"{args.domain}-text-stage2")
     cache_dir = args.cache_dir or (
         Path(__file__).resolve().parent / "workspace" / args.domain / "text_stage2_drafts"
     )

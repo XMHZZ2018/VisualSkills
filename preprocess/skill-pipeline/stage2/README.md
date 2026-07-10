@@ -13,15 +13,35 @@ text-only twin **text-skill-stage2** is derived from mm-stage2.
 > directory to the VM and SSHs in to launch the requested phase.
 
 ```bash
+# Full chain end-to-end (paper default: mm-stage2 + text-stage2 via derive).
+./run.sh --config configs/impress.yaml --phase all
+
+# Independent text prose (Option 1) — text-stage2 written from scratch by
+# a separate Claude pass over the same worker notes, in parallel with mm-stage2.
+./run.sh --config configs/impress.yaml --phase all \
+    --mode both --text-source independent
+
+# One-step invocations (backward compat):
 ./run.sh --config configs/impress.yaml             # phases 1, 2, 3a + 3b (on VM)
 ./run.sh --config configs/impress.yaml --phase 3b  # re-run mapper only
-./run.sh --config configs/impress.yaml --phase 4   # phase 3c: inline → mm-stage2
-./run.sh --config configs/impress.yaml --phase 5   # phase 4: derive text-stage2
+./run.sh --config configs/impress.yaml --phase 4   # inline mm regions → mm-stage2
+./run.sh --config configs/impress.yaml --phase 4t  # inline text regions → text-stage2 (Option 1)
+./run.sh --config configs/impress.yaml --phase 5   # derive text-stage2 from mm-stage2 (Option 3)
 ```
 
-> The pipeline is **4 conceptual phases** (Plan / Workers / Assemble→mm-stage2 /
-> Text-stage2). Phase 3 has three sub-steps (3a assembler, 3b mapper, 3c inline).
-> The `run.sh --phase` numeric flags (`4`, `5`) are kept for backward compat.
+Two axes control what gets built:
+
+- `--mode text | multimodal | both` — which artifacts to produce (default `both`).
+- `--text-source independent | derived` — how the text-stage2 artifact is produced
+  (default `derived`, matches paper):
+  - **derived** (Option 3) — Phase 5 verbalizes the mm-stage2 figure refs. Text and
+    mm prose are identical up to those refs; isolates the modality contribution.
+  - **independent** (Option 1) — Phase 4t runs a separate text-only Claude assembler
+    pass over the same worker notes + screenshots. Text prose is genuinely
+    independent of mm prose but the region set is mirrored so a single
+    region→guide mapping serves both artefacts.
+
+The two "generate both" ergonomics mirror Stage 1's `--mode both --text-source X`.
 
 ## How Stage 2 differs from Stage 1
 
@@ -115,7 +135,7 @@ each owning Stage 1 guide, does:
 4. Appends a `## UI Reference — <region_name>` section to the guide.
 
 The output is a fresh copy of mm-stage1 sitting at
-`skills/<domain>-knowledge-multimodal-stage2/`. **SKILL.md is unchanged** —
+`skills/<domain>-multimodal-stage2/`. **SKILL.md is unchanged** —
 the Stage 2 augmentation is purely additive at the per-guide level.
 
 - No Claude calls (deterministic merge).
@@ -127,12 +147,12 @@ the Stage 2 augmentation is purely additive at the per-guide level.
 
 ### Phase 4 — Text-stage2 (Claude, mirrors Stage 1 Phase 6)
 `derive_text.py` walks every `guide.md` under
-`skills/<domain>-knowledge-multimodal-stage2/` and replaces inline image
+`skills/<domain>-multimodal-stage2/` and replaces inline image
 references — both the mm-stage1 ``See `figXX.png``` style and the stage2-appended
 ``Read the screenshot `ui-foo.png` in this directory`` style — with 1-3
 sentences of verbal description grounded in what the screenshot actually
 shows. The result is markdown-only at
-`skills/<domain>-knowledge-text-stage2/<cat>/<topic>/guide.md` plus a verbatim
+`skills/<domain>-text-stage2/<cat>/<topic>/guide.md` plus a verbatim
 copy of mm-stage2's `SKILL.md`.
 
 This phase **delegates to Stage 1's `derive_text_from_multimodal_dir`** (in
@@ -207,13 +227,13 @@ stage2/
 
 ```
 skills/
-├── <domain>-knowledge-multimodal-stage2/  # mm-stage1 + appended UI Reference sections
+├── <domain>-multimodal-stage2/  # mm-stage1 + appended UI Reference sections
 │   ├── SKILL.md                       # copied verbatim from mm-stage1
 │   └── <category>/<topic>/
 │       ├── guide.md                   # mm-stage1 guide with `## UI Reference — <region>` appended
 │       ├── fig01.png ...              # original mm-stage1 figures (untouched)
 │       └── ui-<region>-*.png          # new screenshots from Stage 2
-└── <domain>-knowledge-text-stage2/        # text twin of mm-stage2 — image refs verbalized
+└── <domain>-text-stage2/        # text twin of mm-stage2 — image refs verbalized
     ├── SKILL.md                       # copied verbatim from mm-stage2
     └── <category>/<topic>/guide.md
 ```
@@ -242,7 +262,7 @@ for the reference implementation.
 `run.sh` always runs on the `osworld` VM.  It rsyncs this directory (so any
 local edits to scripts or configs take effect) and then SSHs in to launch
 the requested phase.  After phases 4 and 5 (foreground mode), it rsyncs
-the produced `skills/<domain>-knowledge-{multimodal,text}-stage2/` directories
+the produced `skills/<domain>-{multimodal,text}-stage2/` directories
 back to the local tree.
 
 ```bash

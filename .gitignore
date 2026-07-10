@@ -19,9 +19,12 @@ preprocess/**/assets/**/frames/
 # Skill pipeline downloaded videos and frames (reproducible via generate.py)
 preprocess/skill-pipeline/data/**/videos/
 
-# Evaluation workspaces and cache (generated on VM)
+# Evaluation workspaces and cache (generated on VM).
+# Per-pipeline workspace/, outputs/*/plan|workers|skill/ are ignored in
+# preprocess/skill-pipeline/{stage1,stage2}/.gitignore.
 workspaces/
 cache/
+*.log
 
 # Node
 node_modules/

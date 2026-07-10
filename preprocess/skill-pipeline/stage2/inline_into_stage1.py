@@ -1,31 +1,38 @@
-"""Phase 4 (deterministic): inline the per-region UI Reference into mm-stage1.
+"""Phase 4 (deterministic): inline per-region UI Reference into a Stage 1 skill.
 
-Replaces the previous "drop ui-reference/ as a sibling subfolder" approach.
+Two modes:
+  --mode multimodal (default): inline skill/regions/*.md + skill/images/*.png
+    from the multimodal assembler into a copy of
+    -multimodal-stage1 → -multimodal-stage2. Image refs
+    are rewritten to the mm-stage1 "Read the screenshot ..." convention.
+
+  --mode text: inline skill_text/regions/*.md from the text-assembler (no
+    images) into a copy of -text-stage1 →
+    -text-stage2. This is the Independent text path (Option 1)
+    — an alternative to running derive_text.py on mm-stage2 output
+    (Derived text path, Option 3).
 
 Reads (all under <pipeline_dir> = output_dir from the config):
   - <pipeline_dir>/region_to_guides.json  (curated mapping table; specifies
     target_skill_dir, which regions own which guides, and per-region drop
-    policy.  Hand-edited after inspecting Phase 3 assembler output.)
-  - <pipeline_dir>/skill/regions/<region>.md  (assembler output; LLM-curated
-    per-region UI Reference)
-  - <pipeline_dir>/skill/images/<region>-*.png  (assembler output; cropped
-    screenshots)
-  - skills/<domain>-knowledge-multimodal-stage1/ (mm-stage1 source)
+    policy. The mapping is modality-agnostic — same regions map to the
+    same guide paths under text-stage1 and mm-stage1.)
+  - <pipeline_dir>/skill/regions/<region>.md    (multimodal mode)
+  - <pipeline_dir>/skill/images/<name>.png       (multimodal mode)
+  - <pipeline_dir>/skill_text/regions/<region>.md (text mode)
+  - skills/<domain>-{multimodal,text}-stage1/ (source)
 
 Writes:
-  - skills/libreoffice_impress-knowledge-multimodal-stage2/ (mm-stage2, fresh copy)
+  - skills/<domain>-{multimodal,text}-stage2/ (fresh copy)
     Each owning guide.md gets a  "## UI Reference — <region>"  section
-    appended in place.  Cropped screenshots are copied next to the guide
-    with a  ui-  prefix.  SKILL.md is unchanged from mm-stage1.
+    appended in place. In multimodal mode, cropped screenshots are copied
+    next to the guide with a  ui-  prefix. SKILL.md is unchanged from
+    Stage 1.
 
 Owner confidence policy:
   - primary, relevant  → append the full UI Reference block
   - weak               → skip
   Regions with drop_recommended=true or owners=[] are skipped entirely.
-
-Image references inside the appended content use the mm-stage1 convention
-("Read the screenshot `xxx.png` in this directory") rather than markdown
-images, because the agent does not auto-fetch ![]() syntax.
 """
 
 from __future__ import annotations
@@ -115,6 +122,26 @@ def transform_region_md(
     return display_name, "\n".join(lines).strip() + "\n"
 
 
+def transform_region_md_text(
+    region_md_text: str,
+    region_id: str,
+) -> tuple[str, str]:
+    """Text-mode transform: verbal-only region.md → (display_name, body).
+    No image handling — the text-assembler prompt forbids image references
+    in its output, so we just strip frontmatter and hoist the H1."""
+    body = strip_frontmatter(region_md_text).strip()
+    lines = body.splitlines()
+    display_name = region_id
+    for i, line in enumerate(lines):
+        if line.startswith("# "):
+            display_name = line[2:].strip()
+            del lines[i]
+            while i < len(lines) and not lines[i].strip():
+                del lines[i]
+            break
+    return display_name, "\n".join(lines).strip() + "\n"
+
+
 # ---------- main driver ----------
 
 def collect_region_images(images_dir: Path, region_md_text: str) -> list[Path]:
@@ -138,17 +165,21 @@ def collect_region_images(images_dir: Path, region_md_text: str) -> list[Path]:
     return seen
 
 
-def fresh_copy_mm_v1(src: Path, dst: Path) -> None:
+def fresh_copy_stage1(src: Path, dst: Path) -> None:
     if src.resolve() == dst.resolve():
         raise SystemExit(
             f"refuse to overwrite source: src and dst resolve to the same path: {src}"
         )
     if not src.exists():
-        raise SystemExit(f"mm-stage1 source not found: {src}")
+        raise SystemExit(f"stage1 source not found: {src}")
     if dst.exists():
         shutil.rmtree(dst)
     shutil.copytree(src, dst)
-    logger.info("copied mm-stage1 → %s", dst)
+    logger.info("copied stage1 → %s", dst)
+
+
+# Back-compat alias for external callers.
+fresh_copy_mm_v1 = fresh_copy_stage1
 
 
 def append_section_to_guide(
@@ -175,17 +206,35 @@ def append_section_to_guide(
 def inline(
     mapping_path: Path,
     pipeline_dir: Path,
-    mm_v1_dir: Path,
+    stage1_dir: Path,
     out_dir: Path,
+    mode: str = "multimodal",
     confidences: Iterable[str] = ("primary", "relevant"),
     dry_run: bool = False,
 ) -> None:
+    """Inline region UI Reference sections into a fresh copy of stage1_dir.
+
+    mode="multimodal": pull from pipeline_dir/skill/{regions,images}/, copy
+      referenced PNGs to target_dir/ui-<name>.png, rewrite image refs.
+    mode="text": pull from pipeline_dir/skill_text/regions/, no images.
+    """
     mapping = json.loads(mapping_path.read_text(encoding="utf-8"))
-    regions_md_dir = pipeline_dir / "skill" / "regions"
-    images_dir = pipeline_dir / "skill" / "images"
+
+    if mode == "text":
+        regions_md_dir = pipeline_dir / "skill_text" / "regions"
+        images_dir = None
+    else:
+        regions_md_dir = pipeline_dir / "skill" / "regions"
+        images_dir = pipeline_dir / "skill" / "images"
+
+    if not regions_md_dir.exists():
+        raise SystemExit(
+            f"regions dir not found: {regions_md_dir}\n"
+            f"Run assembler with --mode {mode} first."
+        )
 
     if not dry_run:
-        fresh_copy_mm_v1(mm_v1_dir, out_dir)
+        fresh_copy_stage1(stage1_dir, out_dir)
 
     confidences = set(confidences)
     n_appended = 0
@@ -222,7 +271,11 @@ def inline(
 
         region_md_text = region_md_path.read_text(encoding="utf-8")
         region_name = region_names.get(region_id, region_id)
-        src_images = collect_region_images(images_dir, region_md_text)
+
+        if mode == "multimodal":
+            src_images = collect_region_images(images_dir, region_md_text)
+        else:
+            src_images = []
 
         for owner in owners:
             guide_rel = owner["guide"]
@@ -230,8 +283,6 @@ def inline(
             target_guide = out_dir / guide_rel
             target_dir = target_guide.parent
 
-            # Renamed filenames so they slot into the guide directory next to
-            # the existing fig*.png assets without colliding.
             renamed = [f"ui-{img.name}" for img in src_images]
 
             if dry_run:
@@ -245,9 +296,14 @@ def inline(
             for src_img, new_name in zip(src_images, renamed):
                 shutil.copy2(src_img, target_dir / new_name)
 
-            display_name, transformed = transform_region_md(
-                region_md_text, region_id, renamed,
-            )
+            if mode == "multimodal":
+                display_name, transformed = transform_region_md(
+                    region_md_text, region_id, renamed,
+                )
+            else:
+                display_name, transformed = transform_region_md_text(
+                    region_md_text, region_id,
+                )
             append_section_to_guide(
                 target_guide,
                 region_id,
@@ -267,13 +323,24 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--pipeline-dir", type=Path, required=True,
                     help="Per-domain output_dir from the Stage 2 config; contains "
-                         "region_to_guides.json, skill/regions/, skill/images/, plan/")
+                         "region_to_guides.json, skill/{regions,images}/ (multimodal), "
+                         "skill_text/regions/ (text), and plan/")
     ap.add_argument("--mapping", type=Path, default=None,
                     help="Mapping JSON (default: <pipeline-dir>/region_to_guides.json)")
+    ap.add_argument(
+        "--mode", choices=["multimodal", "text"], default="multimodal",
+        help="multimodal: inline from skill/ into -multimodal-stage1 → "
+             "-multimodal-stage2 (default). text: inline from skill_text/ "
+             "into -text-stage1 → -text-stage2 (Independent text path).",
+    )
+    ap.add_argument("--stage1-dir", type=Path, default=None,
+                    help="Source Stage 1 skill directory (default: derived from "
+                         "mapping target_skill_dir with the modality suffix).")
     ap.add_argument("--mm-v1", type=Path, default=None,
-                    help="Source mm-stage1 skill directory (default: derived from mapping)")
+                    help="[deprecated alias for --stage1-dir]")
     ap.add_argument("--out", type=Path, default=None,
-                    help="Output dir (default: derived from mapping target_skill_dir)")
+                    help="Output dir (default: derived from mapping target_skill_dir "
+                         "with -multimodal- / -text- rewritten for the requested mode).")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--include-relevant", action="store_true", default=True,
                     help="Append regions with confidence='relevant' too (default on)")
@@ -290,29 +357,35 @@ def main() -> int:
     if not mapping_path.exists():
         raise SystemExit(
             f"mapping file not found: {mapping_path}\n"
-            f"Phase 4 requires a hand-curated region→guide mapping; create it "
-            f"at <pipeline_dir>/{MAPPING_FILENAME} after reviewing Phase 3 output."
+            f"Phase 4 requires a region→guide mapping; produce it via "
+            f"map_regions.py (Phase 3b) or hand-curate at "
+            f"<pipeline_dir>/{MAPPING_FILENAME}."
         )
     mapping = json.loads(mapping_path.read_text(encoding="utf-8"))
+    target = mapping["target_skill_dir"]  # always the mm-stage2 dir name
 
-    mm_v1_dir = args.mm_v1
-    if mm_v1_dir is None:
-        # mm-stage1 lives next to the mm-stage2 target: replace -multimodal-stage2 → -multimodal-stage1
-        target = mapping["target_skill_dir"]
-        mm_v1_rel = target.replace("-multimodal-stage2", "-multimodal-stage1")
-        mm_v1_dir = REPO_ROOT / mm_v1_rel
+    # Resolve mode-specific Stage 1 source and Stage 2 output paths.
+    if args.mode == "multimodal":
+        stage1_rel = target.replace("-multimodal-stage2", "-multimodal-stage1")
+        out_rel = target
+    else:  # text
+        stage1_rel = target.replace("-multimodal-stage2", "-text-stage1")
+        out_rel = target.replace("-multimodal-stage2", "-text-stage2")
 
-    out_dir = args.out
-    if out_dir is None:
-        out_dir = REPO_ROOT / mapping["target_skill_dir"]
+    stage1_dir = args.stage1_dir or args.mm_v1
+    if stage1_dir is None:
+        stage1_dir = REPO_ROOT / stage1_rel
+
+    out_dir = args.out or (REPO_ROOT / out_rel)
 
     confidences = ("primary",) if args.primary_only else ("primary", "relevant")
 
     inline(
         mapping_path=mapping_path,
         pipeline_dir=args.pipeline_dir,
-        mm_v1_dir=mm_v1_dir,
+        stage1_dir=stage1_dir,
         out_dir=out_dir,
+        mode=args.mode,
         confidences=confidences,
         dry_run=args.dry_run,
     )

@@ -1,5 +1,5 @@
 {
-  "target_skill_dir": "skills/libreoffice_impress-knowledge-multimodal-stage1",
+  "target_skill_dir": "skills/libreoffice_impress-multimodal-stage1",
   "guides": [
     "animations-and-interactivity/hyperlinks-and-navigation/guide.md",
     "animations-and-interactivity/slideshow-configuration/guide.md",

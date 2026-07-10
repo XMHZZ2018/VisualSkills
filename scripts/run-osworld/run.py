@@ -109,16 +109,16 @@ def _resolve_skill_dir(domain_or_skill: str, skill_mode: str) -> Path | None:
     """Resolve the host-side skill dir for a given (domain, skill_mode).
 
     Tries naming conventions in order:
-        skills/<dom>-knowledge-<mode>-stage1   (current convention)
-        skills/<dom>-knowledge-<mode>-v1       (legacy)
-        skills/<dom>-knowledge-<mode>          (legacy, no suffix)
+        skills/<dom>-<mode>-stage1   (current convention)
+        skills/<dom>-<mode>-v1       (legacy)
+        skills/<dom>-<mode>          (legacy, no suffix)
     Returns None if no match.
     """
     if skill_mode in (None, "", "none"):
         return None
     root = Path("/home/ziyan/MMSkills/skills")
     for suffix in ("-stage1", "-v1", ""):
-        cand = root / f"{domain_or_skill}-knowledge-{skill_mode}{suffix}"
+        cand = root / f"{domain_or_skill}-{skill_mode}{suffix}"
         if cand.is_dir():
             return cand
     return None

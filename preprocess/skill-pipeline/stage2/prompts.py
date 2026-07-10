@@ -501,6 +501,173 @@ Start now.  No preamble.  Produce files.
 """
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# Phase 2 (text-only variant)  —  TEXT-ASSEMBLER
+#
+# Reads the same worker notes.md / notes.json / screenshots and produces
+# text-only region markdown (no image references, no cropped PNGs). Used
+# when generating text-stage2 via the Independent path (Option 1) instead
+# of the Derived path (Option 3, which runs derive_text.py against
+# mm-stage2 output).
+# ═══════════════════════════════════════════════════════════════════════════
+TEXT_ASSEMBLER_PROMPT = """\
+You are assembling a TEXT-ONLY UI-reference skill from the raw output of
+{n_workers} independent UI-exploration workers.
+
+═══ INPUT ═══
+
+Plan:         {plan_path}
+Workers root: {workers_root}
+  Each subdirectory worker_NN_<target_id>/ contains:
+    notes.md               narrative prose
+    notes.json             structured per-element data  ← RELY ON THIS
+    screenshots/step_NNN.png   (1920x1080 native screenshots — for YOUR
+                                reference only; DO NOT copy into output)
+    target.json            the assignment
+
+═══ OUTPUT ═══
+
+Write a clean text-only skill folder under {skill_out}/:
+
+    {skill_out}/SKILL.md
+    {skill_out}/regions/<region-slug>.md        (one per logical region)
+
+There is NO images/ directory and NO image references in the output.
+
+Each regions/*.md starts with frontmatter then markdown body:
+
+    ---
+    region: <slug>
+    worker_source: [worker_02]               # or multiple if merged
+    ---
+
+    # <Title>
+
+    <1-2 sentence overview>
+
+    ## Layout
+
+    <1-3 short paragraphs describing WHERE the region lives on screen —
+    which side of the window, how it's docked, what surrounds it, and
+    what visual cues distinguish its controls (icons, colours, labels).
+    Anchor descriptions in terms an agent can act on: "top-of-window
+    horizontal strip", "docked right sidebar under the Properties tab",
+    "modal dialog centered over the canvas after Format ▸ Character".>
+
+    ## Elements
+
+    <bulleted enumeration or table>
+
+SKILL.md is the index: short app description + table of contents linking to
+each region file.
+
+═══ TEXT-ONLY DISCIPLINE — MANDATORY ═══
+
+The point of this artifact is to test what an agent can do with a PURELY
+VERBAL description of the same UI surface that the multimodal skill shows
+as screenshots. Verbalise, do not defer.
+
+DO:
+  - Describe icons by their glyph AND their label / tooltip / hotkey.
+    "The bold button (bold 'B' glyph, Ctrl+B) — third from the left in
+    the formatting toolbar."
+  - Describe layout with concrete anchors: pixel row/column ranges are
+    NOT required, but ordinal position, docking side, and neighbouring
+    controls ARE.
+  - Enumerate toolbar rows left-to-right, sidebar decks top-to-bottom,
+    dialog tabs in on-screen order.
+  - Name colour cues where they carry meaning ("green checkmark",
+    "amber warning triangle").
+
+DO NOT:
+  - Write `![]()`  or  `See figXX.png`  or  `Read the screenshot ...` —
+    there is no accompanying image.
+  - Use vague phrases like "the icon", "the button", "as shown". If a
+    reader cannot recognise the control from your prose alone, the
+    description is broken.
+  - Copy screenshots into the output directory.
+  - Reference step_NNN.png file names in the prose.
+
+═══ VERIFY BEFORE WRITING ═══
+
+For every region you describe:
+
+1. Use the Read tool to view the worker's best evidence_step screenshot(s).
+2. Confirm the screenshot shows what notes.json claims.
+3. Then WRITE the region as verbal prose. The screenshot is your source
+   of truth; the writeup must stand alone without it.
+
+Better to have FEWER but ACCURATE regions than more misleading ones.
+
+═══ CLEVER PACKAGING RULES ═══
+
+1. **Toolbar rows → one enumeration.**
+   For a row of 12 icons, describe the row's location (docking, adjacent
+   controls) then enumerate left-to-right in a single bullet list:
+     > "Row (left → right): **Bold** (bold-B glyph, Ctrl+B),
+     >  **Italic** (italic-I glyph, Ctrl+I), ..."
+
+2. **Each non-trivial dialog gets its own region file.**
+   Dialog with tabs → describe how to open it, then walk the tabs in
+   on-screen order, each tab's key controls enumerated by label +
+   position.
+
+3. **Skip truly trivial items.** Save / Open / Cut / Copy / Paste don't
+   need individual treatment — one-line "Common actions" bullet.
+
+4. **Dedup across workers.**
+   If two workers touched the colour picker, ONE entry in the most
+   appropriate region.
+
+5. **Filter for importance.** Niche debug menus, empty "Recent files",
+   experimental tabs → omit.
+
+6. **Merge small related regions.** Character + Paragraph + Bullets
+   dialogs → ONE region file "text-formatting-dialogs.md" with three
+   subsections.
+
+═══ MIRROR THE MULTIMODAL REGION SET (WHEN IT EXISTS) ═══
+
+Check whether {pipeline_dir}/skill/regions/*.md already exists (that would
+mean the multimodal assembler ran first).  If it does:
+
+  - Use the SAME set of region slugs — one skill_text/regions/<slug>.md for
+    each skill/regions/<slug>.md.
+  - Match the merge/split boundaries the multimodal pass made.
+  - Match each region's H1 title so downstream inline uses the same
+    display name.
+  - Do NOT reuse the multimodal prose — write your own verbal description
+    from the workers' notes + screenshots.  The whole point of the
+    Independent text path is that the prose is genuinely independent of
+    the multimodal artefact.
+
+This lets a single region→guide mapping serve both artefacts.
+
+If skill/regions/*.md does not exist, choose your own regions using the
+packaging rules above.
+
+═══ WORKFLOW ═══
+
+1. Check {pipeline_dir}/skill/regions/ — if present, list the existing
+   slugs; you will mirror them.
+2. Read the plan.json and every worker_*/notes.json.  (notes.md files
+   are supporting narrative — read only if notes.json is insufficient.)
+3. Build a mental table of regions. Group / merge / split as needed
+   (or mirror the multimodal set).
+4. For each region:
+     a. Identify the best evidence_step screenshot(s) from notes.json.
+     b. Read the image to verify it (your reference only).
+     c. Write the region .md with verbal prose — layout + elements — and
+        NO image references.
+5. Write SKILL.md last, once you know the final list of regions.
+
+Allowed tools: Read, Write, Edit, Glob, Grep.
+Forbidden: Bash (no img_tool needed), Agent, AskUserQuestion, NotebookEdit.
+
+Start now.  No preamble.  Produce files.
+"""
+
+
 MAP_REGIONS_PROMPT = """\
 You are mapping a set of auto-discovered UI **regions** (from the assembler)
 onto an existing **multimodal skill (mm-stage1)** so the inline step can append

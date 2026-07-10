@@ -138,7 +138,7 @@ Claude Code runs inside `osworld-claude-cli` with **no Docker socket and no dire
 
 ## 3. Constructing skills
 
-Every domain skill in `skills/<domain>-knowledge-{text,multimodal}-stage{1,2}/` is produced by the same two-stage pipeline. Each stage emits a **matched pair** of artifacts — a multimodal form with cropped UI figures, and a text-only form in which each figure has been replaced by a verbal description of the same image — so any inference-score gap between them isolates the contribution of visual evidence.
+Every domain skill in `skills/<domain>-{text,multimodal}-stage{1,2}/` is produced by the same two-stage pipeline. Each stage emits a **matched pair** of artifacts — a multimodal form with cropped UI figures, and a text-only form in which each figure has been replaced by a verbal description of the same image — so any inference-score gap between them isolates the contribution of visual evidence.
 
 At inference the multimodal artifact is loaded through `tools/skill_server.py`, which exposes `load_topic(topic)` and `list_topics()`. The agent gets a topic's prose and figures atomically in one MCP call instead of issuing separate `Read`s.
 
@@ -179,26 +179,31 @@ Two exploration sub-passes:
 - **Free UI explorer.** An Opus planner inspects the idle app and proposes ~8 UI regions ("drawing toolbar", "properties sidebar", ...). ~8 Sonnet workers each drive the live app in parallel, scoped to one region, capturing screenshots and per-control notes.
 - **Training-task-targeted explorer.** Failed train-task trajectories are reviewed to surface UI regions the agent measurably struggled with; additional workers are dispatched against those targets. Targets are scoped to *UI regions*, not specific tasks, so patches transfer to any test task touching the same UI surface.
 
-Assembly is deterministic: an Opus assembler reconciles worker notes into per-region reference sections, an Opus mapper decides which Stage 1 guide each region belongs to, and the sections are inlined into a fresh copy of multimodal-Stage-1 with `ui-*.png` crops. The matched text-Stage-2 artifact is then derived from multimodal-Stage-2 with the same verbalization pass as Stage 1 Phase 6.
+Assembly is deterministic: an Opus assembler reconciles worker notes into per-region reference sections, an Opus mapper decides which Stage 1 guide each region belongs to, and the sections are inlined into a fresh copy of multimodal-Stage-1 with `ui-*.png` crops.
+
+The matched text-Stage-2 artifact can be produced two ways, controlled by `--text-source`:
+
+- `derived` (default, matches paper): verbalize each figure ref in the multimodal-Stage-2 guide (same mechanic as Stage 1 Phase 6). Prose is identical to multimodal-Stage-2 up to those refs, giving a tight ablation of what the visual modality contributes.
+- `independent`: a separate text-only Claude pass over the same worker notes + screenshots, mirroring the mm region set. Prose is genuinely independent between the two artefacts.
 
 ```bash
-# Stage 2 free explorer (phases 1, 2, 3a + 3b) — rsyncs to VM and launches there
+# Stage 2 free explorer — full chain (paper default: mm-stage2 + derived text)
 ./preprocess/skill-pipeline/stage2/run.sh \
-    --config preprocess/skill-pipeline/stage2/configs/writer.yaml
+    --config preprocess/skill-pipeline/stage2/configs/writer.yaml --phase all
 
-# Stage 2 training-task-targeted explorer (after phase 2 workers finish)
+# Independent text prose (Option 1) alongside mm
+./preprocess/skill-pipeline/stage2/run.sh \
+    --config preprocess/skill-pipeline/stage2/configs/writer.yaml --phase all \
+    --mode both --text-source independent
+
+# Training-task-targeted explorer (after Stage 2a workers finish),
+# chained straight into assembler + mapper + inline(s) so the augmented
+# 2a+2b worker set produces the final skill pair in one command.
 python3 preprocess/skill-pipeline/stage2/run_phase_2b.py \
     --v3-config preprocess/skill-pipeline/stage2/configs/writer.yaml \
     --rollouts-config scripts/run-gym-anything/experiments/configs/writer_train16_mm_skill.yaml \
-    --app-name "LibreOffice Writer"
-
-# Inline into multimodal-Stage-2
-./preprocess/skill-pipeline/stage2/run.sh \
-    --config preprocess/skill-pipeline/stage2/configs/writer.yaml --phase 4
-
-# Derive text-Stage-2 from multimodal-Stage-2
-./preprocess/skill-pipeline/stage2/run.sh \
-    --config preprocess/skill-pipeline/stage2/configs/writer.yaml --phase 5
+    --app-name "LibreOffice Writer" \
+    --then-inline --mode both --text-source derived
 ```
 
 ## 4. Citation

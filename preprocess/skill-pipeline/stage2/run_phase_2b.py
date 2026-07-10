@@ -41,6 +41,72 @@ STAGE2_DIR = MMSKILLS_ROOT / "preprocess" / "skill-pipeline" / "stage2"
 REVIEW_PY = STAGE2_DIR / "review.py"
 DIAGNOSE_PY = STAGE2_DIR / "diagnose.py"
 WORKER_PY = STAGE2_DIR / "worker.py"
+ASSEMBLE_PY = STAGE2_DIR / "assemble.py"
+MAP_REGIONS_PY = STAGE2_DIR / "map_regions.py"
+INLINE_PY = STAGE2_DIR / "inline_into_stage1.py"
+DERIVE_TEXT_PY = STAGE2_DIR / "derive_text.py"
+
+
+def _run_inline_chain(
+    *,
+    output_dir: Path,
+    v3_cfg: dict,
+    domain: str,
+    app_name: str,
+    mode: str,
+    text_source: str,
+) -> int:
+    """After Phase 2b workers finish, re-run assembler + mapper + inline(s)
+    (+ optional derive_text) so the augmented worker set produces a fresh
+    mm-stage2 (and text-stage2) skill pair.
+    """
+    if mode == "multimodal" or (mode == "text" and text_source == "derived"):
+        asm_mode = "multimodal"
+    elif mode == "both" and text_source == "derived":
+        asm_mode = "multimodal"
+    else:  # independent text path (mode=text or mode=both)
+        asm_mode = "both"
+
+    logger.info("═══ Phase 2b → inline chain (mode=%s, text-source=%s, asm=%s) ═══",
+                mode, text_source, asm_mode)
+
+    steps: list[list[str]] = [
+        [sys.executable, str(ASSEMBLE_PY),
+         "--pipeline-dir", str(output_dir),
+         "--model", v3_cfg.get("assembler_model", "claude-opus-4-6"),
+         "--timeout", str(v3_cfg.get("assembler_timeout", 2400)),
+         "--mode", asm_mode],
+        [sys.executable, str(MAP_REGIONS_PY),
+         "--pipeline-dir", str(output_dir),
+         "--domain", domain,
+         "--model", v3_cfg.get("mapper_model", "claude-opus-4-6"),
+         "--timeout", str(v3_cfg.get("mapper_timeout", 900))],
+    ]
+    if mode != "text":
+        steps.append([sys.executable, str(INLINE_PY),
+                      "--pipeline-dir", str(output_dir), "--mode", "multimodal"])
+    if mode in ("text", "both"):
+        if text_source == "independent":
+            steps.append([sys.executable, str(INLINE_PY),
+                          "--pipeline-dir", str(output_dir), "--mode", "text"])
+        else:  # derived
+            # derive_text needs mm-stage2 on disk
+            if mode == "text":
+                steps.append([sys.executable, str(INLINE_PY),
+                              "--pipeline-dir", str(output_dir), "--mode", "multimodal"])
+            steps.append([sys.executable, str(DERIVE_TEXT_PY),
+                          "--domain", domain,
+                          "--app-name", app_name,
+                          "--app-version", str(v3_cfg.get("app_version", "")),
+                          "--parallel", str(v3_cfg.get("text_v3_parallel", 4))])
+
+    for cmd in steps:
+        logger.info("running: %s", " ".join(cmd))
+        rc = subprocess.run(cmd).returncode
+        if rc != 0:
+            logger.error("step failed (rc=%d): %s", rc, cmd[0])
+            return rc
+    return 0
 
 
 def _load_yaml(p: Path) -> dict:
@@ -269,6 +335,15 @@ def main() -> int:
                     help="Added to v3_cfg.bridge_port_base for targeted workers' base port.")
     ap.add_argument("--stop-after", choices=["diagnose", "review", "workers"], default="workers",
                     help="Stop after the named stage (default: run all the way through workers).")
+    ap.add_argument("--then-inline", action="store_true",
+                    help="After Phase 2b workers finish, re-run assembler + "
+                         "mapper + inline(s) so mm-stage2 (and text-stage2) reflect "
+                         "the 2a + 2b combined worker set.")
+    ap.add_argument("--mode", choices=["multimodal", "text", "both"], default="both",
+                    help="For --then-inline: which artifacts to produce (default: both).")
+    ap.add_argument("--text-source", dest="text_source",
+                    choices=["independent", "derived"], default="derived",
+                    help="For --then-inline: how to produce text-stage2 (default: derived).")
     args = ap.parse_args()
 
     logging.basicConfig(level=logging.INFO,
@@ -338,6 +413,22 @@ def main() -> int:
         "n_workers_ok": n_ok,
         "workers": results,
     }, indent=2))
+
+    # 5. Optional: chain into assembler + mapper + inline(s) so the augmented
+    #    worker set (2a free + 2b targeted) produces a fresh skill pair.
+    if args.then_inline:
+        rc = _run_inline_chain(
+            output_dir=output_dir,
+            v3_cfg=v3_cfg,
+            domain=domain.removesuffix("_env"),
+            app_name=args.app_name,
+            mode=args.mode,
+            text_source=args.text_source,
+        )
+        if rc != 0:
+            logger.error("inline chain failed (rc=%d); skill artifacts may be stale", rc)
+            return rc
+
     return 0
 
 

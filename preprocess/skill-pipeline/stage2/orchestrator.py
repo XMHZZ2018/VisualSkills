@@ -189,12 +189,14 @@ def run(cfg: dict, output_dir: Path) -> int:
         log.warning("no worker produced notes.json — assembler will have to fall back to narrative notes.md")
 
     # ── Phase 2: assembler ──────────────────────────────────────────────
-    log.info("═══ Phase 2: assembler ═══")
+    assemble_mode = cfg.get("assemble_mode", "multimodal")
+    log.info("═══ Phase 2: assembler (mode=%s) ═══", assemble_mode)
     t2 = time.time()
     rc = run_assemble(
         pipeline_dir=output_dir,
         model=cfg["assembler_model"],
         timeout=cfg["assembler_timeout"],
+        mode=assemble_mode,
     )
     log.info("assembler done in %.1fs rc=%d", time.time() - t2, rc)
     if rc != 0:
@@ -204,11 +206,11 @@ def run(cfg: dict, output_dir: Path) -> int:
     # ── Phase 2b: auto-map regions → mm-stage1 guides ───────────────────────
     log.info("═══ Phase 2b: map regions → guides ═══")
     domain = cfg.get("domain") or Path(cfg["env_dir"]).name.removesuffix("_env")
-    mm_stage1_dir = MMSKILLS_ROOT / "skills" / f"{domain}-knowledge-multimodal-stage1"
+    mm_stage1_dir = MMSKILLS_ROOT / "skills" / f"{domain}-multimodal-stage1"
     if not mm_stage1_dir.is_dir():
         log.error("mm-stage1 dir not found: %s — skipping mapper", mm_stage1_dir)
         return 1
-    target_skill_dir_rel = f"skills/{domain}-knowledge-multimodal-stage2"
+    target_skill_dir_rel = f"skills/{domain}-multimodal-stage2"
     t2b = time.time()
     rc = run_map_regions(
         pipeline_dir=output_dir,
@@ -231,9 +233,17 @@ def main() -> int:
                     help="Override the output_dir in config")
     ap.add_argument("--force", action="store_true",
                     help="Wipe output_dir before starting (full re-run)")
+    ap.add_argument(
+        "--assemble-mode", choices=["multimodal", "text", "both"], default=None,
+        help="Override the assembler mode (multimodal / text / both). "
+             "'text' feeds the Independent text path (Option 1). Default "
+             "reads cfg.assemble_mode, falling back to 'multimodal'.",
+    )
     args = ap.parse_args()
 
     cfg = load_config(args.config)
+    if args.assemble_mode is not None:
+        cfg["assemble_mode"] = args.assemble_mode
 
     # Pillow is required by the assembler's img_tool.py helper.  Fail fast.
     try:
