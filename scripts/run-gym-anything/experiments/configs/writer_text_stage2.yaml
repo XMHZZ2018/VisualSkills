@@ -1,19 +1,14 @@
-# LibreOffice Writer with the multimodal-loader skill — full 24-task test set.
-#
-# Skill: skills/libreoffice_writer-multimodal-loader-v1/
-#   - Same 23 topic folders as multimodal-v1 (symlinked).
-#   - Adds tools/skill_server.py exposing load_topic(topic) MCP tool that
-#     returns guide.md + every adjacent figXX.png atomically.
-#   - SKILL.md preamble instructs the agent to call load_topic instead of
-#     reading the *.md / fig*.png files directly.
-#
-# Compares head-to-head with writer_baseline_multimodal_skill.yaml.
+# CUA-World Writer (24 tasks) — Stage 2 text control (mm-stage2 with figure refs verbalized).
+# task_timeout is a wall-clock safety net; env init.max_steps drives the
+# actual per-task step budget (see run_task.py:395).
 model: claude-opus-4-6
-skill_mode: multimodal-loader
+skill_mode: text-stage2
 env_dir: vendor/gym-anything/benchmarks/cua_world/environments/libreoffice_writer_env
 result_dir: scripts/run-gym-anything/workspaces
-task_timeout: 900   # 15 minutes
-
+task_timeout: 5400   # safety net; env max_steps is the real budget
+num_parallel: 4
+rerun: true
+log_level: INFO
 task_list:
   - bcp_draft_watermark
   - business_letter_formatting
@@ -39,7 +34,3 @@ task_list:
   - sop_metadata_automation
   - spec_cross_reference_repair
   - transcript_style_chaining
-
-num_parallel: 4
-rerun: true
-log_level: INFO

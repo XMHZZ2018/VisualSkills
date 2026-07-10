@@ -1,17 +1,14 @@
-# LibreOffice Impress — no-skill baseline over all 28 gym-anything tasks.
-# Task list matches every folder with a materialized task.json under
-# vendor/gym-anything/benchmarks/cua_world/environments/libreoffice_impress_env/tasks/
-# as of commit time.
+# CUA-World Impress (28 tasks) — Stage 1 multimodal skill (docs-derived, with figures).
+# task_timeout is a wall-clock safety net; env init.max_steps drives the
+# actual per-task step budget (see run_task.py:395).
 model: claude-opus-4-6
-skill_mode: none
+skill_mode: multimodal-stage1
 env_dir: vendor/gym-anything/benchmarks/cua_world/environments/libreoffice_impress_env
 result_dir: scripts/run-gym-anything/workspaces
-task_timeout: 900   # 15 minutes per task
-
+task_timeout: 5400   # safety net; env max_steps is the real budget
 num_parallel: 4
-rerun: false        # skip tasks whose score.txt already exists (resume-friendly)
+rerun: true
 log_level: INFO
-
 task_list:
   - add_animations
   - align_and_distribute_images

@@ -106,7 +106,7 @@ Both runners share the same three skill modes:
 
 ```bash
 bash scripts/run-gym-anything/run.sh \
-    --config scripts/run-gym-anything/experiments/configs/impress_all_multimodal_skill.yaml
+    --config scripts/run-gym-anything/experiments/configs/impress_mm_stage1.yaml
 ```
 
 A minimal config:

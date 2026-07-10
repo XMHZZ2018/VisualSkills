@@ -1,0 +1,28 @@
+# CUA-World QGIS (16 tasks) — Stage 2 multimodal skill (Stage 1 + UI-explorer regions).
+# task_timeout is a wall-clock safety net; env init.max_steps drives the
+# actual per-task step budget (see run_task.py:395).
+model: claude-opus-4-6
+skill_mode: multimodal-stage2
+env_dir: vendor/gym-anything/benchmarks/cua_world/environments/qgis_env
+result_dir: scripts/run-gym-anything/workspaces
+task_timeout: 5400   # safety net; env max_steps is the real budget
+num_parallel: 4
+rerun: true
+log_level: INFO
+task_list:
+  - road_proximity_clip_analysis
+  - seismic_risk_country_exposure
+  - select_by_expression_export
+  - simplify_geometries_web_export
+  - snap_gps_points_correction
+  - solar_suitability_analysis
+  - spatial_join_points_to_polygons
+  - spatial_join_summary_concatenation
+  - spatial_trend_ellipse_japan
+  - split_layer_by_attribute
+  - supply_chain_hub_lines
+  - terrain_hillshade_slope_analysis
+  - topological_coloring_world_map
+  - urban_park_coverage_equity
+  - variable_distance_buffer_zones
+  - viewshed_fire_lookout_siting

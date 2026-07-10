@@ -151,7 +151,7 @@ When you believe the task is complete, simply stop — do not call any signal to
 DEFAULTS = {
     "model": "claude-opus-4-6",
     "skill_mode": "none",
-    "task_timeout": 1800,
+    "task_timeout": 5400,  # docker container-wait safety net; env max_steps drives the actual episode budget
     "max_steps": None,
     "bridge_port_base": 8766,
     "result_dir": "scripts/run-gym-anything/workspaces",
@@ -410,6 +410,17 @@ def run_single_task(cfg: dict, task_id: str, bridge_port: int) -> int:
             getattr(env, "_timeout_sec", None),
             cfg["task_timeout"],
         )
+        # Warn if the wall-clock safety net looks tight compared with the
+        # step budget. ~30s/step is a conservative Claude Opus rate for
+        # 1280x720 screenshot round-trips; less than that and task_timeout
+        # will kick in BEFORE max_steps is exhausted, cutting trajectories
+        # short and biasing scores downward.
+        if max_steps and cfg["task_timeout"] < max_steps * 30:
+            logger.warning(
+                "task_timeout=%ds may bind before step budget "
+                "(max_steps=%s × 30s/step = %ds). Consider raising task_timeout.",
+                cfg["task_timeout"], max_steps, max_steps * 30,
+            )
     except Exception as exc:
         logger.error("Failed to set up environment: %s", exc)
         env.close()
