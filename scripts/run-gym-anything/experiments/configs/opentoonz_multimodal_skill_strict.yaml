@@ -1,5 +1,5 @@
-# OpenToonz mm-v1 with strict per-step skill_check protocol — 4 failed tasks
-# from the train-split (score = 0 under the plain mm-v1 SKILL.md).
+# OpenToonz mm-stage1 with strict per-step skill_check protocol — 4 failed tasks
+# from the train-split (score = 0 under the plain mm-stage1 SKILL.md).
 #
 # Same skill artefacts as opentoonz_multimodal_skill.yaml; only difference is
 # the SKILL.md preamble (skill-check protocol enforces per-step consultation).

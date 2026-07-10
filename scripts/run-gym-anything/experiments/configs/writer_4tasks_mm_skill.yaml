@@ -1,4 +1,4 @@
-# LibreOffice Writer — 4 medium tasks, multimodal skill (mm-v1 loader).
+# LibreOffice Writer — 4 medium tasks, multimodal skill (mm-stage1 loader).
 model: claude-opus-4-6
 skill_mode: multimodal
 env_dir: vendor/gym-anything/benchmarks/cua_world/environments/libreoffice_writer_env

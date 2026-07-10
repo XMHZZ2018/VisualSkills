@@ -1,4 +1,4 @@
-# 16 training-split Writer tasks with current mm-v1 skill.
+# 16 training-split Writer tasks with current mm-stage1 skill.
 # Rollouts feed review.py for Phase 2b target generation.
 model: claude-opus-4-6
 skill_mode: multimodal

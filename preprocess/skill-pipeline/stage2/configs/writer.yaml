@@ -1,0 +1,30 @@
+# UI-explorer pipeline config — LibreOffice Writer.
+domain: libreoffice_writer
+app_name: "LibreOffice Writer"
+app_version: "7.3.7"
+
+env_dir: vendor/gym-anything/benchmarks/cua_world/environments/libreoffice_writer_env
+
+planner_task_id: _warmup
+
+output_dir: preprocess/skill-pipeline/stage2/outputs/writer
+
+n_workers: 8
+
+# Use a high port range that does not collide with run-osworld (5xxx).
+bridge_port_base: 9200
+
+planner_model: claude-opus-4-6
+worker_model: claude-sonnet-4-6
+assembler_model: claude-opus-4-6
+
+claude_cli_image: ga-claude-cli
+
+task_timeout: 1800
+max_actions: 80
+action_wait: 1.0
+
+planner_timeout: 600
+assembler_timeout: 2400
+
+text_v3_parallel: 4

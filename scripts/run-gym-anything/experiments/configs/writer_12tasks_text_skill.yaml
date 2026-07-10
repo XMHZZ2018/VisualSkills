@@ -1,4 +1,4 @@
-# LibreOffice Writer — 12-task probe (6 medium + 6 hard), text-v1 skill.
+# LibreOffice Writer — 12-task probe (6 medium + 6 hard), text-stage1 skill.
 #
 # Each task's max_steps and timeout_sec come from its task.json's init block.
 # task_timeout below is ONLY the docker container-wait safety net.

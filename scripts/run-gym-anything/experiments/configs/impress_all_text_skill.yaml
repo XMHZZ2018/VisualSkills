@@ -1,5 +1,5 @@
 # LibreOffice Impress — text-skill run over all 28 gym-anything tasks.
-# Exposes skills/libreoffice_impress-knowledge-text-v1/ via a runtime per-task
+# Exposes skills/libreoffice_impress-knowledge-text-stage1/ via a runtime per-task
 # plugin dir (see _build_plugin_dir in scripts/run-gym-anything/run.py).
 model: claude-opus-4-6
 skill_mode: text
