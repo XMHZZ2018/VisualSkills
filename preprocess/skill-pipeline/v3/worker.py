@@ -64,9 +64,14 @@ def _run_claude_in_docker(
     task_timeout: int,
     claude_cli_image: str,
     logger: logging.Logger,
+    evidence_dir: Path | None = None,
 ) -> tuple[str, str, int]:
     """Run claude CLI in docker.  Worker variant: allows the Write tool so
-    the agent can produce notes.md; still blocks Bash/Agent/etc."""
+    the agent can produce notes.md; still blocks Bash/Agent/etc.
+
+    If `evidence_dir` is given, it is mounted read-only at /workspace/evidence/
+    so the worker's Read tool can inspect failure-trajectory screenshots.
+    """
     import docker
 
     cli_args = [
@@ -76,7 +81,8 @@ def _run_claude_in_docker(
         "--model", model,
         "--no-session-persistence",
         "--dangerously-skip-permissions",
-        # Allow Write (for notes.md) and Read (for re-reading own notes).
+        # Allow Write (for notes.md) and Read (for re-reading own notes
+        # and the evidence screenshots).
         # Keep Bash / Edit / Glob / Grep / Agent / AskUserQuestion /
         # NotebookEdit blocked — worker only needs MCP tools + Write/Read.
         "--disallowed-tools", "Bash,Edit,Glob,Grep,Agent,AskUserQuestion,NotebookEdit",
@@ -97,19 +103,24 @@ def _run_claude_in_docker(
 
     logger.info("Starting claude container %s (bridge port %d)", container_name, bridge_port)
     credentials_path = os.path.expanduser("~/.claude/.credentials.json")
+    volumes = {
+        str(workspace): {"bind": "/workspace", "mode": "rw"},
+        str(MMSKILLS_ROOT): {"bind": "/opt/mmskills", "mode": "ro"},
+        credentials_path: {
+            "bind": "/home/node/.claude/.credentials.json", "mode": "ro",
+        },
+    }
+    if evidence_dir is not None and Path(evidence_dir).is_dir():
+        volumes[str(evidence_dir)] = {"bind": "/workspace/evidence", "mode": "ro"}
+        logger.info("mounting evidence dir %s -> /workspace/evidence", evidence_dir)
+
     container = docker_client.containers.run(
         claude_cli_image,
         command=cli_args,
         name=container_name,
         environment=env_vars,
         extra_hosts={"host.docker.internal": "host-gateway"},
-        volumes={
-            str(workspace): {"bind": "/workspace", "mode": "rw"},
-            str(MMSKILLS_ROOT): {"bind": "/opt/mmskills", "mode": "ro"},
-            credentials_path: {
-                "bind": "/home/node/.claude/.credentials.json", "mode": "ro",
-            },
-        },
+        volumes=volumes,
         detach=True,
     )
 
@@ -134,6 +145,36 @@ def _run_claude_in_docker(
     return stdout, stderr, exit_code
 
 
+def _build_evidence_section(evidence: list[dict]) -> str:
+    """Render evidence_screenshots list into a prompt block listing each
+    file path under /workspace/evidence/ and what the failing agent struggled
+    with there. The worker uses its Read tool on each path to inspect."""
+    if not evidence:
+        return ("No failure-trajectory evidence was attached for this region. "
+                "Explore the scope freely.")
+    lines: list[str] = []
+    seen_paths: set[str] = set()
+    for e in evidence:
+        sid = e.get("source_task_id", "?")
+        shot = e.get("screenshot", "")
+        path = f"/workspace/evidence/{sid}__{shot}"
+        if path in seen_paths:
+            continue
+        seen_paths.add(path)
+        lines.append(
+            f"  - `{path}`\n"
+            f"      from source task: {sid}\n"
+            f"      failing agent's struggle: {e.get('what_went_wrong', '').strip()}"
+        )
+    header = (
+        f"{len(seen_paths)} screenshot(s) from previous failing rollout(s) "
+        "are mounted read-only inside the container. USE THE Read TOOL on "
+        "each path before exploring — they pinpoint the exact UI state that "
+        "previously broke."
+    )
+    return header + "\n\n" + "\n\n".join(lines)
+
+
 def run_worker(
     worker_id: int,
     target: dict,
@@ -146,6 +187,7 @@ def run_worker(
     task_timeout: int,
     max_actions: int,
     action_wait: float,
+    evidence_dir: Path | None = None,
 ) -> int:
     """Run one worker.  Returns 0 on success."""
     logger = logging.getLogger(f"worker.{worker_id}.{target['target_id']}")
@@ -195,12 +237,18 @@ def run_worker(
 
         # ── prompt + mcp_config ────────────────────────────────────────
         system_prompt = WORKER_SYSTEM.format(max_actions=max_actions)
+        evidence_section = _build_evidence_section(
+            target.get("evidence_screenshots") or []
+        )
+        # Scope_hint falls back to the `scope` field set by review.py.
+        scope_hint = target.get("scope_hint") or target.get("scope", "")
         user_prompt = WORKER_USER_TEMPLATE.format(
             target_id=target["target_id"],
             name=target["name"],
             target_kind=target.get("target_kind", "other"),
             region_bbox_1920x1080=target.get("region_bbox_1920x1080"),
-            scope_hint=target.get("scope_hint", ""),
+            scope_hint=scope_hint,
+            evidence_section=evidence_section,
         )
         full_prompt = system_prompt + "\n\n" + user_prompt
         (workspace / "prompt.txt").write_text(full_prompt, encoding="utf-8")
@@ -220,6 +268,7 @@ def run_worker(
             task_timeout=task_timeout,
             claude_cli_image=claude_cli_image,
             logger=logger,
+            evidence_dir=evidence_dir,
         )
         elapsed = (datetime.datetime.now() - t0).total_seconds()
         logger.info("claude finished in %.1fs (exit=%d)", elapsed, exit_code)
@@ -271,7 +320,15 @@ def main() -> int:
     ap.add_argument("--bridge-port", type=int, required=True)
     ap.add_argument("--output-dir", type=Path, required=True)
     ap.add_argument("--env-dir", required=True)
-    ap.add_argument("--task-id", required=True)
+    ap.add_argument("--task-id", required=True,
+                    help="env task_id to boot the worker on. For targeted "
+                         "workers this should be the target's setup_task_id "
+                         "(a real task whose setup_task.sh loads the fixture "
+                         "the failing agent worked with). Use _warmup only "
+                         "for free Phase-2a workers.")
+    ap.add_argument("--evidence-dir", type=Path, default=None,
+                    help="Optional host directory of failure-trajectory "
+                         "screenshots to mount read-only at /workspace/evidence/.")
     ap.add_argument("--model", default="claude-sonnet-4-6")
     ap.add_argument("--claude-cli-image", default="ga-claude-cli")
     ap.add_argument("--task-timeout", type=int, default=1200)  # 20 min
@@ -298,6 +355,7 @@ def main() -> int:
         task_timeout=args.task_timeout,
         max_actions=args.max_actions,
         action_wait=args.action_wait,
+        evidence_dir=args.evidence_dir,
     )
 
 

@@ -39,6 +39,7 @@ MMSKILLS_ROOT = Path("/home/ziyan/MMSkills")
 GA_RUN_SH = MMSKILLS_ROOT / "scripts" / "run-gym-anything" / "run.sh"
 V3_DIR = MMSKILLS_ROOT / "preprocess" / "skill-pipeline" / "v3"
 REVIEW_PY = V3_DIR / "review.py"
+DIAGNOSE_PY = V3_DIR / "diagnose.py"
 WORKER_PY = V3_DIR / "worker.py"
 
 
@@ -81,21 +82,73 @@ def _run_rollouts(rollouts_config_rel: str, log_dir: Path) -> Path:
     return rollouts_dir
 
 
-def _run_review(rollouts_dir: Path, output_dir: Path, app_name: str,
-                model: str, task_list: list[str] | None = None) -> Path:
-    """Call review.py; returns path to targeted_targets.json."""
-    review_out = output_dir / "review"
-    review_out.mkdir(parents=True, exist_ok=True)
-    logger.info("running review → %s", review_out)
-    cmd = [sys.executable, str(REVIEW_PY),
+def _run_diagnose(rollouts_dir: Path, tasks_dir: Path, output_dir: Path,
+                  app_name: str, model: str, parallel: int,
+                  task_list: list[str] | None = None) -> Path:
+    """Call diagnose.py once per failing trajectory; returns the diagnose dir."""
+    diag_out = output_dir / "diagnose"
+    diag_out.mkdir(parents=True, exist_ok=True)
+    logger.info("running diagnose → %s", diag_out)
+    cmd = [sys.executable, str(DIAGNOSE_PY),
            "--rollouts-dir", str(rollouts_dir),
+           "--tasks-dir", str(tasks_dir),
            "--app-name", app_name,
-           "--output-dir", str(review_out),
-           "--model", model]
+           "--output-dir", str(diag_out),
+           "--model", model,
+           "--parallel", str(parallel)]
     if task_list:
         cmd.extend(["--task-list", ",".join(task_list)])
     subprocess.run(cmd, check=True)
+    return diag_out
+
+
+def _run_review(diagnoses_dir: Path, output_dir: Path, app_name: str,
+                model: str) -> Path:
+    """Call review.py over diagnoses; returns path to targeted_targets.json."""
+    review_out = output_dir / "review"
+    review_out.mkdir(parents=True, exist_ok=True)
+    logger.info("running review (aggregator) → %s", review_out)
+    cmd = [sys.executable, str(REVIEW_PY),
+           "--diagnoses-dir", str(diagnoses_dir),
+           "--app-name", app_name,
+           "--output-dir", str(review_out),
+           "--model", model]
+    subprocess.run(cmd, check=True)
     return review_out / "targeted_targets.json"
+
+
+def _stage_evidence_for_worker(target: dict, rollouts_dir: Path,
+                               worker_dir: Path) -> Path | None:
+    """Copy each evidence_screenshot from its source-task rollouts into a
+    per-worker evidence/ dir, renaming as <source_task_id>__<step>.png so
+    multiple sources don't collide. Returns the evidence dir path (or None
+    if no evidence was attached / nothing could be staged)."""
+    items = target.get("evidence_screenshots") or []
+    if not items:
+        return None
+    evd = worker_dir / "evidence"
+    evd.mkdir(parents=True, exist_ok=True)
+    staged = 0
+    for e in items:
+        sid = e.get("source_task_id")
+        shot = e.get("screenshot")
+        if not sid or not shot:
+            continue
+        src = rollouts_dir / sid / "screenshots" / shot
+        if not src.exists():
+            logger.warning("evidence screenshot missing on disk: %s", src)
+            continue
+        dst = evd / f"{sid}__{shot}"
+        if not dst.exists():
+            try:
+                import shutil as _sh
+                _sh.copy2(src, dst)
+                staged += 1
+            except Exception as exc:
+                logger.warning("could not stage %s -> %s: %s", src, dst, exc)
+    if staged == 0:
+        return None
+    return evd
 
 
 def _dispatch_workers(
@@ -103,13 +156,22 @@ def _dispatch_workers(
     v3_cfg: dict,
     output_dir: Path,
     bridge_port_base_offset: int,
+    rollouts_dir: Path | None = None,
 ) -> list[dict]:
-    """Spawn one worker.py per target, in parallel up to v3_cfg['n_workers']."""
+    """Spawn one worker.py per target, in parallel up to v3_cfg['n_workers'].
+
+    Each target's `setup_task_id` decides which env task to boot the worker
+    on (so the fixture the failing agent worked with is loaded). Falls back
+    to v3_cfg.planner_task_id (typically `_warmup`) if no setup is given.
+
+    Each target's `evidence_screenshots` are staged into a per-worker
+    `evidence/` dir and mounted into the container at /workspace/evidence/
+    so the worker can Read them to see the exact failure state.
+    """
     workers_dir = output_dir / "workers"
     workers_dir.mkdir(parents=True, exist_ok=True)
 
     n_workers = int(v3_cfg.get("n_workers", 8))
-    # Bridge port — start AFTER Phase 2a's range (its workers used base+1..base+n).
     base = int(v3_cfg["bridge_port_base"]) + bridge_port_base_offset
     env_dir = v3_cfg["env_dir"]
     if not Path(env_dir).is_absolute():
@@ -121,7 +183,6 @@ def _dispatch_workers(
     max_actions = int(v3_cfg.get("max_actions", 80))
     action_wait = float(v3_cfg.get("action_wait", 1.0))
 
-    # Use worker IDs that don't collide with Phase 2a's (look at existing dirs).
     existing_ids = {
         int(p.name.split("_")[1])
         for p in workers_dir.iterdir() if p.is_dir() and p.name.startswith("worker_")
@@ -137,6 +198,12 @@ def _dispatch_workers(
         worker_out.mkdir(parents=True, exist_ok=True)
         target_json = worker_out / "target.json"
         target_json.write_text(json.dumps(target, indent=2))
+
+        setup_task = target.get("setup_task_id") or warmup
+        evd = None
+        if rollouts_dir is not None:
+            evd = _stage_evidence_for_worker(target, rollouts_dir, worker_out)
+
         cmd = [
             sys.executable, str(WORKER_PY),
             "--worker-id", str(wid),
@@ -144,13 +211,15 @@ def _dispatch_workers(
             "--bridge-port", str(base + i),
             "--output-dir", str(worker_out),
             "--env-dir", env_dir,
-            "--task-id", warmup,
+            "--task-id", setup_task,
             "--model", model,
             "--claude-cli-image", cli_image,
             "--task-timeout", str(task_timeout),
             "--max-actions", str(max_actions),
             "--action-wait", str(action_wait),
         ]
+        if evd is not None:
+            cmd += ["--evidence-dir", str(evd)]
         log_path = worker_out / "worker.log"
         with log_path.open("w") as lf:
             t0 = time.time()
@@ -158,6 +227,8 @@ def _dispatch_workers(
             elapsed = time.time() - t0
         return {
             "worker_id": wid, "target_id": tid,
+            "setup_task_id": setup_task,
+            "evidence_dir": str(evd) if evd else None,
             "exit_code": proc.returncode, "elapsed_s": elapsed,
             "log": str(log_path),
         }
@@ -188,8 +259,16 @@ def main() -> int:
     ap.add_argument("--skip-rollouts", action="store_true",
                     help="Use existing rollout trajectories (don't re-launch the agent).")
     ap.add_argument("--review-model", default="claude-opus-4-6")
+    ap.add_argument("--diagnose-model", default="claude-opus-4-6")
+    ap.add_argument("--diagnose-parallel", type=int, default=4)
+    ap.add_argument("--skip-diagnose", action="store_true",
+                    help="Reuse existing diagnose/ outputs instead of re-running diagnose.py.")
+    ap.add_argument("--skip-review", action="store_true",
+                    help="Reuse existing review/targeted_targets.json instead of re-running review.py.")
     ap.add_argument("--bridge-port-offset", type=int, default=100,
                     help="Added to v3_cfg.bridge_port_base for targeted workers' base port.")
+    ap.add_argument("--stop-after", choices=["diagnose", "review", "workers"], default="workers",
+                    help="Stop after the named stage (default: run all the way through workers).")
     args = ap.parse_args()
 
     logging.basicConfig(level=logging.INFO,
@@ -216,17 +295,39 @@ def main() -> int:
     else:
         rollouts_dir = _run_rollouts(args.rollouts_config, output_dir / "rollouts_log")
 
-    # 2. Review
-    targets_json = _run_review(rollouts_dir, output_dir, args.app_name,
-                                args.review_model,
-                                task_list=list(ga_cfg.get("task_list", [])))
+    # 2a. Per-trajectory diagnose
+    tasks_dir = MMSKILLS_ROOT / ga_cfg["env_dir"] / "tasks"
+    if args.skip_diagnose:
+        diagnoses_dir = output_dir / "diagnose"
+        logger.info("--skip-diagnose: reusing %s", diagnoses_dir)
+    else:
+        diagnoses_dir = _run_diagnose(
+            rollouts_dir, tasks_dir, output_dir, args.app_name,
+            args.diagnose_model, args.diagnose_parallel,
+            task_list=list(ga_cfg.get("task_list", [])),
+        )
+    if args.stop_after == "diagnose":
+        logger.info("--stop-after diagnose: done"); return 0
+
+    # 2b. Aggregate diagnoses → targets
+    if args.skip_review:
+        targets_json = output_dir / "review" / "targeted_targets.json"
+        logger.info("--skip-review: reusing %s", targets_json)
+    else:
+        targets_json = _run_review(diagnoses_dir, output_dir, args.app_name,
+                                   args.review_model)
     targets = json.loads(targets_json.read_text())
     if not targets:
         logger.error("review produced 0 targets — nothing to dispatch")
         return 1
+    if args.stop_after == "review":
+        logger.info("--stop-after review: %d targets — stopping before workers", len(targets))
+        return 0
 
     # 3. Targeted workers
-    results = _dispatch_workers(targets, v3_cfg, output_dir, args.bridge_port_offset)
+    results = _dispatch_workers(targets, v3_cfg, output_dir,
+                                args.bridge_port_offset,
+                                rollouts_dir=rollouts_dir)
 
     # 4. Summary
     rcs = [r.get("exit_code") for r in results]

@@ -325,8 +325,28 @@ region_bbox:   {region_bbox_1920x1080}
 scope:
   {scope_hint}
 
-launch_clicks have ALREADY been performed — the app is in your starting
-state.  Take ONE screenshot() first to confirm, then proceed.
+═══ FAILURE-TRAJECTORY EVIDENCE ═══
+
+{evidence_section}
+
+═══ STARTING STATE ═══
+
+The app is already booted on the source task's fixture (the same document
+the failing agent was working with). Take ONE screenshot() first to confirm
+your starting state, then proceed.
+
+Priority order:
+  1. Read each failure-trajectory screenshot under /workspace/evidence/.
+     They show the exact UI state where a previous agent got stuck.
+  2. Navigate to the same region and reproduce that state.
+  3. Then systematically vary the inputs / control states the scope
+     describes — try each control under different conditions, watch for
+     disabled-state transitions, value-revert behavior, and hidden side
+     effects. The failure evidence usually points at ONE specific
+     mechanism — make sure your notes explain that mechanism explicitly.
+  4. Capture screenshots at each distinct state. Be specific in notes.md /
+     notes.json about WHICH controls behave WHICH way under WHICH
+     conditions.
 
 Remember to produce BOTH `/workspace/notes.md` and `/workspace/notes.json`
 and to sanity-check every evidence_step before you write notes.json.
