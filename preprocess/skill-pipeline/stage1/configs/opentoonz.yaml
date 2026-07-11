@@ -1,0 +1,8 @@
+app_name: "OpenToonz"
+app_version: "1.7"
+domain: "opentoonz"
+
+sources:
+  html_guide:
+    root_url: "https://opentoonz.readthedocs.io/en/latest/"
+    crawl_depth: 1

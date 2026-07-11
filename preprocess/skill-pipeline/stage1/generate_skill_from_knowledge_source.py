@@ -128,6 +128,10 @@ def call_claude(prompt: str, images: list[Path] | None = None, timeout: int = 18
         "--output-format", "json",
         "--model", CLAUDE_MODEL,
         "--dangerously-skip-permissions",
+        # Claude CLI 2.1+ sandboxes tool reads to CWD by default even with
+        # --dangerously-skip-permissions. We run from /tmp (see below) but need
+        # to Read pages and images under the repo, so allow the repo root.
+        "--add-dir", str(MMSKILLS_ROOT),
     ]
 
     # Run from a neutral cwd: invoking from this project's directory picks up
