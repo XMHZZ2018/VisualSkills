@@ -8,7 +8,7 @@ Reference markdown + cropped screenshots; the result is then *inlined* into
 the existing Stage 1 skill to produce **multimodal-skill-stage2**, and finally a
 text-only twin **text-skill-stage2** is derived from mm-stage2.
 
-> **Stage 2 always runs on the GCP `osworld` VM**, since phases 1-3 spin up
+> **Stage 2 always runs on the GCP `osexpert` VM**, since phases 1-3 spin up
 > CUA-World Docker containers (sysbox runtime).  `run.sh` rsyncs this
 > directory to the VM and SSHs in to launch the requested phase.
 
@@ -259,7 +259,7 @@ for the reference implementation.
 
 ## Running on the GCP VM
 
-`run.sh` always runs on the `osworld` VM.  It rsyncs this directory (so any
+`run.sh` always runs on the `osexpert` VM.  It rsyncs this directory (so any
 local edits to scripts or configs take effect) and then SSHs in to launch
 the requested phase.  After phases 4 and 5 (foreground mode), it rsyncs
 the produced `skills/<domain>-{multimodal,text}-stage2/` directories

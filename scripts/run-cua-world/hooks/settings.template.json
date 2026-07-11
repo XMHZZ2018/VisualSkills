@@ -2,7 +2,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "mcp__(cua-world|osworld)-controller__(click|double_click|drag_to|hotkey|key_press|type_text|scroll)",
+        "matcher": "mcp__(cua-world|osexpert)-controller__(click|double_click|drag_to|hotkey|key_press|type_text|scroll)",
         "hooks": [
           {
             "type": "command",

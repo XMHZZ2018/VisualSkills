@@ -1588,7 +1588,7 @@
   {
     "domain": "multi_apps",
     "task_id": "3c8f201a-009d-4bbe-8b65-a6f8b35bb57f",
-    "instruction": "Download the image from \"https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/multi_apps/3c8f201a-009d-4bbe-8b65-a6f8b35bb57f/kingbird.jpeg\", and then use GIMP to compress it to under 600KB as \"compressed.jpeg\" on the Desktop. Resize if needed.",
+    "instruction": "Download the image from \"https://huggingface.co/datasets/xlangai/ubuntu_osexpert_file_cache/resolve/main/multi_apps/3c8f201a-009d-4bbe-8b65-a6f8b35bb57f/kingbird.jpeg\", and then use GIMP to compress it to under 600KB as \"compressed.jpeg\" on the Desktop. Resize if needed.",
     "evaluator": "check_image_file_size",
     "claude_sonnet_score": 0.0
   },
@@ -1660,7 +1660,7 @@
   {
     "domain": "multi_apps",
     "task_id": "48c46dc7-fe04-4505-ade7-723cba1aa6f6",
-    "instruction": "Help me to automatically set up my work space. To be specific, open project directory of OSWorld in terminal and file manager, then open github homepage and the online document of Python in chrome browser.",
+    "instruction": "Help me to automatically set up my work space. To be specific, open project directory of OSExpert-Eval in terminal and file manager, then open github homepage and the online document of Python in chrome browser.",
     "evaluator": [
       "check_list",
       "is_expected_tabs"

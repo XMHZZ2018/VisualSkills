@@ -6,7 +6,7 @@ Create an N2 instance with nested virtualization enabled (required for Docker + 
 
 ```bash
 # Create a boot disk with nested virtualization
-gcloud compute disks create osworld-disk \
+gcloud compute disks create osexpert-disk \
     --zone=us-west1-b \
     --size=200GB \
     --type=pd-ssd \
@@ -14,10 +14,10 @@ gcloud compute disks create osworld-disk \
     --image-project=debian-cloud
 
 # Create the VM with nested virtualization license
-gcloud compute instances create osworld \
+gcloud compute instances create osexpert \
     --zone=us-west1-b \
     --machine-type=n2-standard-16 \
-    --boot-disk-name=osworld-disk \
+    --boot-disk-name=osexpert-disk \
     --enable-nested-virtualization
 ```
 
@@ -31,7 +31,7 @@ Key specs:
 Add to `~/.ssh/config` on your local machine:
 
 ```
-Host osworld
+Host osexpert
     HostName <EXTERNAL_IP>
     User <USERNAME>
     IdentityFile ~/.ssh/google_compute_engine
@@ -40,7 +40,7 @@ Host osworld
 ## 3. Install dependencies on the VM
 
 ```bash
-ssh osworld
+ssh osexpert
 
 # Install system packages
 sudo apt-get update
@@ -52,7 +52,7 @@ sudo usermod -aG kvm $USER
 
 # Re-login for group changes
 exit
-ssh osworld
+ssh osexpert
 
 # Verify KVM
 ls /dev/kvm   # should exist
@@ -83,8 +83,8 @@ cd MMSkills
 python3 -m venv venv
 source venv/bin/activate
 
-# Install OSWorld + dependencies
-bash scripts/run-osworld/setup.sh
+# Install OSExpert-Eval + dependencies
+bash scripts/run-osexpert/setup.sh
 ```
 
 ## 6. Prepare the OS World Docker image
@@ -98,17 +98,17 @@ cd ~/MMSkills
 mkdir -p docker_vm_data
 cd docker_vm_data
 
-# Download from OSWorld's official source
-wget https://drive.google.com/... -O osworld_image.zip   # see OSWorld README for URL
-unzip osworld_image.zip
+# Download from OSExpert-Eval's official source
+wget https://drive.google.com/... -O osexpert_image.zip   # see OSExpert-Eval README for URL
+unzip osexpert_image.zip
 cd ..
 
 # The docker_vm_data/ directory should contain the qcow2 image
-# OSWorld's Docker provider looks for ./docker_vm_data/ relative to CWD
-# run.py handles this with os.chdir(osworld_root)
+# OSExpert-Eval's Docker provider looks for ./docker_vm_data/ relative to CWD
+# run.py handles this with os.chdir(osexpert_root)
 ```
 
-Note: `docker_vm_data/` should be placed in the OSWorld root (`vendor/OSWorld/docker_vm_data/`) or symlinked there. The evaluation script changes to that directory before creating containers.
+Note: `docker_vm_data/` should be placed in the OSExpert-Eval root (`vendor/OSWorld/docker_vm_data/`) or symlinked there. The evaluation script changes to that directory before creating containers.
 
 ## 7. Run evaluation
 
@@ -117,26 +117,26 @@ cd ~/MMSkills
 source venv/bin/activate
 
 # Test with a single task
-python3 scripts/run-osworld/run.py \
+python3 scripts/run-osexpert/run.py \
     --provider_name docker \
     --specific_task_id bb5e4c0d-f964-439c-97b6-bdb9747de3f4
 
 # Run all Chrome tasks (background)
-nohup python3 scripts/run-osworld/run.py \
+nohup python3 scripts/run-osexpert/run.py \
     --provider_name docker \
     --domain chrome --skill_mode none \
-    > ~/osworld_run.log 2>&1 &
+    > ~/osexpert_run.log 2>&1 &
 
 # Monitor progress
-tail -f ~/osworld_run.log
-grep 'score=' ~/osworld_run.log
+tail -f ~/osexpert_run.log
+grep 'score=' ~/osexpert_run.log
 ```
 
 ## 8. Sync results back to local
 
 ```bash
 # From local machine
-rsync -avz osworld:~/MMSkills/scripts/run-osworld/workspaces/ scripts/run-osworld/workspaces/
+rsync -avz osexpert:~/MMSkills/scripts/run-osexpert/workspaces/ scripts/run-osexpert/workspaces/
 ```
 
 ## Troubleshooting
@@ -147,7 +147,7 @@ rsync -avz osworld:~/MMSkills/scripts/run-osworld/workspaces/ scripts/run-osworl
 df -h
 
 # Resize disk (from local machine)
-gcloud compute disks resize osworld-disk --zone=us-west1-b --size=300GB
+gcloud compute disks resize osexpert-disk --zone=us-west1-b --size=300GB
 
 # Expand filesystem (on VM)
 sudo growpart /dev/sda 1

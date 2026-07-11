@@ -1,6 +1,6 @@
-# OSWorld Evaluation with Claude CLI
+# OSExpert-Eval Evaluation with Claude CLI
 
-Run OSWorld desktop evaluation tasks using **Claude CLI** with an **MCP-based action loop** that mirrors OSWorld's original API-based agent, while using Docker isolation to enforce GUI-only interaction.
+Run OSExpert-Eval desktop evaluation tasks using **Claude CLI** with an **MCP-based action loop** that mirrors OSExpert-Eval's original API-based agent, while using Docker isolation to enforce GUI-only interaction.
 
 ## Table of Contents
 
@@ -18,7 +18,7 @@ Run OSWorld desktop evaluation tasks using **Claude CLI** with an **MCP-based ac
 
 ## Why Claude CLI?
 
-OSWorld's standard evaluation uses the Claude API with a custom Python action loop. We use **Claude CLI** instead because it supports **plugins/skills** — domain knowledge files that Claude reads at task time. This lets us inject per-domain guidance (e.g., "how to navigate Chrome settings") and measure whether skills improve task success rates.
+OSExpert-Eval's standard evaluation uses the Claude API with a custom Python action loop. We use **Claude CLI** instead because it supports **plugins/skills** — domain knowledge files that Claude reads at task time. This lets us inject per-domain guidance (e.g., "how to navigate Chrome settings") and measure whether skills improve task success rates.
 
 The challenge: Claude CLI has built-in tools (Bash, Read, Write, etc.) that could bypass the GUI constraint. If Claude runs on the host, it could `docker exec` into the VM or run shell commands directly. We solve this with **Docker isolation** — Claude CLI runs in its own container with no Docker socket and no host network access, so built-in tools are sandboxed while skills still load normally.
 
@@ -30,10 +30,10 @@ Host (run.py — orchestrates everything)
   ├── DesktopEnv ──────────────────────────────► VM container (QEMU guest)
   │                                                port 5000 → host:<mapped_port>
   │
-  └── Docker: osworld-claude-cli container               ▲
+  └── Docker: osexpert-claude-cli container               ▲
         ├── bridge.py (:8765)                            │
         │     └── HTTP → host.docker.internal:<port> ────┘
-        ├── MCP server: osworld-controller
+        ├── MCP server: osexpert-controller
         │     └── HTTP → bridge (:8765)
         └── claude -p "<task>" --mcp-config ...
               └── MCP tools → MCP server → bridge → VM
@@ -41,21 +41,21 @@ Host (run.py — orchestrates everything)
 
 **Data flow for each action:**
 1. Claude calls an MCP tool (e.g., `click(500, 300)`)
-2. The `osworld-controller` MCP server scales coordinates from 1280×720 → native resolution
+2. The `osexpert-controller` MCP server scales coordinates from 1280×720 → native resolution
 3. MCP server sends HTTP request to `bridge.py` at `localhost:8765`
 4. Bridge wraps the command with pyautogui preamble and forwards to VM at `host.docker.internal:<port>`
 5. VM executes the pyautogui command inside the QEMU guest
 6. After 2s UI settle delay, MCP server captures a screenshot, resizes to 1280×720, and returns it to Claude
 
-**Host-side evaluation:** After Claude exits, `run.py` calls `env.evaluate()` on the host using OSWorld's standard scoring via the VM's published ports. Claude never sees or influences the scoring.
+**Host-side evaluation:** After Claude exits, `run.py` calls `env.evaluate()` on the host using OSExpert-Eval's standard scoring via the VM's published ports. Claude never sees or influences the scoring.
 
 ## MCP Tool Design
 
-The `osworld-controller` MCP server (`tools/osworld-controller/server.py`) provides the same action space as OSWorld's original `pyautogui`-based agent, ensuring evaluation comparability.
+The `osexpert-controller` MCP server (`tools/osexpert-controller/server.py`) provides the same action space as OSExpert-Eval's original `pyautogui`-based agent, ensuring evaluation comparability.
 
 ### Action Space Alignment
 
-| OSWorld Original (API agent) | MCP Tool | pyautogui Command |
+| OSExpert-Eval Original (API agent) | MCP Tool | pyautogui Command |
 |---|---|---|
 | `click(x, y, button)` | `click(x, y, button)` | `pyautogui.click(x, y)` / `rightClick` / `middle` |
 | `double_click(x, y)` | `double_click(x, y)` | `pyautogui.doubleClick(x, y)` |
@@ -69,7 +69,7 @@ The `osworld-controller` MCP server (`tools/osworld-controller/server.py`) provi
 
 ### Observation Loop
 
-The original OSWorld agent follows an **action → wait → screenshot** loop:
+The original OSExpert-Eval agent follows an **action → wait → screenshot** loop:
 1. Execute a pyautogui action
 2. Wait for UI to settle (default 2 seconds)
 3. Capture a screenshot and return it as the observation
@@ -78,7 +78,7 @@ The MCP server replicates this exactly: every action tool calls `_exec_and_scree
 
 ### Coordinate Scaling
 
-The VM runs at native resolution (default 1920×1080), but screenshots are resized to **1280×720** before being sent to Claude. This matches the resolution used by OSWorld's original Anthropic agent. When Claude generates coordinates (in 1280×720 space), the MCP server scales them back to native resolution before executing:
+The VM runs at native resolution (default 1920×1080), but screenshots are resized to **1280×720** before being sent to Claude. This matches the resolution used by OSExpert-Eval's original Anthropic agent. When Claude generates coordinates (in 1280×720 space), the MCP server scales them back to native resolution before executing:
 
 ```
 Model coordinates (1280×720) → scale by (native_w/1280, native_h/720) → VM coordinates (1920×1080)
@@ -91,7 +91,7 @@ All actions are executed as pyautogui commands inside the VM's QEMU guest. The b
 import pyautogui; import time; pyautogui.FAILSAFE = False; <command>
 ```
 
-This matches OSWorld's `PythonController`, which wraps commands the same way and sends them to the VM's `/execute` endpoint.
+This matches OSExpert-Eval's `PythonController`, which wraps commands the same way and sends them to the VM's `/execute` endpoint.
 
 ## Docker Isolation
 
@@ -109,7 +109,7 @@ Run Claude CLI in its own Docker container:
 
 ### Why `host.docker.internal`?
 
-The OSWorld VM container runs QEMU inside Docker. Port 5000 is inside the **QEMU guest OS**, not the Docker container. Docker's port mapping (iptables) makes it accessible from the host via `localhost:<mapped_port>`, but it is **not accessible** from other containers on the same Docker network — the container only has QEMU/nginx processes listening, not the guest's Python server.
+The OSExpert-Eval VM container runs QEMU inside Docker. Port 5000 is inside the **QEMU guest OS**, not the Docker container. Docker's port mapping (iptables) makes it accessible from the host via `localhost:<mapped_port>`, but it is **not accessible** from other containers on the same Docker network — the container only has QEMU/nginx processes listening, not the guest's Python server.
 
 The bridge connects to the VM via `host.docker.internal:<host_mapped_port>`, which routes through the Docker host gateway to the iptables-mapped port.
 
@@ -132,16 +132,16 @@ The bridge connects to the VM via `host.docker.internal:<host_mapped_port>`, whi
 | `MMSKILLS_ROOT` | `/opt/mmskills` | ro | Repo with skills, plugins, MCP server |
 | `~/.claude/.credentials.json` | `/home/node/.claude/.credentials.json` | ro | OAuth credentials for Claude API |
 
-The entire `MMSKILLS_ROOT` is mounted (not just the plugin dir) so that plugin symlinks resolve correctly. For example, `plugins/osworld-multimodal/skills → ../../skills` resolves to `/opt/mmskills/skills/` inside the container.
+The entire `MMSKILLS_ROOT` is mounted (not just the plugin dir) so that plugin symlinks resolve correctly. For example, `plugins/osexpert-multimodal/skills → ../../skills` resolves to `/opt/mmskills/skills/` inside the container.
 
 Only `.credentials.json` is mounted from `~/.claude/` (not the entire directory) to avoid config file restore loops that cause Claude CLI to hang.
 
 ## Setup
 
-### 1. Initialize OSWorld submodule
+### 1. Initialize OSExpert-Eval submodule
 
 ```bash
-bash scripts/run-osworld/setup.sh
+bash scripts/run-osexpert/setup.sh
 ```
 
 This initializes the `vendor/OSWorld` git submodule and installs its Python dependencies.
@@ -149,9 +149,9 @@ This initializes the `vendor/OSWorld` git submodule and installs its Python depe
 ### 2. Build the Claude CLI Docker image
 
 ```bash
-docker build -t osworld-claude-cli \
-  -f scripts/run-osworld/Dockerfile.claude-cli \
-  scripts/run-osworld/
+docker build -t osexpert-claude-cli \
+  -f scripts/run-osexpert/Dockerfile.claude-cli \
+  scripts/run-osexpert/
 ```
 
 ### 3. Install host dependencies
@@ -174,22 +174,22 @@ This creates `~/.claude/.credentials.json`, which is mounted into the container.
 
 ```bash
 # Baseline (no skills)
-python3 scripts/run-osworld/run.py \
+python3 scripts/run-osexpert/run.py \
     --provider_name docker \
     --domain chrome --skill_mode none
 
 # With text skills
-python3 scripts/run-osworld/run.py \
+python3 scripts/run-osexpert/run.py \
     --provider_name docker \
     --domain chrome --skill_mode text
 
 # With multimodal skills
-python3 scripts/run-osworld/run.py \
+python3 scripts/run-osexpert/run.py \
     --provider_name docker \
     --domain chrome --skill_mode multimodal
 
 # Parallel (4 workers, each gets its own VM + Claude container)
-python3 scripts/run-osworld/run.py \
+python3 scripts/run-osexpert/run.py \
     --provider_name docker \
     --domain chrome --skill_mode none --parallel 4
 ```
@@ -197,7 +197,7 @@ python3 scripts/run-osworld/run.py \
 ### Single task
 
 ```bash
-python3 scripts/run-osworld/run.py \
+python3 scripts/run-osexpert/run.py \
     --provider_name docker \
     --specific_task_id <task_id>
 ```
@@ -205,7 +205,7 @@ python3 scripts/run-osworld/run.py \
 ### VMware provider
 
 ```bash
-python3 scripts/run-osworld/run.py \
+python3 scripts/run-osexpert/run.py \
     --provider_name vmware \
     --path_to_vm /path/to/Ubuntu0.vmx \
     --domain chrome --skill_mode none
@@ -235,8 +235,8 @@ workspaces/
 
 Skills are loaded by Claude CLI via `--plugin-dir`:
 - `--skill_mode none` → no plugin directory (baseline)
-- `--skill_mode text` → `plugins/osworld-text/` (text-only instructions)
-- `--skill_mode multimodal` → `plugins/osworld-multimodal/` (instructions + screenshots)
+- `--skill_mode text` → `plugins/osexpert-text/` (text-only instructions)
+- `--skill_mode multimodal` → `plugins/osexpert-multimodal/` (instructions + screenshots)
 
 Inside the container, plugin paths resolve via the read-only mount at `/opt/mmskills/`.
 
@@ -244,7 +244,7 @@ Inside the container, plugin paths resolve via the read-only mount at `/opt/mmsk
 
 | Argument | Default | Description |
 |---|---|---|
-| `--osworld_root` | `vendor/OSWorld` | OSWorld repo path (submodule) |
+| `--osexpert_root` | `vendor/OSWorld` | OSExpert-Eval repo path (submodule) |
 | `--path_to_vm` | – | Path to `.vmx` file (required for VMware/VirtualBox) |
 | `--provider_name` | `vmware` | `vmware`, `virtualbox`, or `docker` |
 | `--model` | `claude-opus-4-6` | Claude model to use |
@@ -266,7 +266,7 @@ For running evaluations on Google Cloud with Docker + KVM.
 
 ```bash
 # Create a boot disk with nested virtualization
-gcloud compute disks create osworld-disk \
+gcloud compute disks create osexpert-disk \
     --zone=us-west1-b \
     --size=200GB \
     --type=pd-ssd \
@@ -274,10 +274,10 @@ gcloud compute disks create osworld-disk \
     --image-project=debian-cloud
 
 # Create the VM with nested virtualization
-gcloud compute instances create osworld \
+gcloud compute instances create osexpert \
     --zone=us-west1-b \
     --machine-type=n2-standard-16 \
-    --boot-disk-name=osworld-disk \
+    --boot-disk-name=osexpert-disk \
     --enable-nested-virtualization
 ```
 
@@ -291,7 +291,7 @@ Key specs:
 Add to `~/.ssh/config` on your local machine:
 
 ```
-Host osworld
+Host osexpert
     HostName <EXTERNAL_IP>
     User <USERNAME>
     IdentityFile ~/.ssh/google_compute_engine
@@ -300,7 +300,7 @@ Host osworld
 ### 3. Install dependencies on the VM
 
 ```bash
-ssh osworld
+ssh osexpert
 
 # Install system packages
 sudo apt-get update
@@ -312,7 +312,7 @@ sudo usermod -aG kvm $USER
 
 # Re-login for group changes
 exit
-ssh osworld
+ssh osexpert
 
 # Verify KVM and Docker
 ls /dev/kvm
@@ -335,7 +335,7 @@ git clone --recurse-submodules https://github.com/XMHZZ2018/MMSkills.git
 cd MMSkills
 python3 -m venv venv
 source venv/bin/activate
-bash scripts/run-osworld/setup.sh
+bash scripts/run-osexpert/setup.sh
 ```
 
 ### 6. Prepare the OS World Docker image
@@ -343,7 +343,7 @@ bash scripts/run-osworld/setup.sh
 ```bash
 cd ~/MMSkills
 mkdir -p docker_vm_data && cd docker_vm_data
-# Download qcow2 image from OSWorld's official source (see OSWorld README)
+# Download qcow2 image from OSExpert-Eval's official source (see OSExpert-Eval README)
 cd ..
 # Place in vendor/OSWorld/docker_vm_data/ or symlink there
 ```
@@ -351,12 +351,12 @@ cd ..
 ### 7. Build Claude CLI image and run
 
 ```bash
-docker build -t osworld-claude-cli \
-  -f scripts/run-osworld/Dockerfile.claude-cli scripts/run-osworld/
+docker build -t osexpert-claude-cli \
+  -f scripts/run-osexpert/Dockerfile.claude-cli scripts/run-osexpert/
 
 # Run evaluation
 source venv/bin/activate
-python3 scripts/run-osworld/run.py \
+python3 scripts/run-osexpert/run.py \
     --provider_name docker \
     --domain chrome --skill_mode none --parallel 4
 ```
@@ -365,7 +365,7 @@ python3 scripts/run-osworld/run.py \
 
 ```bash
 # From local machine
-rsync -avz osworld:~/MMSkills/scripts/run-osworld/workspaces/ scripts/run-osworld/workspaces/
+rsync -avz osexpert:~/MMSkills/scripts/run-osexpert/workspaces/ scripts/run-osexpert/workspaces/
 ```
 
 ## Troubleshooting
@@ -385,7 +385,7 @@ grep -c vmx /proc/cpuinfo   # should be > 0
 
 ```bash
 # Resize disk (from local machine)
-gcloud compute disks resize osworld-disk --zone=us-west1-b --size=300GB
+gcloud compute disks resize osexpert-disk --zone=us-west1-b --size=300GB
 
 # Expand filesystem (on VM)
 sudo growpart /dev/sda 1

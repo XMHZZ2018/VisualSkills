@@ -1,5 +1,5 @@
 {
-  "name": "osworld-multimodal",
+  "name": "osexpert-multimodal",
   "owner": {
     "name": "MMSkills"
   },
@@ -9,7 +9,7 @@
   },
   "plugins": [
     {
-      "name": "osworld-multimodal",
+      "name": "osexpert-multimodal",
       "description": "Multimodal OS World skills with visual guidance (screenshots + instructions)",
       "source": "./",
       "strict": false,

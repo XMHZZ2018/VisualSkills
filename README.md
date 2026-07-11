@@ -2,7 +2,7 @@
 
 Code and skills for the paper **[VisualSkill: Multimodal Skills for Computer-Use Agents](https://arxiv.org/abs/2606.18448)**.
 
-VisualSkill packages application knowledge (LibreOffice Writer / Calc / Impress, GIMP, QGIS, Zotero, Chrome, ...) as a topic-indexed hierarchy of markdown guides with cropped UI screenshots, and exposes it to a Claude Code agent through a `load_topic` MCP tool. Skills are built with a two-stage pipeline (Stage 1 from official docs, Stage 2 from live UI exploration) and evaluated end-to-end on [CUA-World](https://github.com/cmu-l3/gym-anything) and [OSWorld](https://os-world.github.io/).
+VisualSkill packages application knowledge (LibreOffice Writer / Calc / Impress, GIMP, QGIS, Zotero, Chrome, ...) as a topic-indexed hierarchy of markdown guides with cropped UI screenshots, and exposes it to a Claude Code agent through a `load_topic` MCP tool. Skills are built with a two-stage pipeline (Stage 1 from official docs, Stage 2 from live UI exploration) and evaluated end-to-end on [CUA-World](https://github.com/cmu-l3/gym-anything) and [OSExpert-Eval](https://os-world.github.io/).
 
 ## Repository layout
 
@@ -12,21 +12,21 @@ visualskills/
 ├── plugins/                      # Claude Code --plugin-dir bundles
 │   ├── cua-world-text/
 │   ├── cua-world-multimodal/
-│   ├── osworld-text/
-│   └── osworld-multimodal/
+│   ├── osexpert-text/
+│   └── osexpert-multimodal/
 ├── tools/
 │   ├── cua-world-controller/  # GUI action MCP (screenshot / click / type / hotkey)
-│   ├── osworld-controller/       # Same, targeting the OSWorld VM
+│   ├── osexpert-controller/       # Same, targeting the OSExpert-Eval VM
 │   └── skill_server.py           # load_topic / list_topics MCP (atomic prose+figures load)
 ├── preprocess/skill-pipeline/
 │   ├── stage1/                   # Stage 1: docs-driven skill generation
 │   └── stage2/                   # Stage 2: live UI explorer
 ├── scripts/
 │   ├── run-cua-world/         # Inference on cua-world envs
-│   └── run-osworld/              # Inference on OSWorld
+│   └── run-osexpert/              # Inference on OSExpert-Eval
 └── vendor/
-    ├── CUA-World/             # Benchmark envs (submodule)
-    └── OSWorld/                  # OSWorld benchmark (submodule)
+    ├── gym-anything/            # CUA-World benchmark envs (submodule)
+    └── OSWorld/                 # OSExpert-Eval benchmark (submodule; OSWorld fork with evaluation_examples_expert/)
 ```
 
 ## 1. Environment setup
@@ -53,8 +53,8 @@ pip install --break-system-packages \
     numpy jsonschema paramiko pycryptodome requests docker anthropic \
     beautifulsoup4 markdownify
 
-# OSWorld's own deps
-bash scripts/run-osworld/setup.sh
+# OSExpert-Eval's own deps
+bash scripts/run-osexpert/setup.sh
 ```
 
 ### 1.3 Docker + sysbox
@@ -65,7 +65,7 @@ The benchmarks run each task in a fresh Ubuntu + GNOME + systemd container. Dock
 docker info | grep -i runtime   # must list sysbox-runc
 ```
 
-Install sysbox from <https://github.com/nestybox/sysbox>. On GCP, use an `n2-standard-16` VM (or larger) with `--enable-nested-virtualization` for OSWorld's KVM guest.
+Install sysbox from <https://github.com/nestybox/sysbox>. On GCP, use an `n2-standard-16` VM (or larger) with `--enable-nested-virtualization` for OSExpert-Eval's KVM guest.
 
 ### 1.4 Claude CLI
 
@@ -87,9 +87,9 @@ Each runner has its own thin image that pins the CLI + the corresponding MCP ser
 docker build -t cw-claude-cli \
     -f scripts/run-cua-world/Dockerfile.claude-cli scripts/run-cua-world/
 
-# OSWorld
-docker build -t osworld-claude-cli \
-    -f scripts/run-osworld/Dockerfile.claude-cli scripts/run-osworld/
+# OSExpert-Eval
+docker build -t osexpert-claude-cli \
+    -f scripts/run-osexpert/Dockerfile.claude-cli scripts/run-osexpert/
 ```
 
 ## 2. Running inference
@@ -125,19 +125,19 @@ Every config uses `model: claude-opus-4-6`, `num_parallel: 4`, `rerun: true`, an
 
 Per-task outputs land under `workspaces/{model}/skill-{mode}/{env}/{task_id}/` with `result.json`, `score.txt`, `screenshots/`, and the full Claude event log. See [`scripts/run-cua-world/README.md`](scripts/run-cua-world/README.md) for the config schema, parallel-worker layout, and the trajectory viewer.
 
-### 2.2 OSWorld
+### 2.2 OSExpert-Eval
 
 ```bash
 # Baseline
-python3 scripts/run-osworld/run.py \
+python3 scripts/run-osexpert/run.py \
     --provider_name docker --domain chrome --skill_mode none
 
 # Multimodal skill (4 parallel workers, each with its own VM + Claude container)
-python3 scripts/run-osworld/run.py \
+python3 scripts/run-osexpert/run.py \
     --provider_name docker --domain chrome --skill_mode multimodal --parallel 4
 ```
 
-Claude Code runs inside `osworld-claude-cli` with **no Docker socket and no direct network path to the VM** — the only channel is a bridge that forwards actions to the QEMU guest at 1280×720 (matching OSWorld's original Anthropic agent). See [`scripts/run-osworld/README.md`](scripts/run-osworld/README.md) for provider options (`docker`, `vmware`, `virtualbox`), GCP VM setup, and the full argument reference.
+Claude Code runs inside `osexpert-claude-cli` with **no Docker socket and no direct network path to the VM** — the only channel is a bridge that forwards actions to the QEMU guest at 1280×720 (matching OSExpert-Eval's original Anthropic agent). See [`scripts/run-osexpert/README.md`](scripts/run-osexpert/README.md) for provider options (`docker`, `vmware`, `virtualbox`), GCP VM setup, and the full argument reference.
 
 ## 3. Constructing skills
 
@@ -175,7 +175,7 @@ Configs for LibreOffice Writer / Calc / Impress, GIMP, QGIS, and Zotero live und
 
 ### 3.2 Stage 2 — from live UI exploration
 
-Augments the Stage 1 skill with knowledge that only exists in the running application. Runs on the GCP `osworld` VM because phases 1–2 spin up CUA-World Docker containers. Lives at [`preprocess/skill-pipeline/stage2/`](preprocess/skill-pipeline/stage2/README.md).
+Augments the Stage 1 skill with knowledge that only exists in the running application. Runs on the GCP `osexpert` VM because phases 1–2 spin up CUA-World Docker containers. Lives at [`preprocess/skill-pipeline/stage2/`](preprocess/skill-pipeline/stage2/README.md).
 
 Two exploration sub-passes:
 

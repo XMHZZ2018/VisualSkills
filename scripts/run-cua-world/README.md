@@ -96,7 +96,7 @@ See `scripts/run-cua-world/configs/` for examples:
 |---|---|---|---|
 | `gimp_env` | 7 | `ubuntu-gnome-systemd` | Dev/debug, VNC enabled |
 | `gimp_env_all_fast` | 145 | `ubuntu-gnome-systemd_highres_gimp` | Pre-baked GIMP, 80/20 split |
-| `gimp_env_osw` | 17 | `ubuntu-gnome-systemd_highres_gimp` | OSWorld-ported tasks |
+| `gimp_env_osw` | 17 | `ubuntu-gnome-systemd_highres_gimp` | OSExpert-Eval-ported tasks |
 | `qgis_env` | 79 | `ubuntu-gnome-systemd_highres` | 80/20 split |
 | `libreoffice_impress_env` | varies | `ubuntu-gnome-systemd_highres` | Presentation tasks |
 | `chrome_env` | varies | `ubuntu-gnome-systemd` | Browser tasks |
@@ -159,7 +159,7 @@ streamlit run scripts/trajectory_viewer.py
 The viewer reads data from the VM via `gcloud compute ssh`. Configure with environment variables:
 
 ```bash
-VM_NAME=osworld VM_ZONE=us-west1-c streamlit run scripts/trajectory_viewer.py
+VM_NAME=osexpert VM_ZONE=us-west1-c streamlit run scripts/trajectory_viewer.py
 ```
 
 ### Features

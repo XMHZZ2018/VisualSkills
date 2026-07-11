@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # UI-explorer skill generation pipeline (Stage 2).
 #
-# Stage 2 always runs on the GCP osworld VM, since phases 1-3 spin up CUA-World
+# Stage 2 always runs on the GCP osexpert VM, since phases 1-3 spin up CUA-World
 # Docker containers (sysbox runtime) and phases 4-5 read/write the same
 # repo-relative output_dir.  This script:
 #
@@ -23,7 +23,7 @@
 #
 # Requires:  gcloud auth, and VM already provisioned with
 #            ~/MMSkills cloned + cw-claude-cli docker image built +
-#            claude CLI logged in + python venv at ~/osworld-env.
+#            claude CLI logged in + python venv at ~/osexpert-env.
 
 set -euo pipefail
 
@@ -138,7 +138,7 @@ if [[ "$CONFIG_REL" == /* ]]; then
     exit 1
 fi
 
-VM="osworld"
+VM="osexpert"
 ZONE="us-west1-c"
 REMOTE_REPO="\$HOME/MMSkills"
 REMOTE_PIPELINE="${REMOTE_REPO}/preprocess/skill-pipeline/stage2"
@@ -251,14 +251,14 @@ if [[ "$FOREGROUND" -eq 1 ]]; then
     echo "[run] foreground on ${VM}: ${REMOTE_CMD}"
     gcloud compute ssh "$VM" --zone="$ZONE" --command "bash -lc '
 set -e
-source ~/osworld-env/bin/activate
+source ~/osexpert-env/bin/activate
 ${REMOTE_CMD} 2>&1 | tee ${REMOTE_LOG}
 '"
 else
     echo "[run] background on ${VM}: log=${REMOTE_LOG}"
     gcloud compute ssh "$VM" --zone="$ZONE" --command "bash -lc '
 set -e
-source ~/osworld-env/bin/activate
+source ~/osexpert-env/bin/activate
 nohup bash -c \"${REMOTE_CMD}\" > ${REMOTE_LOG} 2>&1 &
 echo \"PID=\$!\"
 sleep 3

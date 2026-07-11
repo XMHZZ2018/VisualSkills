@@ -21,13 +21,13 @@ ACTION_TOOLS = {
     "mcp__cua-world-controller__key_press",
     "mcp__cua-world-controller__type_text",
     "mcp__cua-world-controller__scroll",
-    "mcp__osworld-controller__click",
-    "mcp__osworld-controller__double_click",
-    "mcp__osworld-controller__drag_to",
-    "mcp__osworld-controller__hotkey",
-    "mcp__osworld-controller__key_press",
-    "mcp__osworld-controller__type_text",
-    "mcp__osworld-controller__scroll",
+    "mcp__osexpert-controller__click",
+    "mcp__osexpert-controller__double_click",
+    "mcp__osexpert-controller__drag_to",
+    "mcp__osexpert-controller__hotkey",
+    "mcp__osexpert-controller__key_press",
+    "mcp__osexpert-controller__type_text",
+    "mcp__osexpert-controller__scroll",
 }
 
 

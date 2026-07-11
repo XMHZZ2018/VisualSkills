@@ -1,8 +1,8 @@
 """
 HTTP bridge running inside the Claude CLI container.
 
-Translates between MCP server protocol and the OSWorld VM's raw HTTP API.
-The VM is reachable at http://osworld-vm:5000 via Docker network alias.
+Translates between MCP server protocol and the OSExpert-Eval VM's raw HTTP API.
+The VM is reachable at http://osexpert-vm:5000 via Docker network alias.
 
 Endpoints:
     GET  /screenshot        → base64-wrapped PNG
@@ -23,7 +23,7 @@ import urllib.error
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-VM_URL = os.environ.get("OSWORLD_VM_URL", "http://osworld-vm:5000")
+VM_URL = os.environ.get("OSEXPERT_VM_URL", "http://osexpert-vm:5000")
 LISTEN_PORT = int(os.environ.get("BRIDGE_PORT", "8765"))
 WORKSPACE = Path("/workspace")
 

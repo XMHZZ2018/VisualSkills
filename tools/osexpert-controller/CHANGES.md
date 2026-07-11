@@ -1,10 +1,10 @@
-# OSWorld Controller: Changes and Rationale
+# OSExpert-Eval Controller: Changes and Rationale
 
-This document explains all the changes made to the OSWorld MCP controller and evaluation harness, and the reasoning behind each one.
+This document explains all the changes made to the OSExpert-Eval MCP controller and evaluation harness, and the reasoning behind each one.
 
 ## Context
 
-We use Claude CLI + MCP as a replacement for the original OSWorld Anthropic API + loop approach. The MCP server (`tools/osworld-controller/server.py`) bridges Claude to the OSWorld VM desktop, and the evaluation harness (`scripts/run-osworld/run.py`) orchestrates task execution and scoring.
+We use Claude CLI + MCP as a replacement for the original OSExpert-Eval Anthropic API + loop approach. The MCP server (`tools/osexpert-controller/server.py`) bridges Claude to the OSExpert-Eval VM desktop, and the evaluation harness (`scripts/run-osexpert/run.py`) orchestrates task execution and scoring.
 
 The original setup had low success rates (~19% on Chrome tasks with Sonnet, ~40% with Opus). After the changes below, we achieved **90% with Sonnet and 80% with Opus** on a 10-task Chrome subset.
 
@@ -16,9 +16,9 @@ The original setup had low success rates (~19% on Chrome tasks with Sonnet, ~40%
 
 A lightweight `screenshot()` tool is still available for the initial observation (before any action is taken).
 
-**Why:** In the original OSWorld anthropic agent, the action-observation loop is built into the framework: after every action, the framework automatically captures a screenshot and feeds it back to the model as the next observation. The model never has to explicitly request a screenshot — it just gets one. By auto-returning screenshots from every action tool, we replicate this same loop within MCP.
+**Why:** In the original OSExpert-Eval anthropic agent, the action-observation loop is built into the framework: after every action, the framework automatically captures a screenshot and feeds it back to the model as the next observation. The model never has to explicitly request a screenshot — it just gets one. By auto-returning screenshots from every action tool, we replicate this same loop within MCP.
 
-**Impact:** The model always has up-to-date visual feedback after every action, matching the original OSWorld behavior.
+**Impact:** The model always has up-to-date visual feedback after every action, matching the original OSExpert-Eval behavior.
 
 ---
 
@@ -26,7 +26,7 @@ A lightweight `screenshot()` tool is still available for the initial observation
 
 **What changed:** After executing a pyautogui command, the MCP server now waits 2 seconds (`time.sleep(2)`) before capturing the screenshot.
 
-**Why:** The original OSWorld `desktop_env` uses `pause=2` in its `step()` function — a 2-second delay between executing an action and capturing the observation screenshot. This gives the UI time to settle (e.g., menus to open, pages to load, dialogs to appear). Without this pause, screenshots were captured before the UI updated, so the model saw stale state and made incorrect decisions.
+**Why:** The original OSExpert-Eval `desktop_env` uses `pause=2` in its `step()` function — a 2-second delay between executing an action and capturing the observation screenshot. This gives the UI time to settle (e.g., menus to open, pages to load, dialogs to appear). Without this pause, screenshots were captured before the UI updated, so the model saw stale state and made incorrect decisions.
 
 ---
 
@@ -34,7 +34,7 @@ A lightweight `screenshot()` tool is still available for the initial observation
 
 **What changed:** The `get_accessibility_tree()` tool was removed from the MCP server.
 
-**Why:** The original OSWorld anthropic agent does not use accessibility tree information. It relies entirely on screenshots (visual observations) for decision-making. Removing this tool aligns our setup with the original and avoids giving the model a tool it wasn't designed to use in this context.
+**Why:** The original OSExpert-Eval anthropic agent does not use accessibility tree information. It relies entirely on screenshots (visual observations) for decision-making. Removing this tool aligns our setup with the original and avoids giving the model a tool it wasn't designed to use in this context.
 
 ---
 
@@ -50,7 +50,7 @@ A lightweight `screenshot()` tool is still available for the initial observation
 
 **What changed:** The `task_done()` and `task_fail()` tools were removed. The system prompt now says: "When you believe the task is complete, simply stop — do not call any signal tool."
 
-**Why:** In the original OSWorld anthropic agent, the agent simply stops generating actions when it believes the task is complete. There is no explicit "done" signal — the evaluation runs automatically after the agent exits. Our `task_done()`/`task_fail()` tools were non-standard additions that don't match the original behavior.
+**Why:** In the original OSExpert-Eval anthropic agent, the agent simply stops generating actions when it believes the task is complete. There is no explicit "done" signal — the evaluation runs automatically after the agent exits. Our `task_done()`/`task_fail()` tools were non-standard additions that don't match the original behavior.
 
 ---
 
@@ -58,7 +58,7 @@ A lightweight `screenshot()` tool is still available for the initial observation
 
 **What changed:** Added `--disallowed-tools Bash,Read,Write,Edit,Glob,Grep,Agent,NotebookEdit` to the Claude CLI invocation.
 
-**Why:** Claude CLI comes with built-in tools (Bash, file Read/Write/Edit, etc.) that are designed for software engineering tasks. In the OSWorld evaluation context, these tools are irrelevant and harmful — the model should only use the MCP desktop interaction tools. Without disabling them, the model could use the built-in `Bash` tool to run commands on the host machine (not the VM), or attempt file operations that don't make sense in this context. The system prompt also includes: "You MUST interact with applications through their graphical user interface (GUI) only."
+**Why:** Claude CLI comes with built-in tools (Bash, file Read/Write/Edit, etc.) that are designed for software engineering tasks. In the OSExpert-Eval evaluation context, these tools are irrelevant and harmful — the model should only use the MCP desktop interaction tools. Without disabling them, the model could use the built-in `Bash` tool to run commands on the host machine (not the VM), or attempt file operations that don't make sense in this context. The system prompt also includes: "You MUST interact with applications through their graphical user interface (GUI) only."
 
 ---
 
@@ -66,7 +66,7 @@ A lightweight `screenshot()` tool is still available for the initial observation
 
 **What changed:** The MCP server now resizes screenshots from the VM's native resolution (1920x1080) to 1280x720 before sending them to the model. Coordinates from the model (in 1280x720 space) are scaled back to native resolution before executing pyautogui commands.
 
-**Why:** This was the single most impactful fix. The Docker provider in OSWorld ignores the `screen_size` parameter and always runs at 1920x1080. However, the original OSWorld anthropic agent is configured to work at 1280x720 (`screen_width=1280, screen_height=720`). At 1920x1080:
+**Why:** This was the single most impactful fix. The Docker provider in OSExpert-Eval ignores the `screen_size` parameter and always runs at 1920x1080. However, the original OSExpert-Eval anthropic agent is configured to work at 1280x720 (`screen_width=1280, screen_height=720`). At 1920x1080:
 - UI elements are smaller and harder for the model to locate precisely
 - The model generates coordinates that miss targets (e.g., clicking at 1438,68 for a button that's actually at a different position at this resolution)
 - Screenshots consume more tokens per image
@@ -107,4 +107,4 @@ We observed the model repeatedly clicking the same wrong coordinates 5-6 times, 
 | Before resolution fix (Opus, 1920x1080, new tools) | 40% (4/10) |
 | After all fixes (Opus, 1280x720) | **80%** (8/10) |
 | After all fixes (Sonnet, 1280x720) | **90%** (9/10) |
-| Original OSWorld anthropic agent (Sonnet 4.5, reference) | ~65% (30/46 on full Chrome set) |
+| Original OSExpert-Eval anthropic agent (Sonnet 4.5, reference) | ~65% (30/46 on full Chrome set) |

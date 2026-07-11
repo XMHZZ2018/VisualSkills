@@ -11,7 +11,7 @@ output_dir: preprocess/skill-pipeline/stage2/outputs/writer
 
 n_workers: 8
 
-# Use a high port range that does not collide with run-osworld (5xxx).
+# Use a high port range that does not collide with run-osexpert (5xxx).
 bridge_port_base: 9200
 
 planner_model: claude-opus-4-6

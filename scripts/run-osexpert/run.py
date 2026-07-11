@@ -1,13 +1,13 @@
 """
-Run OSWorld evaluation with Claude CLI + osworld-controller MCP.
+Run OSExpert-Eval evaluation with Claude CLI + osexpert-controller MCP.
 
 Architecture (Docker isolation):
-  1. This script creates one or more DesktopEnv (OSWorld VM containers).
+  1. This script creates one or more DesktopEnv (OSExpert-Eval VM containers).
   2. Each worker creates an isolated Docker network.
-  3. The VM container is attached to the network with alias "osworld-vm".
+  3. The VM container is attached to the network with alias "osexpert-vm".
   4. For each task, a Claude CLI container is launched on the same network.
      Inside the container: bridge.py proxies MCP→VM, Claude CLI runs with
-     --mcp-config pointing to the osworld-controller MCP server.
+     --mcp-config pointing to the osexpert-controller MCP server.
   5. Claude cannot escape to the host — no docker socket, no host network.
   6. After Claude exits, env.evaluate() scores the result (host-side via
      published ports).
@@ -23,19 +23,19 @@ Parallel execution:
 
 Usage:
     # Single task (Docker provider)
-    python scripts/run-osworld/run.py \\
+    python scripts/run-osexpert/run.py \\
         --provider_name docker \\
         --specific_task_id <task_id>
 
     # All Chrome tasks, parallel on 4 containers
-    python scripts/run-osworld/run.py \\
+    python scripts/run-osexpert/run.py \\
         --provider_name docker \\
         --domain chrome --parallel 4
 
     # Ablation: text vs multimodal vs none
-    python scripts/run-osworld/run.py ... --skill_mode text
-    python scripts/run-osworld/run.py ... --skill_mode multimodal
-    python scripts/run-osworld/run.py ... --skill_mode none
+    python scripts/run-osexpert/run.py ... --skill_mode text
+    python scripts/run-osexpert/run.py ... --skill_mode multimodal
+    python scripts/run-osexpert/run.py ... --skill_mode none
 """
 
 from __future__ import annotations
@@ -54,12 +54,12 @@ from pathlib import Path
 import docker
 
 MMSKILLS_ROOT = Path(__file__).resolve().parents[2]
-MCP_SERVER_PATH = "/opt/mmskills/tools/osworld-controller/server.py"
+MCP_SERVER_PATH = "/opt/mmskills/tools/osexpert-controller/server.py"
 PLUGIN_DIRS = {
-    "text": "/home/ziyan/MMSkills/plugins/osworld-text",
-    "multimodal": "/home/ziyan/MMSkills/plugins/osworld-multimodal",
+    "text": "/home/ziyan/MMSkills/plugins/osexpert-text",
+    "multimodal": "/home/ziyan/MMSkills/plugins/osexpert-multimodal",
 }
-CLAUDE_CLI_IMAGE = os.environ.get("CLAUDE_CLI_IMAGE", "osworld-claude-cli")
+CLAUDE_CLI_IMAGE = os.environ.get("CLAUDE_CLI_IMAGE", "osexpert-claude-cli")
 
 
 SYSTEM_PROMPT = """\
@@ -95,7 +95,7 @@ Start by taking a screenshot to see the current state, then proceed step by step
 def _get_vm_host_port(env) -> int:
     """Get the host-mapped port for the VM's API server (port 5000).
 
-    The OSWorld Docker provider runs QEMU inside a container. Port 5000 is
+    The OSExpert-Eval Docker provider runs QEMU inside a container. Port 5000 is
     inside the QEMU guest, accessible from the host via Docker port mapping
     but NOT from other containers on the same Docker network. So the bridge
     must connect via the host.
@@ -161,7 +161,7 @@ def _build_plugin_dir(skill_dir: Path | None, output_dir: Path) -> str | None:
 
     # Marketplace manifest: plugin name becomes a slash command on the agent.
     manifest = {
-        "name": "osworld-skill",
+        "name": "osexpert-skill",
         "owner": {"name": "MMSkills"},
         "metadata": {
             "description": f"Skill for {skill_name}",
@@ -188,14 +188,14 @@ def _write_mcp_config(
 ) -> None:
     """Write MCP config JSON to the output dir (mounted as /workspace).
 
-    Always registers osworld-controller. If a skill_dir is passed and it
+    Always registers osexpert-controller. If a skill_dir is passed and it
     ships tools/skill_server.py, also registers skill-loader (load_topic /
     list_topics) pointing at the container-side mount of that file
     (/opt/mmskills/skills/<skill>/tools/skill_server.py).
     """
     config = {
         "mcpServers": {
-            "osworld-controller": {
+            "osexpert-controller": {
                 "command": "python3",
                 "args": [MCP_SERVER_PATH],
                 "env": {"OSWORLD_BRIDGE_URL": "http://127.0.0.1:8765"},
@@ -251,14 +251,14 @@ def _run_claude_in_docker(
 
     env_vars = {
         "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
-        "OSWORLD_VM_URL": f"http://host.docker.internal:{vm_host_port}",
+        "OSEXPERT_VM_URL": f"http://host.docker.internal:{vm_host_port}",
     }
 
     # Container name: task id + random suffix. The slug must be unique across
     # parallel workers (OSExpert tasks share a long common prefix, so a simple
     # name truncation collides — we always append a random hex tag).
     slug = output_dir.name[:40].replace("/", "_")
-    container_name = f"osworld-claude-{slug}-{secrets.token_hex(3)}"
+    container_name = f"osexpert-claude-{slug}-{secrets.token_hex(3)}"
     # Remove stale container if exists
     try:
         old = docker_client.containers.get(container_name)
@@ -319,7 +319,7 @@ _YAML_KEYS = {
     "rerun", "log_level", "domain", "specific_task_id", "max_tasks",
     "provider_name", "headless", "screen_width", "screen_height",
     "test_config_base_dir", "test_all_meta_path", "path_to_vm",
-    "osworld_root",
+    "osexpert_root",
 }
 
 
@@ -367,7 +367,7 @@ def _load_yaml_config(args: argparse.Namespace, argv: list[str]) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run OSWorld evaluation with Claude CLI + computer-use MCP"
+        description="Run OSExpert-Eval evaluation with Claude CLI + computer-use MCP"
     )
     parser.add_argument(
         "--config",
@@ -375,14 +375,14 @@ def parse_args() -> argparse.Namespace:
         help="YAML config file. Values populate args; explicit CLI flags still win.",
     )
     parser.add_argument(
-        "--osworld_root",
-        default=os.environ.get("OSWORLD_ROOT", str(MMSKILLS_ROOT / "vendor" / "OSWorld")),
-        help="Path to the OSWorld repository root (default: vendor/OSWorld submodule or $OSWORLD_ROOT)",
+        "--osexpert_root",
+        default=os.environ.get("OSWORLD_ROOT", str(MMSKILLS_ROOT / "vendor" / "OSExpert-Eval")),
+        help="Path to the OSExpert-Eval repository root (default: vendor/OSWorld submodule or $OSWORLD_ROOT)",
     )
     parser.add_argument(
         "--task_root",
         default=None,
-        help="Path (relative to osworld_root) to a flat dir of <task_id>.json files. "
+        help="Path (relative to osexpert_root) to a flat dir of <task_id>.json files. "
              "When set, overrides test_all_meta_path / test_config_base_dir lookup.",
     )
     parser.add_argument(
@@ -428,7 +428,7 @@ def parse_args() -> argparse.Namespace:
         nargs="+",
         help="Run specific task(s) by ID. Accepts multiple IDs or comma-separated values.",
     )
-    parser.add_argument("--result_dir", default=str(MMSKILLS_ROOT / "scripts" / "run-osworld" / "workspaces"))
+    parser.add_argument("--result_dir", default=str(MMSKILLS_ROOT / "scripts" / "run-osexpert" / "workspaces"))
     parser.add_argument(
         "--skill_mode",
         default="none",
@@ -462,7 +462,7 @@ def parse_args() -> argparse.Namespace:
 # ── task helpers ──────────────────────────────────────────────────────────────
 
 def select_tasks(args: argparse.Namespace) -> list[tuple[str, str]]:
-    osworld = Path(args.osworld_root)
+    osexpert = Path(args.osexpert_root)
 
     # task_root branch: flat dir of <task_id>.json files (e.g. OSExpert).
     # task_root is interpreted relative to MMSKILLS_ROOT (matching verify_setup).
@@ -479,7 +479,7 @@ def select_tasks(args: argparse.Namespace) -> list[tuple[str, str]]:
             ids = sorted(p.stem for p in root.glob("*.json"))
         return [(domain, tid) for tid in ids]
 
-    meta = json.loads((osworld / args.test_all_meta_path).read_text(encoding="utf-8"))
+    meta = json.loads((osexpert / args.test_all_meta_path).read_text(encoding="utf-8"))
     if args.specific_task_id:
         # Flatten: support both multiple args and comma-separated values
         task_ids_requested = []
@@ -510,8 +510,8 @@ def load_example(args: argparse.Namespace, domain: str, task_id: str) -> dict:
     if args.task_root:
         path = (MMSKILLS_ROOT / args.task_root / f"{task_id}.json").resolve()
     else:
-        osworld = Path(args.osworld_root)
-        path = osworld / args.test_config_base_dir / "examples" / domain / f"{task_id}.json"
+        osexpert = Path(args.osexpert_root)
+        path = osexpert / args.test_config_base_dir / "examples" / domain / f"{task_id}.json"
     example = json.loads(path.read_text(encoding="utf-8"))
     # OSExpert tasks lack a top-level "id"; inject so downstream code works.
     example.setdefault("id", task_id)
@@ -726,8 +726,8 @@ def _run_worker(
     """Run tasks sequentially on a single VM/container. Returns list of (domain, task_id, score)."""
     logger = logging.getLogger(f"desktopenv.worker.{worker_id}")
 
-    osworld_root = Path(args.osworld_root)
-    sys.path.insert(0, str(osworld_root))
+    osexpert_root = Path(args.osexpert_root)
+    sys.path.insert(0, str(osexpert_root))
 
     docker_client = docker.from_env()
     logger.info("Worker %d: vm=%s, %d tasks", worker_id, vm_path, len(task_queue))
@@ -779,18 +779,18 @@ def main() -> int:
     )
     logger = logging.getLogger("desktopenv.experiment.claude_mcp")
 
-    osworld_root = Path(args.osworld_root).resolve()
-    if not osworld_root.exists():
-        logger.error("OSWorld root not found: %s", osworld_root)
+    osexpert_root = Path(args.osexpert_root).resolve()
+    if not osexpert_root.exists():
+        logger.error("OSExpert-Eval root not found: %s", osexpert_root)
         return 1
-    sys.path.insert(0, str(osworld_root))
+    sys.path.insert(0, str(osexpert_root))
 
     # Resolve result_dir to absolute before chdir (Docker volumes need absolute paths)
     args.result_dir = str(Path(args.result_dir).resolve())
 
-    # OSWorld's Docker provider uses relative paths (./docker_vm_data/),
-    # so we must run from the OSWorld root directory.
-    os.chdir(osworld_root)
+    # OSExpert-Eval's Docker provider uses relative paths (./docker_vm_data/),
+    # so we must run from the OSExpert-Eval root directory.
+    os.chdir(osexpert_root)
 
     # Validate args
     if args.provider_name != "docker" and args.path_to_vm is None:

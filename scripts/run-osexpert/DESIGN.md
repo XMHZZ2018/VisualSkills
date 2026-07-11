@@ -1,8 +1,8 @@
-# OSWorld Evaluation: Docker Isolation Design
+# OSExpert-Eval Evaluation: Docker Isolation Design
 
 ## Problem
 
-OSWorld evaluation requires Claude to interact with a virtual machine desktop through GUI actions (click, type, screenshot). The standard approach uses the Claude API with a custom action loop — but we want to use **Claude CLI** so we can leverage its plugin/skill system for injecting domain knowledge.
+OSExpert-Eval evaluation requires Claude to interact with a virtual machine desktop through GUI actions (click, type, screenshot). The standard approach uses the Claude API with a custom action loop — but we want to use **Claude CLI** so we can leverage its plugin/skill system for injecting domain knowledge.
 
 The challenge: Claude CLI has built-in tools (Bash, Read, Write, etc.) that could bypass the GUI constraint. If Claude runs on the same host as the VM containers, it could `docker exec` into the VM, run shell commands directly, or read files — violating the GUI-only evaluation protocol.
 
@@ -24,10 +24,10 @@ Run Claude CLI inside its own Docker container with:
 Host (run.py)
   │
   ├── Worker 0
-  │   ├── OSWorld VM container (QEMU guest, managed by DesktopEnv)
+  │   ├── OSExpert-Eval VM container (QEMU guest, managed by DesktopEnv)
   │   │     port 5000 (guest) → host-mapped port (e.g. 5001)
   │   │
-  │   └── Claude CLI container (osworld-claude-cli)
+  │   └── Claude CLI container (osexpert-claude-cli)
   │         bridge.py :8765 → host.docker.internal:<host_port> → VM:5000
   │         claude CLI → MCP server → bridge → VM
   │         /opt/mmskills (read-only mount of repo)
@@ -41,7 +41,7 @@ Host (run.py)
 
 ### Why host.docker.internal instead of container-to-container?
 
-The OSWorld VM container runs QEMU inside Docker. Port 5000 is inside the **QEMU guest OS**, not the Docker container itself. Docker's port mapping (iptables) makes it accessible from the host via `localhost:<mapped_port>`, but it's **not accessible** from other containers on the same Docker network — because the container only has QEMU/nginx processes listening, not the guest's Python server.
+The OSExpert-Eval VM container runs QEMU inside Docker. Port 5000 is inside the **QEMU guest OS**, not the Docker container itself. Docker's port mapping (iptables) makes it accessible from the host via `localhost:<mapped_port>`, but it's **not accessible** from other containers on the same Docker network — because the container only has QEMU/nginx processes listening, not the guest's Python server.
 
 Solution: the bridge inside the Claude container connects to the VM via `host.docker.internal:<host_mapped_port>`, which routes through the Docker host gateway to the iptables-mapped port.
 
@@ -57,7 +57,7 @@ Builds the Claude CLI container image:
 - uid 1000 matches the typical host user, so bind-mounted files have correct permissions
 
 ```bash
-docker build -t osworld-claude-cli -f scripts/run-osworld/Dockerfile.claude-cli scripts/run-osworld/
+docker build -t osexpert-claude-cli -f scripts/run-osexpert/Dockerfile.claude-cli scripts/run-osexpert/
 ```
 
 ### 2. `bridge.py`
@@ -71,7 +71,7 @@ Standalone HTTP bridge running inside the Claude CLI container. Translates betwe
 | `GET /accessibility_tree` | `GET http://<vm>/accessibility` | Returns AT string |
 | `POST /signal` | (writes file) | Writes signal to `/workspace/signal.txt` |
 
-The bridge reads `OSWORLD_VM_URL` from environment (set by `run.py` to `http://host.docker.internal:<port>`).
+The bridge reads `OSEXPERT_VM_URL` from environment (set by `run.py` to `http://host.docker.internal:<port>`).
 
 ### 3. `entrypoint.sh`
 
@@ -110,11 +110,11 @@ run_task():
 **Container configuration:**
 ```python
 docker_client.containers.run(
-    "osworld-claude-cli",
+    "osexpert-claude-cli",
     command=cli_args,              # --mcp-config, --model, etc.
     environment={
         "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
-        "OSWORLD_VM_URL": f"http://host.docker.internal:{vm_port}",
+        "OSEXPERT_VM_URL": f"http://host.docker.internal:{vm_port}",
     },
     extra_hosts={"host.docker.internal": "host-gateway"},
     volumes={
@@ -126,7 +126,7 @@ docker_client.containers.run(
 )
 ```
 
-### 5. `tools/osworld-controller/server.py` (unchanged)
+### 5. `tools/osexpert-controller/server.py` (unchanged)
 
 MCP server that runs inside the Claude container. Connects to the bridge at `http://127.0.0.1:8765` (both in the same container). Provides screenshot/click/type/hotkey/scroll tools to Claude.
 
@@ -138,7 +138,7 @@ MCP server that runs inside the Claude container. Connects to the bridge at `htt
 | `MMSKILLS_ROOT` | `/opt/mmskills` | ro | Repo with skills, plugins, MCP server |
 | `~/.claude/.credentials.json` | `/home/node/.claude/.credentials.json` | ro | OAuth credentials for Claude API |
 
-The entire `MMSKILLS_ROOT` is mounted (not just the plugin dir) so that plugin symlinks resolve correctly. For example, `plugins/osworld-multimodal/skills → ../../skills` resolves to `/opt/mmskills/skills/` inside the container.
+The entire `MMSKILLS_ROOT` is mounted (not just the plugin dir) so that plugin symlinks resolve correctly. For example, `plugins/osexpert-multimodal/skills → ../../skills` resolves to `/opt/mmskills/skills/` inside the container.
 
 Only `.credentials.json` is mounted from `~/.claude/` (not the entire directory) to avoid config file restore loops that cause Claude CLI to hang.
 
@@ -170,23 +170,23 @@ Note: The Claude container can reach `host.docker.internal` (needed for the brid
 
 ```bash
 # 1. Build image
-docker build -t osworld-claude-cli \
-  -f scripts/run-osworld/Dockerfile.claude-cli scripts/run-osworld/
+docker build -t osexpert-claude-cli \
+  -f scripts/run-osexpert/Dockerfile.claude-cli scripts/run-osexpert/
 
 # 2. Run single task
-python3 scripts/run-osworld/run.py \
+python3 scripts/run-osexpert/run.py \
   --provider_name docker \
   --specific_task_id 06fe7178-4491-4589-810f-2e2bc9502122 \
   --skill_mode none --model claude-sonnet-4-6
 
 # 3. Run with skills
-python3 scripts/run-osworld/run.py \
+python3 scripts/run-osexpert/run.py \
   --provider_name docker \
   --domain chrome --skill_mode multimodal \
   --model claude-sonnet-4-6
 
 # 4. Run parallel
-python3 scripts/run-osworld/run.py \
+python3 scripts/run-osexpert/run.py \
   --provider_name docker \
   --domain libreoffice_impress --parallel 4 \
   --skill_mode none --model claude-sonnet-4-6

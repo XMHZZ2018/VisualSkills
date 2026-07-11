@@ -11,7 +11,7 @@ output_dir: preprocess/skill-pipeline/stage2/outputs/calc
 
 n_workers: 8
 
-# Use a high port range that does not collide with run-osworld (5xxx) or
+# Use a high port range that does not collide with run-osexpert (5xxx) or
 # writer (9200) / impress (9100).
 bridge_port_base: 9300
 

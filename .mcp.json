@@ -1,8 +1,8 @@
 {
   "mcpServers": {
-    "osworld-controller": {
+    "osexpert-controller": {
       "command": "python3",
-      "args": ["tools/osworld-controller/server.py"],
+      "args": ["tools/osexpert-controller/server.py"],
       "cwd": "/Users/ziyan/Documents/visualskills"
     }
   }

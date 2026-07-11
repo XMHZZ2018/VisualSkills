@@ -4,27 +4,23 @@
     "name": "VisualSkills"
   },
   "metadata": {
-    "description": "Multimodal skills for Claude Code — gym-anything and OSWorld computer-use benchmarks",
+    "description": "Multimodal skills for Claude Code — CUA-World and OSExpert-Eval computer-use benchmarks",
     "version": "1.0.0"
   },
   "plugins": [
     {
-      "name": "osworld-multimodal",
-      "description": "Multimodal OS World skills with visual guidance (screenshots + instructions)",
+      "name": "osexpert-multimodal",
+      "description": "Multimodal OSExpert-Eval skills with visual guidance (screenshots + instructions)",
       "source": "./",
       "strict": false,
-      "skills": [
-        "./skills/os-world/multimodal/chrome-clear-cookies"
-      ]
+      "skills": []
     },
     {
-      "name": "osworld-text",
-      "description": "Text-only OS World skills with step-by-step instructions",
+      "name": "osexpert-text",
+      "description": "Text-only OSExpert-Eval skills with step-by-step instructions",
       "source": "./",
       "strict": false,
-      "skills": [
-        "./skills/os-world/text/chrome-clear-cookies"
-      ]
+      "skills": []
     }
   ]
 }

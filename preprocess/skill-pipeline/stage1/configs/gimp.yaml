@@ -2,7 +2,7 @@ app_name: "GIMP"
 app_version: "2.10"
 domain: "gimp"
 
-# HTML-docs mode: GIMP 2.10 user manual (matches the OSWorld/OSExpert env image, GIMP 2.10.30).
+# HTML-docs mode: GIMP 2.10 user manual (matches the OSExpert-Eval/OSExpert env image, GIMP 2.10.30).
 sources:
   html_guide:
     root_url: "https://docs.gimp.org/2.10/en/"

@@ -2,7 +2,7 @@
 Trajectory Viewer — Streamlit app for comparing agent runs across skill modes.
 
 Runs on the VM (in tmux session `viewer`) and reads workspaces directly.
-Access locally via SSH tunnel: `ssh -fN -L 8502:127.0.0.1:8502 osworld`.
+Access locally via SSH tunnel: `ssh -fN -L 8502:127.0.0.1:8502 osexpert`.
 
 Usage on VM:
     streamlit run scripts/trajectory_viewer.py --server.port 8502 --server.address 127.0.0.1 --server.headless true
@@ -17,7 +17,7 @@ import streamlit as st
 # ---------------------------------------------------------------------------
 WORKSPACE_ROOTS = {
     "cua-world": "/home/ziyan/MMSkills/scripts/run-cua-world/workspaces",
-    "osworld (OSExpert)": "/home/ziyan/MMSkills/scripts/run-osworld/workspaces",
+    "osexpert (OSExpert)": "/home/ziyan/MMSkills/scripts/run-osexpert/workspaces",
 }
 WORKSPACE_ROOT = WORKSPACE_ROOTS["cua-world"]
 
@@ -154,7 +154,7 @@ def load_prompt(exp: str, mode: str, software: str, task: str) -> str:
     return read_file(path)
 
 
-MCP_PREFIXES = ("mcp__cua-world-controller__", "mcp__osworld-controller__")
+MCP_PREFIXES = ("mcp__cua-world-controller__", "mcp__osexpert-controller__")
 # Tools that are internal to Claude CLI, not GUI actions and not worth showing
 SKIP_TOOLS = {"ToolSearch"}
 # Tools that read files; we fold these into the following GUI step as

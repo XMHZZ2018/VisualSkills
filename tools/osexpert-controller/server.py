@@ -1,10 +1,10 @@
 """
-osworld-controller MCP server
+osexpert-controller MCP server
 
-Bridges Claude to an OSWorld VM desktop via an HTTP bridge running in the
+Bridges Claude to an OSExpert-Eval VM desktop via an HTTP bridge running in the
 host Python process. Each action tool executes a pyautogui command, waits
-for the UI to settle (2s, matching OSWorld's default pause), then returns
-a screenshot — mirroring the original OSWorld action-observation loop.
+for the UI to settle (2s, matching OSExpert-Eval's default pause), then returns
+a screenshot — mirroring the original OSExpert-Eval action-observation loop.
 
 Requires env var:
     OSWORLD_BRIDGE_URL  e.g. http://127.0.0.1:18765
@@ -24,13 +24,13 @@ BRIDGE_URL = os.environ.get("OSWORLD_BRIDGE_URL", "http://127.0.0.1:18765")
 
 # The VM runs at native resolution (e.g. 1920x1080) but we present
 # screenshots to the model at this target size so it generates coordinates
-# in a resolution matching the original OSWorld anthropic agent (1280x720).
+# in a resolution matching the original OSExpert-Eval anthropic agent (1280x720).
 TARGET_WIDTH = int(os.environ.get("OSWORLD_TARGET_WIDTH", "1280"))
 TARGET_HEIGHT = int(os.environ.get("OSWORLD_TARGET_HEIGHT", "720"))
 _native_width: int | None = None  # detected from first screenshot
 _native_height: int | None = None
 
-mcp = FastMCP("osworld-controller")
+mcp = FastMCP("osexpert-controller")
 _client = httpx.Client(timeout=120.0)
 
 
@@ -77,7 +77,7 @@ def _scale_coords(x: int, y: int) -> tuple[int, int]:
 def _exec_and_screenshot(command: str) -> list:
     """Execute a pyautogui command, wait for UI to settle, return screenshot."""
     _post("/execute_python", {"command": command})
-    time.sleep(2)  # match OSWorld's default pause for UI to update
+    time.sleep(2)  # match OSExpert-Eval's default pause for UI to update
     img = _screenshot()
     return [json.dumps({"ok": True}), img]
 
