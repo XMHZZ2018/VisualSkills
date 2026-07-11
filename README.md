@@ -143,9 +143,9 @@ Claude Code runs inside `osexpert-claude-cli` with **no Docker socket and no dir
 
 Every domain skill in `skills/<domain>-{text,multimodal}-stage{1,2}/` is produced by the same two-stage pipeline. Each stage emits a **matched pair** of artifacts — a multimodal form with cropped UI figures, and a text-only form in which each figure has been replaced by a verbal description of the same image — so any inference-score gap between them isolates the contribution of visual evidence.
 
-![Skill generation pipeline: Stage 1 mines an authored-docs skill, Stage 2a/2b enrich it with free and trajectory-targeted UI exploration, and the assembler stitches them into the final Skill.](downloads/skill_generation_new.png)
+![Skill generation pipeline: Stage 1 mines an authored-docs skill, Stage 2a/2b enrich it with free and trajectory-targeted UI exploration, and the assembler stitches them into the final Skill.](assets/skill_generation_new.png)
 
-_(PDF: [`downloads/skill_generation_new.pdf`](downloads/skill_generation_new.pdf))_
+_(PDF: [`assets/skill_generation_new.pdf`](assets/skill_generation_new.pdf))_
 
 At inference the multimodal artifact is loaded through `tools/skill_server.py`, which exposes `load_topic(topic)` and `list_topics()`. The agent gets a topic's prose and figures atomically in one MCP call instead of issuing separate `Read`s.
 
