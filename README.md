@@ -2,7 +2,7 @@
 
 Code and skills for the paper **[VisualSkill: Multimodal Skills for Computer-Use Agents](https://arxiv.org/abs/2606.18448)**.
 
-VisualSkill packages application knowledge (LibreOffice Writer / Calc / Impress, GIMP, QGIS, Zotero, Chrome, ...) as a topic-indexed hierarchy of markdown guides with cropped UI screenshots, and exposes it to a Claude Code agent through a `load_topic` MCP tool. Skills are built with a two-stage pipeline (Stage 1 from official docs, Stage 2 from live UI exploration) and evaluated end-to-end on [CUA-World](https://github.com/cmu-l3/gym-anything) and [OSExpert-Eval](https://os-world.github.io/).
+VisualSkill packages application knowledge (LibreOffice Writer / Calc / Impress, GIMP, QGIS, Zotero, Chrome, ...) as a topic-indexed hierarchy of markdown guides with cropped UI screenshots, and exposes it to a Claude Code agent through a `load_topic` MCP tool. Skills are built with a two-stage pipeline (Stage 1 from official docs, Stage 2 from live UI exploration) and evaluated end-to-end on [CUA-World](https://github.com/cmu-l3/gym-anything) and [OSExpert-Eval](https://oppugno-rushi.github.io/OSExpert/).
 
 ## Repository layout
 
