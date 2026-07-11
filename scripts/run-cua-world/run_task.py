@@ -104,7 +104,7 @@ def _build_plugin_dir(
         },
         "plugins": [
             {
-                "name": f"CUA-World-{env_name}-{skill_mode}",
+                "name": f"cua-world-{env_name}-{skill_mode}",
                 "description": f"{skill_mode.capitalize()} skill for {env_name}",
                 "source": "./",
                 "strict": False,
@@ -378,7 +378,7 @@ def run_single_task(cfg: dict, task_id: str, bridge_port: int) -> int:
     output_dir.mkdir(parents=True)
 
     # ── Phase 1: Environment setup ──
-    ga_root = MMSKILLS_ROOT / "vendor" / "cua-world"
+    ga_root = MMSKILLS_ROOT / "vendor" / "gym-anything"
     if str(ga_root / "src") not in sys.path:
         sys.path.insert(0, str(ga_root / "src"))
     from gym_anything.api import from_config

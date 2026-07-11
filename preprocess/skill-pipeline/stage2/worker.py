@@ -196,7 +196,7 @@ def run_worker(
     workspace.mkdir(parents=True, exist_ok=True)
 
     # ── env setup ────────────────────────────────────────────────────────
-    ga_root = MMSKILLS_ROOT / "vendor" / "cua-world"
+    ga_root = MMSKILLS_ROOT / "vendor" / "gym-anything"
     if str(ga_root / "src") not in sys.path:
         sys.path.insert(0, str(ga_root / "src"))
 

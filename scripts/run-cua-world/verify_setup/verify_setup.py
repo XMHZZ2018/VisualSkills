@@ -48,7 +48,7 @@ log = logging.getLogger("verify_setup")
 
 def _init_gym_anything():
     """Add CUA-World to sys.path and ensure symlink exists."""
-    ga_root = MMSKILLS_ROOT / "vendor" / "cua-world"
+    ga_root = MMSKILLS_ROOT / "vendor" / "gym-anything"
     src = str(ga_root / "src")
     if src not in sys.path:
         sys.path.insert(0, src)
@@ -76,7 +76,7 @@ def verify_single_task(
     task_output.mkdir(parents=True, exist_ok=True)
     screenshot_path = output_dir / f"{task_id}.png"
 
-    ga_root = MMSKILLS_ROOT / "vendor" / "cua-world"
+    ga_root = MMSKILLS_ROOT / "vendor" / "gym-anything"
     original_cwd = os.getcwd()
 
     # Resolve env_dir relative to MMSKILLS_ROOT before chdir

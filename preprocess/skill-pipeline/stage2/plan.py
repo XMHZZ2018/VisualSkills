@@ -25,7 +25,7 @@ from prompts import PLANNER_PROMPT  # noqa: E402
 
 def take_idle_screenshot(env_dir: str, task_id: str, out_path: Path, settle_seconds: float = 6.0) -> None:
     """Spin up env, reset, wait, screenshot, tear down."""
-    ga_root = MMSKILLS_ROOT / "vendor" / "cua-world"
+    ga_root = MMSKILLS_ROOT / "vendor" / "gym-anything"
     if str(ga_root / "src") not in sys.path:
         sys.path.insert(0, str(ga_root / "src"))
 
