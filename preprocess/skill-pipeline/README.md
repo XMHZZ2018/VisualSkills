@@ -6,7 +6,7 @@ per-topic guide.md + figures) for desktop applications.
 | | [`stage1/`](stage1/README.md) | [`stage2/`](stage2/README.md) |
 |---|---|---|
 | **What** | text-skill-stage1 + multimodal-skill-stage1 | text-skill-stage2 + multimodal-skill-stage2 |
-| **Source of knowledge** | PDF user guide / HTML docs / gym-anything task list | Live app screenshots from a Docker container |
+| **Source of knowledge** | PDF user guide / HTML docs / CUA-World task list | Live app screenshots from a Docker container |
 | **How taxonomy is built** | Mined from PDF ToC / HTML headings / clustered task descriptions | Opus planner inspects one screenshot, proposes ~8 UI regions |
 | **How content is generated** | One Claude call per topic over rendered page images | ~8 Sonnet workers in parallel autonomously click through the UI; an Opus assembler synthesizes their notes |
 | **Where the output goes** | `skills/<domain>-{text,multimodal}-stage1/` | `skills/<domain>-{text,multimodal}-stage2/` (mm-stage2 = mm-stage1 + appended `## UI Reference` sections) |

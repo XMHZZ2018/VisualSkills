@@ -19,7 +19,7 @@ planner_model: claude-opus-4-6
 worker_model: claude-sonnet-4-6
 assembler_model: claude-opus-4-6
 
-claude_cli_image: ga-claude-cli
+claude_cli_image: cw-claude-cli
 
 task_timeout: 1800
 max_actions: 80

@@ -9,7 +9,7 @@ the existing Stage 1 skill to produce **multimodal-skill-stage2**, and finally a
 text-only twin **text-skill-stage2** is derived from mm-stage2.
 
 > **Stage 2 always runs on the GCP `osworld` VM**, since phases 1-3 spin up
-> gym-anything Docker containers (sysbox runtime).  `run.sh` rsyncs this
+> CUA-World Docker containers (sysbox runtime).  `run.sh` rsyncs this
 > directory to the VM and SSHs in to launch the requested phase.
 
 ```bash
@@ -60,7 +60,7 @@ skill tree.
 ## Pipeline phases
 
 ### Phase 1 — Plan (Opus)
-`plan.py` runs the Opus planner: it boots the env via gym-anything using the
+`plan.py` runs the Opus planner: it boots the env via CUA-World using the
 synthetic **`_warmup`** task (see "Per-env `_warmup` task" below), takes a
 single screenshot of the idle app window, and asks Claude to enumerate ~8
 UI regions worth exploring (e.g., "drawing toolbar", "properties sidebar").
@@ -72,7 +72,7 @@ The planner emits `plan/plan.json` with one entry per `target_id`.
 
 ### Phase 2 — Workers (N × Sonnet, parallel)
 For each target in `plan.json`, `worker.py` spawns a separate Python
-subprocess with its own gym-anything env (own Docker container, own bridge
+subprocess with its own cua-world env (own Docker container, own bridge
 port). Each worker boots a Sonnet Claude CLI inside `claude_cli_image`,
 gives it the target's name + scope, and lets it click through the relevant
 region of the UI. The worker writes:
@@ -129,7 +129,7 @@ each owning Stage 1 guide, does:
 1. Strips the region.md's frontmatter and screenshot block.
 2. Rewrites image references from markdown `![]()` syntax to mm-stage1's
    `Read the screenshot \`name.png\` in this directory` convention (the
-   gym-anything agent does not auto-fetch `![]()` — it only reads files
+   CUA-World agent does not auto-fetch `![]()` — it only reads files
    it's explicitly told to read).
 3. Copies the region's PNGs next to the Stage 1 guide with a `ui-` prefix.
 4. Appends a `## UI Reference — <region_name>` section to the guide.
@@ -174,7 +174,7 @@ domain: libreoffice_impress
 app_name: "LibreOffice Impress"
 app_version: "7.3.7"
 
-# gym-anything environment to drive
+# cua-world environment to drive
 env_dir: vendor/gym-anything/.../libreoffice_impress_env
 planner_task_id: _warmup                 # synthetic task: bare app + maximize, no fixture
 
@@ -189,7 +189,7 @@ planner_model: claude-opus-4-6
 worker_model: claude-sonnet-4-6
 assembler_model: claude-opus-4-6
 mapper_model: claude-opus-4-6
-claude_cli_image: ga-claude-cli
+claude_cli_image: cw-claude-cli
 task_timeout: 1800
 max_actions: 80
 action_wait: 1.0
@@ -242,7 +242,7 @@ skills/
 
 Phase 1's planner needs an *idle* app window — no fixture, no test-case
 state.  Rather than reuse a real task (which would couple the planner to a
-specific scenario), each gym-anything env we explore must provide a
+specific scenario), each cua-world env we explore must provide a
 synthetic `_warmup` task at:
 
 ```
@@ -253,7 +253,7 @@ vendor/gym-anything/.../<env>/tasks/_warmup/
 ```
 
 The config sets `planner_task_id: _warmup` and the planner spins up the env
-through the standard gym-anything lifecycle, takes one screenshot, then tears
+through the standard CUA-World lifecycle, takes one screenshot, then tears
 down.  See `vendor/gym-anything/.../libreoffice_impress_env/tasks/_warmup/`
 for the reference implementation.
 
@@ -277,5 +277,5 @@ back to the local tree.
 - Python 3.10+
 - `claude` CLI authenticated (Opus + Sonnet)
 - `PyYAML`, `Pillow`
-- gym-anything (`vendor/gym-anything/`) with the target env's Docker image built
-- `ga-claude-cli` Docker image (the same one used by `scripts/run-gym-anything/`)
+- CUA-World (`vendor/gym-anything/`) with the target env's Docker image built
+- `cw-claude-cli` Docker image (the same one used by `scripts/run-cua-world/`)

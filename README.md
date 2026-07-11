@@ -2,7 +2,7 @@
 
 Code and skills for the paper **[VisualSkill: Multimodal Skills for Computer-Use Agents](https://arxiv.org/abs/2606.18448)**.
 
-VisualSkill packages application knowledge (LibreOffice Writer / Calc / Impress, GIMP, QGIS, Zotero, Chrome, ...) as a topic-indexed hierarchy of markdown guides with cropped UI screenshots, and exposes it to a Claude Code agent through a `load_topic` MCP tool. Skills are built with a two-stage pipeline (Stage 1 from official docs, Stage 2 from live UI exploration) and evaluated end-to-end on [gym-anything](https://github.com/cmu-l3/gym-anything) and [OSWorld](https://os-world.github.io/).
+VisualSkill packages application knowledge (LibreOffice Writer / Calc / Impress, GIMP, QGIS, Zotero, Chrome, ...) as a topic-indexed hierarchy of markdown guides with cropped UI screenshots, and exposes it to a Claude Code agent through a `load_topic` MCP tool. Skills are built with a two-stage pipeline (Stage 1 from official docs, Stage 2 from live UI exploration) and evaluated end-to-end on [CUA-World](https://github.com/cmu-l3/gym-anything) and [OSWorld](https://os-world.github.io/).
 
 ## Repository layout
 
@@ -10,22 +10,22 @@ VisualSkill packages application knowledge (LibreOffice Writer / Calc / Impress,
 visualskills/
 ├── skills/                       # Generated skills (Stage 1 + Stage 2, text + multimodal)
 ├── plugins/                      # Claude Code --plugin-dir bundles
-│   ├── gym-anything-text/
-│   ├── gym-anything-multimodal/
+│   ├── cua-world-text/
+│   ├── cua-world-multimodal/
 │   ├── osworld-text/
 │   └── osworld-multimodal/
 ├── tools/
-│   ├── gym-anything-controller/  # GUI action MCP (screenshot / click / type / hotkey)
+│   ├── cua-world-controller/  # GUI action MCP (screenshot / click / type / hotkey)
 │   ├── osworld-controller/       # Same, targeting the OSWorld VM
 │   └── skill_server.py           # load_topic / list_topics MCP (atomic prose+figures load)
 ├── preprocess/skill-pipeline/
 │   ├── stage1/                   # Stage 1: docs-driven skill generation
 │   └── stage2/                   # Stage 2: live UI explorer
 ├── scripts/
-│   ├── run-gym-anything/         # Inference on gym-anything envs
+│   ├── run-cua-world/         # Inference on cua-world envs
 │   └── run-osworld/              # Inference on OSWorld
 └── vendor/
-    ├── gym-anything/             # Benchmark envs (submodule)
+    ├── CUA-World/             # Benchmark envs (submodule)
     └── OSWorld/                  # OSWorld benchmark (submodule)
 ```
 
@@ -83,9 +83,9 @@ claude login          # writes ~/.claude/.credentials.json
 Each runner has its own thin image that pins the CLI + the corresponding MCP server:
 
 ```bash
-# gym-anything
-docker build -t ga-claude-cli \
-    -f scripts/run-gym-anything/Dockerfile.claude-cli scripts/run-gym-anything/
+# cua-world
+docker build -t cw-claude-cli \
+    -f scripts/run-cua-world/Dockerfile.claude-cli scripts/run-cua-world/
 
 # OSWorld
 docker build -t osworld-claude-cli \
@@ -102,25 +102,28 @@ Both runners share the same three skill modes:
 | `text` | `plugins/*-text/` | Topic guides as prose only (figures verbalized) |
 | `multimodal` | `plugins/*-multimodal/` | Same prose + cropped UI screenshots, loaded via `load_topic` |
 
-### 2.1 gym-anything
+### 2.1 CUA-World
+
+Five domains × five skill conditions = 25 pre-built eval configs, matching the paper's Table 1 exactly. Run any one of them with:
 
 ```bash
-bash scripts/run-gym-anything/run.sh \
-    --config scripts/run-gym-anything/experiments/configs/impress_mm_stage1.yaml
+bash scripts/run-cua-world/run.sh \
+    --config scripts/run-cua-world/experiments/configs/<domain>_<mode>.yaml
 ```
 
-A minimal config:
+Config matrix — every cell is a ready-to-run YAML in `scripts/run-cua-world/experiments/configs/`:
 
-```yaml
-model: claude-opus-4-6
-skill_mode: multimodal                     # none | text | multimodal
-env_dir: vendor/gym-anything/benchmarks/cua_world/environments/libreoffice_impress_env
-result_dir: scripts/run-gym-anything/workspaces
-task_timeout: 1800
-num_parallel: 4
-```
+| Domain (paper N) | No-skill baseline | Stage 1 Text | Stage 1 VisualSkill | Stage 2 Text | Stage 2 VisualSkill |
+|---|---|---|---|---|---|
+| **Writer (24)** | [`writer_no_skill.yaml`](scripts/run-cua-world/experiments/configs/writer_no_skill.yaml) | [`writer_text_stage1.yaml`](scripts/run-cua-world/experiments/configs/writer_text_stage1.yaml) | [`writer_mm_stage1.yaml`](scripts/run-cua-world/experiments/configs/writer_mm_stage1.yaml) | [`writer_text_stage2.yaml`](scripts/run-cua-world/experiments/configs/writer_text_stage2.yaml) | [`writer_mm_stage2.yaml`](scripts/run-cua-world/experiments/configs/writer_mm_stage2.yaml) |
+| **Calc (38)** | [`calc_no_skill.yaml`](scripts/run-cua-world/experiments/configs/calc_no_skill.yaml) | [`calc_text_stage1.yaml`](scripts/run-cua-world/experiments/configs/calc_text_stage1.yaml) | [`calc_mm_stage1.yaml`](scripts/run-cua-world/experiments/configs/calc_mm_stage1.yaml) | [`calc_text_stage2.yaml`](scripts/run-cua-world/experiments/configs/calc_text_stage2.yaml) | [`calc_mm_stage2.yaml`](scripts/run-cua-world/experiments/configs/calc_mm_stage2.yaml) |
+| **Impress (28)** | [`impress_no_skill.yaml`](scripts/run-cua-world/experiments/configs/impress_no_skill.yaml) | [`impress_text_stage1.yaml`](scripts/run-cua-world/experiments/configs/impress_text_stage1.yaml) | [`impress_mm_stage1.yaml`](scripts/run-cua-world/experiments/configs/impress_mm_stage1.yaml) | [`impress_text_stage2.yaml`](scripts/run-cua-world/experiments/configs/impress_text_stage2.yaml) | [`impress_mm_stage2.yaml`](scripts/run-cua-world/experiments/configs/impress_mm_stage2.yaml) |
+| **QGIS (16)** | [`qgis_no_skill.yaml`](scripts/run-cua-world/experiments/configs/qgis_no_skill.yaml) | [`qgis_text_stage1.yaml`](scripts/run-cua-world/experiments/configs/qgis_text_stage1.yaml) | [`qgis_mm_stage1.yaml`](scripts/run-cua-world/experiments/configs/qgis_mm_stage1.yaml) | [`qgis_text_stage2.yaml`](scripts/run-cua-world/experiments/configs/qgis_text_stage2.yaml) | [`qgis_mm_stage2.yaml`](scripts/run-cua-world/experiments/configs/qgis_mm_stage2.yaml) |
+| **OpenToonz (21)** | [`opentoonz_no_skill.yaml`](scripts/run-cua-world/experiments/configs/opentoonz_no_skill.yaml) | [`opentoonz_text_stage1.yaml`](scripts/run-cua-world/experiments/configs/opentoonz_text_stage1.yaml) | [`opentoonz_mm_stage1.yaml`](scripts/run-cua-world/experiments/configs/opentoonz_mm_stage1.yaml) | [`opentoonz_text_stage2.yaml`](scripts/run-cua-world/experiments/configs/opentoonz_text_stage2.yaml) | [`opentoonz_mm_stage2.yaml`](scripts/run-cua-world/experiments/configs/opentoonz_mm_stage2.yaml) |
 
-Per-task outputs land under `workspaces/{model}/skill-{mode}/{env}/{task_id}/` with `result.json`, `score.txt`, `screenshots/`, and the full Claude event log. See [`scripts/run-gym-anything/README.md`](scripts/run-gym-anything/README.md) for the full config schema, parallel-worker layout, and the trajectory viewer.
+Every config uses `model: claude-opus-4-6`, `num_parallel: 4`, `rerun: true`, and `task_timeout: 5400` as a safety net — the actual per-task step budget is CUA-World's own `init.max_steps`, capped at **120 steps** by the runner (see `run_task.py:404-417`) to keep trajectories inside the Anthropic 20 MB request-payload envelope.
+
+Per-task outputs land under `workspaces/{model}/skill-{mode}/{env}/{task_id}/` with `result.json`, `score.txt`, `screenshots/`, and the full Claude event log. See [`scripts/run-cua-world/README.md`](scripts/run-cua-world/README.md) for the config schema, parallel-worker layout, and the trajectory viewer.
 
 ### 2.2 OSWorld
 
@@ -144,7 +147,7 @@ At inference the multimodal artifact is loaded through `tools/skill_server.py`, 
 
 ### 3.1 Stage 1 — from official documentation
 
-Mines a skill from authored sources (a PDF user guide, a docs website, or a clustered list of gym-anything task descriptions). Runs entirely on the host. Lives at [`preprocess/skill-pipeline/stage1/`](preprocess/skill-pipeline/stage1/README.md).
+Mines a skill from authored sources (a PDF user guide, a docs website, or a clustered list of CUA-World task descriptions). Runs entirely on the host. Lives at [`preprocess/skill-pipeline/stage1/`](preprocess/skill-pipeline/stage1/README.md).
 
 Five phases, per YAML config:
 
@@ -172,7 +175,7 @@ Configs for LibreOffice Writer / Calc / Impress, GIMP, QGIS, and Zotero live und
 
 ### 3.2 Stage 2 — from live UI exploration
 
-Augments the Stage 1 skill with knowledge that only exists in the running application. Runs on the GCP `osworld` VM because phases 1–2 spin up gym-anything Docker containers. Lives at [`preprocess/skill-pipeline/stage2/`](preprocess/skill-pipeline/stage2/README.md).
+Augments the Stage 1 skill with knowledge that only exists in the running application. Runs on the GCP `osworld` VM because phases 1–2 spin up CUA-World Docker containers. Lives at [`preprocess/skill-pipeline/stage2/`](preprocess/skill-pipeline/stage2/README.md).
 
 Two exploration sub-passes:
 
@@ -201,7 +204,7 @@ The matched text-Stage-2 artifact can be produced two ways, controlled by `--tex
 # 2a+2b worker set produces the final skill pair in one command.
 python3 preprocess/skill-pipeline/stage2/run_phase_2b.py \
     --v3-config preprocess/skill-pipeline/stage2/configs/writer.yaml \
-    --rollouts-config scripts/run-gym-anything/experiments/configs/writer_train16_mm_skill.yaml \
+    --rollouts-config scripts/run-cua-world/experiments/configs/writer_train16_mm_skill.yaml \
     --app-name "LibreOffice Writer" \
     --then-inline --mode both --text-source derived
 ```

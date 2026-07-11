@@ -1,0 +1,21 @@
+{
+  "name": "cua-world-text",
+  "owner": {
+    "name": "MMSkills"
+  },
+  "metadata": {
+    "description": "Text-only skills for cua-world environments",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "cua-world-text",
+      "description": "Text-only skills for cua-world environments",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/qgis-text"
+      ]
+    }
+  ]
+}

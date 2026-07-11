@@ -126,7 +126,7 @@ def _resolve_skill_dir(domain_or_skill: str, skill_mode: str) -> Path | None:
 
 
 
-# Per-task plugin builder — replicates the gym-anything pattern that's been
+# Per-task plugin builder — replicates the CUA-World pattern that's been
 # proven to make SKILL.md visible to the agent as a slash command.
 # The static PLUGIN_DIRS dict above is no longer used for skill mounting; it's
 # kept only as a legacy fallback.
@@ -134,7 +134,7 @@ import json as _json_for_plugin
 
 def _build_plugin_dir(skill_dir: Path | None, output_dir: Path) -> str | None:
     """Build a per-task plugin dir at <output_dir>/plugin/ that exposes
-    exactly one skill, mirroring the gym-anything runner's structure.
+    exactly one skill, mirroring the CUA-World runner's structure.
 
     Layout:
         <output_dir>/plugin/
@@ -347,7 +347,7 @@ def _load_yaml_config(args: argparse.Namespace, argv: list[str]) -> None:
             explicit.add(tok[1:])
 
     # parallel may be specified as `num_parallel` in yaml (matches verify_setup
-    # / gym-anything style).
+    # / CUA-World style).
     if "num_parallel" in cfg and "parallel" not in cfg:
         cfg["parallel"] = cfg["num_parallel"]
 

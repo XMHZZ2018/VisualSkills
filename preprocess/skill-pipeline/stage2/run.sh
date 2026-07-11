@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # UI-explorer skill generation pipeline (Stage 2).
 #
-# Stage 2 always runs on the GCP osworld VM, since phases 1-3 spin up gym-anything
+# Stage 2 always runs on the GCP osworld VM, since phases 1-3 spin up CUA-World
 # Docker containers (sysbox runtime) and phases 4-5 read/write the same
 # repo-relative output_dir.  This script:
 #
@@ -22,7 +22,7 @@
 #   ./run.sh --config configs/impress.yaml --foreground           # no nohup
 #
 # Requires:  gcloud auth, and VM already provisioned with
-#            ~/MMSkills cloned + ga-claude-cli docker image built +
+#            ~/MMSkills cloned + cw-claude-cli docker image built +
 #            claude CLI logged in + python venv at ~/osworld-env.
 
 set -euo pipefail

@@ -1,0 +1,27 @@
+# 16 training-split Writer tasks with current mm-stage1 skill.
+# Rollouts feed review.py for Phase 2b target generation.
+model: claude-opus-4-6
+skill_mode: multimodal
+env_dir: vendor/gym-anything/benchmarks/cua_world/environments/libreoffice_writer_env
+result_dir: scripts/run-cua-world/workspaces
+task_timeout: 5400   # safety net; env max_steps is the real budget
+num_parallel: 4
+rerun: false
+log_level: INFO
+task_list:
+  - audit_report_formatting
+  - bibliography_formatting
+  - brand_template_creation
+  - chem_lab_character_formatting
+  - clinical_protocol_amendment
+  - clinical_protocol_formatting
+  - event_badge_mail_merge
+  - exam_paper_formatting
+  - format_research_paper
+  - magazine_article_typesetting
+  - outline_numbering_handbook
+  - report_pagination_flow_control
+  - sales_report_chart_creation
+  - track_changes_review_sop
+  - university_decision_mail_merge
+  - user_manual_sections

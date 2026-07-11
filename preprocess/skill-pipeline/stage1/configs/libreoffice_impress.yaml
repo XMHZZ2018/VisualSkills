@@ -7,7 +7,7 @@ sources:
     url: "https://documentation.libreoffice.org/assets/Uploads/Documentation/en/IG7.3/IG73-ImpressGuide.pdf"
 
 tasks:
-  # gym-anything (cua_world) task source.
+  # cua-world (cua_world) task source.
   # Default: enumerate every subfolder of <env_dir>/tasks/ that has a valid task.json.
   env_dir: "vendor/gym-anything/benchmarks/cua_world/environments/libreoffice_impress_env"
 

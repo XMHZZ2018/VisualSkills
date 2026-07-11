@@ -16,10 +16,10 @@ import streamlit as st
 # Config
 # ---------------------------------------------------------------------------
 WORKSPACE_ROOTS = {
-    "gym-anything": "/home/ziyan/MMSkills/scripts/run-gym-anything/workspaces",
+    "cua-world": "/home/ziyan/MMSkills/scripts/run-cua-world/workspaces",
     "osworld (OSExpert)": "/home/ziyan/MMSkills/scripts/run-osworld/workspaces",
 }
-WORKSPACE_ROOT = WORKSPACE_ROOTS["gym-anything"]
+WORKSPACE_ROOT = WORKSPACE_ROOTS["cua-world"]
 
 SKILL_MODES = [
     "skill-none",
@@ -108,7 +108,7 @@ def list_screenshots(exp: str, mode: str, software: str, task: str) -> list[str]
 @st.cache_data(ttl=300)
 def load_result(exp: str, mode: str, software: str, task: str) -> dict:
     base = f"{WORKSPACE_ROOT}/{exp}/{mode}/{software}/{task}"
-    # Preferred (gym-anything): result.json
+    # Preferred (CUA-World): result.json
     text = read_file(f"{base}/result.json")
     if text:
         try:
@@ -136,7 +136,7 @@ def load_result(exp: str, mode: str, software: str, task: str) -> dict:
 
 @st.cache_data(ttl=600)
 def load_task_json(software: str, task: str) -> dict:
-    """Load task.json from the gym-anything tasks directory on the VM."""
+    """Load task.json from the CUA-World tasks directory on the VM."""
     ga_tasks = (
         "/home/ziyan/MMSkills/vendor/gym-anything/benchmarks/cua_world"
         f"/environments/{software}/tasks/{task}/task.json"
@@ -154,7 +154,7 @@ def load_prompt(exp: str, mode: str, software: str, task: str) -> str:
     return read_file(path)
 
 
-MCP_PREFIXES = ("mcp__gym-anything-controller__", "mcp__osworld-controller__")
+MCP_PREFIXES = ("mcp__cua-world-controller__", "mcp__osworld-controller__")
 # Tools that are internal to Claude CLI, not GUI actions and not worth showing
 SKIP_TOOLS = {"ToolSearch"}
 # Tools that read files; we fold these into the following GUI step as
@@ -219,7 +219,7 @@ def parse_trajectory(exp: str, mode: str, software: str, task: str) -> list[dict
 
     Screenshot files on disk (`step_NNN.png`) are named by the bridge's
     per-`/screenshot`-call counter (bridge.py:136). The MCP server's
-    `_action_and_screenshot` (tools/gym-anything-controller/server.py:76)
+    `_action_and_screenshot` (tools/cua-world-controller/server.py:76)
     calls `/screenshot` after every action, and the explicit `screenshot`
     tool does the same. So effectively every MCP tool call produces one
     `step_{k:03d}.png` where k is the MCP-call index.

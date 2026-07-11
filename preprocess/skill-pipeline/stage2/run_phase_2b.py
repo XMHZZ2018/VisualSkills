@@ -6,8 +6,8 @@ subdirectory of the Phase 2a output, so the existing Phase 3 (assemble + map +
 inline) picks them up uniformly.
 
 Steps:
-  1. Run gym-anything rollouts of N train tasks with the current mm-stage1 skill
-     (subprocess call to run-gym-anything/run.sh).
+  1. Run CUA-World rollouts of N train tasks with the current mm-stage1 skill
+     (subprocess call to run-cua-world/run.sh).
   2. Run review.py against those trajectories → targeted_targets.json.
   3. Spawn one worker.py subprocess per target, bounded by --n-workers.
   4. Print summary.
@@ -36,7 +36,7 @@ logger = logging.getLogger("phase_2b")
 
 
 MMSKILLS_ROOT = Path("/home/ziyan/MMSkills")
-GA_RUN_SH = MMSKILLS_ROOT / "scripts" / "run-gym-anything" / "run.sh"
+CW_RUN_SH = MMSKILLS_ROOT / "scripts" / "run-cua-world" / "run.sh"
 STAGE2_DIR = MMSKILLS_ROOT / "preprocess" / "skill-pipeline" / "stage2"
 REVIEW_PY = STAGE2_DIR / "review.py"
 DIAGNOSE_PY = STAGE2_DIR / "diagnose.py"
@@ -114,11 +114,11 @@ def _load_yaml(p: Path) -> dict:
 
 
 def _run_rollouts(rollouts_config_rel: str, log_dir: Path) -> Path:
-    """Call run-gym-anything/run.sh with the given config (path relative to
-    scripts/run-gym-anything/). Returns the workspace dir containing per-task
+    """Call run-cua-world/run.sh with the given config (path relative to
+    scripts/run-cua-world/). Returns the workspace dir containing per-task
     trajectories.
     """
-    cfg_path = MMSKILLS_ROOT / "scripts" / "run-gym-anything" / rollouts_config_rel
+    cfg_path = MMSKILLS_ROOT / "scripts" / "run-cua-world" / rollouts_config_rel
     cfg = _load_yaml(cfg_path)
     domain = Path(cfg["env_dir"]).name  # e.g. libreoffice_writer_env
     result_dir = MMSKILLS_ROOT / cfg["result_dir"]
@@ -138,7 +138,7 @@ def _run_rollouts(rollouts_config_rel: str, log_dir: Path) -> Path:
     logger.info("launching rollouts → %s (log: %s)", rollouts_dir, log_path)
     with log_path.open("w") as lf:
         proc = subprocess.run(
-            [str(GA_RUN_SH), "--config", str(cfg_path)],
+            [str(CW_RUN_SH), "--config", str(cfg_path)],
             stdout=lf, stderr=subprocess.STDOUT,
             cwd=str(MMSKILLS_ROOT), text=True,
         )
@@ -244,7 +244,7 @@ def _dispatch_workers(
         env_dir = str(MMSKILLS_ROOT / env_dir)
     warmup = v3_cfg["planner_task_id"]
     model = v3_cfg.get("worker_model", "claude-sonnet-4-6")
-    cli_image = v3_cfg.get("claude_cli_image", "ga-claude-cli")
+    cli_image = v3_cfg.get("claude_cli_image", "cw-claude-cli")
     task_timeout = int(v3_cfg.get("task_timeout", 1800))
     max_actions = int(v3_cfg.get("max_actions", 80))
     action_wait = float(v3_cfg.get("action_wait", 1.0))
@@ -319,7 +319,7 @@ def main() -> int:
     ap.add_argument("--v3-config", required=True, type=Path,
                     help="Same Stage 2 config used by orchestrator (writer.yaml).")
     ap.add_argument("--rollouts-config", required=True, type=str,
-                    help="gym-anything yaml config (relative to scripts/run-gym-anything/) "
+                    help="CUA-World yaml config (relative to scripts/run-cua-world/) "
                          "specifying the train tasks to roll out.")
     ap.add_argument("--app-name", required=True)
     ap.add_argument("--skip-rollouts", action="store_true",
@@ -359,7 +359,7 @@ def main() -> int:
 
     # Load rollouts config once — used for both skip-rollouts dir computation
     # and for the task_list whitelist passed to review.py.
-    ga_cfg = _load_yaml(MMSKILLS_ROOT / "scripts" / "run-gym-anything" / args.rollouts_config)
+    ga_cfg = _load_yaml(MMSKILLS_ROOT / "scripts" / "run-cua-world" / args.rollouts_config)
     domain = Path(ga_cfg["env_dir"]).name
 
     # 1. Rollouts

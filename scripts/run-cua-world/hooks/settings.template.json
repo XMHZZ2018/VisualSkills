@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__(cua-world|osworld)-controller__(click|double_click|drag_to|hotkey|key_press|type_text|scroll)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /opt/mmskills/scripts/run-cua-world/hooks/skill_check_enforcer.py"
+          }
+        ]
+      }
+    ]
+  }
+}

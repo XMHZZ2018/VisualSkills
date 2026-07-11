@@ -9,7 +9,7 @@ app_version: "7.3.7"
 env_dir: vendor/gym-anything/benchmarks/cua_world/environments/libreoffice_impress_env
 
 # Synthetic minimal task that just launches the bare app and maximizes —
-# no fixture file, no env-specific test logic.  Each gym-anything env we
+# no fixture file, no env-specific test logic.  Each cua-world env we
 # explore must have a sibling `_warmup` task with this contract.
 planner_task_id: _warmup
 
@@ -23,7 +23,7 @@ n_workers: 8
 
 # Bridge ports.  Planner does not need a bridge after its screenshot, so we
 # reuse base for the planner's env and base+1..base+N for workers.  Use a
-# high range to avoid collisions with run-gym-anything's 8766+ default.
+# high range to avoid collisions with run-cua-world's 8766+ default.
 bridge_port_base: 9100
 
 # Models.
@@ -31,7 +31,7 @@ planner_model: claude-opus-4-6
 worker_model: claude-sonnet-4-6
 assembler_model: claude-opus-4-6
 
-claude_cli_image: ga-claude-cli
+claude_cli_image: cw-claude-cli
 
 # Per-worker budget.
 task_timeout: 1800       # 30 min wall clock for the claude container

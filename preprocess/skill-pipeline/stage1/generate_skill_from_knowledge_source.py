@@ -16,12 +16,12 @@ Three taxonomy modes, selected by config:
     starting at a root URL (which acts as the printed ToC). Activated when the
     config has `sources.html_guide.root_url` and no `tasks:` block.
 
-  • Task-filtered mode: domain tasks (from gym-anything) are clustered into a
+  • Task-filtered mode: domain tasks (from CUA-World) are clustered into a
     taxonomy and only the relevant sections of a PDF guide are used. Activated
     when the config has a `tasks:` block.
 
 Pipeline:
-  Phase 1 — Taxonomy: either cluster gym-anything tasks (task mode), refine the
+  Phase 1 — Taxonomy: either cluster CUA-World tasks (task mode), refine the
             PDF table of contents (PDF mode), or synthesize categories/topics
             from a crawled HTML outline (HTML mode). All three converge on the
             same taxonomy shape. Cached at workspace/<domain>/taxonomy.json.
@@ -172,11 +172,11 @@ def parse_json_response(text: str) -> dict | list | None:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Task loading — gym-anything (cua_world)
+# Task loading — CUA-World (cua_world)
 # ═══════════════════════════════════════════════════════════════════════════════
 #
 # Config shape expected under `tasks:` —
-#   env_dir:   path to the gym-anything env folder (contains tasks/<name>/task.json)
+#   env_dir:   path to the cua-world env folder (contains tasks/<name>/task.json)
 #              (required)
 #   task_list: optional explicit list of task folder names. If given, overrides
 #              both disk enumeration and split filtering.
@@ -208,7 +208,7 @@ def load_tasks(config: dict) -> list[dict]:
     t = config.get("tasks", {})
     env_dir_rel = t.get("env_dir")
     if not env_dir_rel:
-        print("Config error: tasks.env_dir is required (points to a gym-anything env folder)")
+        print("Config error: tasks.env_dir is required (points to a cua-world env folder)")
         sys.exit(1)
     env_dir = MMSKILLS_ROOT / env_dir_rel
     if not env_dir.exists():
@@ -2211,7 +2211,7 @@ _SKILL_SERVER_TEMPLATE = Path(__file__).parent / "templates" / "skill_server.py"
 
 def _install_skill_server(skills_dir: Path) -> None:
     """Copy the canonical load_topic MCP server into <skill_dir>/tools/skill_server.py
-    so the runner auto-mounts it (see scripts/run-gym-anything/run_task.py).
+    so the runner auto-mounts it (see scripts/run-cua-world/run_task.py).
     """
     if not _SKILL_SERVER_TEMPLATE.exists():
         return

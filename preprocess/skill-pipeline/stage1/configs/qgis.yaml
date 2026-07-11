@@ -32,5 +32,5 @@ sources:
       - "plugins/plugins.html"
       - "plugins/python_console.html"
 
-# gym-anything environment name (for result directory naming)
+# cua-world environment name (for result directory naming)
 env_name: "qgis_env"

@@ -1,13 +1,13 @@
 """One UI-explorer worker.
 
 Lifecycle:
-    1. Create gym-anything env for the impress environment (any task_id).
+    1. Create cua-world env for the impress environment (any task_id).
     2. env.reset() — spins up its own docker container with a unique UUID.
     3. start_bridge_server on bridge_port.
     4. Perform `launch_clicks` via bridge._handle_execute_action so the app
        is already in the target's starting state before Claude takes over.
     5. Write prompt.txt and mcp_config.json into the worker's workspace.
-    6. Run ga-claude-cli docker container with those mounts.
+    6. Run cw-claude-cli docker container with those mounts.
     7. Collect /workspace/notes.md and /workspace/screenshots/*.png.
     8. Shutdown bridge, env.close().
 
@@ -29,15 +29,15 @@ import time
 from pathlib import Path
 
 MMSKILLS_ROOT = Path(__file__).resolve().parents[3]
-RUN_GA_DIR = MMSKILLS_ROOT / "scripts" / "run-gym-anything"
+RUN_GA_DIR = MMSKILLS_ROOT / "scripts" / "run-cua-world"
 
 # Reuse the existing claude-cli docker invocation machinery.
 sys.path.insert(0, str(RUN_GA_DIR))
 
 from prompts import WORKER_SYSTEM, WORKER_USER_TEMPLATE  # noqa: E402
 
-# Paths used by the existing ga-claude-cli container.
-MCP_SERVER_PATH = "/opt/mmskills/tools/gym-anything-controller/server.py"
+# Paths used by the existing cw-claude-cli container.
+MCP_SERVER_PATH = "/opt/mmskills/tools/cua-world-controller/server.py"
 CONTAINER_MMSKILLS_ROOT = "/opt/mmskills"
 CONTAINER_WORKSPACE = "/workspace"
 
@@ -45,10 +45,10 @@ CONTAINER_WORKSPACE = "/workspace"
 def _write_mcp_config(workspace: Path, bridge_port: int) -> None:
     config = {
         "mcpServers": {
-            "gym-anything-controller": {
+            "cua-world-controller": {
                 "command": "python3",
                 "args": [MCP_SERVER_PATH],
-                "env": {"GA_BRIDGE_URL": f"http://host.docker.internal:{bridge_port}"},
+                "env": {"CW_BRIDGE_URL": f"http://host.docker.internal:{bridge_port}"},
             }
         }
     }
@@ -90,7 +90,7 @@ def _run_claude_in_docker(
 
     env_vars = {
         "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
-        "GA_BRIDGE_URL": f"http://host.docker.internal:{bridge_port}",
+        "CW_BRIDGE_URL": f"http://host.docker.internal:{bridge_port}",
     }
 
     container_name = f"uix-worker-{workspace.name[:16]}-p{bridge_port}"
@@ -196,7 +196,7 @@ def run_worker(
     workspace.mkdir(parents=True, exist_ok=True)
 
     # ── env setup ────────────────────────────────────────────────────────
-    ga_root = MMSKILLS_ROOT / "vendor" / "gym-anything"
+    ga_root = MMSKILLS_ROOT / "vendor" / "cua-world"
     if str(ga_root / "src") not in sys.path:
         sys.path.insert(0, str(ga_root / "src"))
 
@@ -210,7 +210,7 @@ def run_worker(
             pass
 
     from gym_anything.api import from_config
-    from bridge import start_bridge_server  # from run-gym-anything/
+    from bridge import start_bridge_server  # from run-cua-world/
 
     logger.info("Creating env for worker %d (task %s)", worker_id, task_id)
     env = from_config(env_dir, task_id=task_id)
@@ -330,7 +330,7 @@ def main() -> int:
                     help="Optional host directory of failure-trajectory "
                          "screenshots to mount read-only at /workspace/evidence/.")
     ap.add_argument("--model", default="claude-sonnet-4-6")
-    ap.add_argument("--claude-cli-image", default="ga-claude-cli")
+    ap.add_argument("--claude-cli-image", default="cw-claude-cli")
     ap.add_argument("--task-timeout", type=int, default=1200)  # 20 min
     ap.add_argument("--max-actions", type=int, default=40)
     ap.add_argument("--action-wait", type=float, default=1.0)

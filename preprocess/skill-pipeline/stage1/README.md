@@ -34,7 +34,7 @@ The pipeline auto-detects which mode to run based on what's in the YAML:
 |------|---------|--------------------|-------------------|
 | **Full-PDF** | `sources.pdf_guide.url` | The PDF's printed Table of Contents | Page renders cropped from the PDF |
 | **HTML docs** | `sources.html_guide.root_url` | Crawl from a root page (acts as the ToC) | Markdown extracted via plain-HTTP fetch + every inline `<img>` downloaded locally |
-| **Task-filtered** | A `tasks:` block | Cluster gym-anything tasks into topics | Pages of a PDF mapped to each topic via Claude |
+| **Task-filtered** | A `tasks:` block | Cluster CUA-World tasks into topics | Pages of a PDF mapped to each topic via Claude |
 
 All three converge on the same downstream pipeline.
 
@@ -62,7 +62,7 @@ Build a 2-layer `category → topic` structure with page ranges.
 - **HTML mode** — fetch the root page, recursively harvest headings and
   in-scope links up to `crawl_depth`, then ask Claude to collapse them into
   a category → topic taxonomy.
-- **Task mode** — cluster the gym-anything task descriptions with Claude
+- **Task mode** — cluster the CUA-World task descriptions with Claude
   into topics, then ask Claude to map each topic onto a page range of the
   PDF guide.
 

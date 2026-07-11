@@ -2,7 +2,7 @@
 
 Phase 0 (planner)   → Phase 1 (N workers in parallel) → Phase 2 (assembler)
 
-Each worker runs in its own Python subprocess so gym-anything env objects
+Each worker runs in its own Python subprocess so cua-world env objects
 don't share state.  Each worker gets its own bridge port (base + i + 1).
 The planner uses bridge port `base`.
 """
@@ -41,7 +41,7 @@ def load_config(path: str) -> dict:
         "worker_model": "claude-sonnet-4-6",
         "assembler_model": "claude-opus-4-6",
         "mapper_model": "claude-opus-4-6",
-        "claude_cli_image": "ga-claude-cli",
+        "claude_cli_image": "cw-claude-cli",
         "task_timeout": 1200,
         "max_actions": 40,
         "action_wait": 1.0,

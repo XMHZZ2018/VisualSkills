@@ -1,0 +1,19 @@
+{
+  "name": "cua-world-multimodal",
+  "owner": {
+    "name": "MMSkills"
+  },
+  "metadata": {
+    "description": "Multimodal skills for cua-world environments with visual screenshots",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "cua-world-multimodal",
+      "description": "Multimodal skills with visual guidance (screenshots + instructions) for cua-world environments",
+      "source": "./",
+      "strict": true,
+      "skills": []
+    }
+  ]
+}

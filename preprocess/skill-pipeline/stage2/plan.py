@@ -1,6 +1,6 @@
 """Phase 0: Planner.
 
-1.  Spin up a gym-anything env, screenshot, tear it down.
+1.  Spin up a cua-world env, screenshot, tear it down.
 2.  Invoke claude CLI (Opus) on the host with that screenshot; it writes
     plan.json with {n_workers} investigation targets.
 """
@@ -17,7 +17,7 @@ import time
 from pathlib import Path
 
 MMSKILLS_ROOT = Path(__file__).resolve().parents[3]
-RUN_GA_DIR = MMSKILLS_ROOT / "scripts" / "run-gym-anything"
+RUN_GA_DIR = MMSKILLS_ROOT / "scripts" / "run-cua-world"
 sys.path.insert(0, str(RUN_GA_DIR))
 
 from prompts import PLANNER_PROMPT  # noqa: E402
@@ -25,7 +25,7 @@ from prompts import PLANNER_PROMPT  # noqa: E402
 
 def take_idle_screenshot(env_dir: str, task_id: str, out_path: Path, settle_seconds: float = 6.0) -> None:
     """Spin up env, reset, wait, screenshot, tear down."""
-    ga_root = MMSKILLS_ROOT / "vendor" / "gym-anything"
+    ga_root = MMSKILLS_ROOT / "vendor" / "cua-world"
     if str(ga_root / "src") not in sys.path:
         sys.path.insert(0, str(ga_root / "src"))
 
