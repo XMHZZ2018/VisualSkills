@@ -376,8 +376,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--osexpert_root",
-        default=os.environ.get("OSWORLD_ROOT", str(MMSKILLS_ROOT / "vendor" / "OSExpert-Eval")),
-        help="Path to the OSExpert-Eval repository root (default: vendor/OSWorld submodule or $OSWORLD_ROOT)",
+        default=os.environ.get("OSWORLD_ROOT", str(MMSKILLS_ROOT / "vendor" / "OSWorld")),
+        help="Path to the OSWorld repository root that hosts OSExpert-Eval (default: vendor/OSWorld submodule or $OSWORLD_ROOT)",
     )
     parser.add_argument(
         "--task_root",
