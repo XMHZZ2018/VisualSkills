@@ -6,7 +6,7 @@ domain: "gimp"
 sources:
   html_guide:
     root_url: "https://docs.gimp.org/2.10/en/"
-    crawl_depth: 2
+    crawl_depth: 1
     path_prefix: "/2.10/en/"
 
 parallel:

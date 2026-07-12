@@ -1,0 +1,11 @@
+# Gradients, Patterns, and Palettes (GIMP 2.10)
+
+**Gradients** are ordered sequences of colors you can apply in several ways. The simplest is the **Gradient tool** — pick a gradient, click and drag across a selection, and colors fill perpendicular to your drag direction. The first four gradients in the list are dynamic: they follow your current Foreground and Background colors, so changing those in the Toolbox Color Area instantly updates the gradient.
+
+You can also paint with gradient colors using the **Pencil**, **Paintbrush**, or **Airbrush**. Set **Dynamics** to **Color From Gradient**, choose your gradient under **Color Options**, then configure **Fade length** and **Repeat** style to control how colors cycle along your stroke. The **Gradient Map** filter (**Colors > Gradient Map**) remaps an image's luminosity to the active gradient — dark pixels get the left color, bright pixels get the right.
+
+To browse or change the active gradient, click the gradient swatch in the Toolbox or open **Windows > Dockable Dialogs > Gradients**. Custom gradients are made in the **Gradient Editor** (you can't edit built-ins, but you can duplicate and modify them). Save `.ggr` or `.svg` gradient files into your personal `gradients` folder and they load automatically on next launch.
+
+**Patterns** are small images used for tiling. With the **Bucket Fill** tool, switch to pattern mode and click the pattern preview to pick one. The **Clone** tool also paints with patterns, and you can stroke a path or selection with a pattern fill. Patterns can include transparency for overlay effects. Drop `.pat`, `.png`, `.jpg`, or other standard image files into your `patterns` folder to add them.
+
+**Palettes** are discrete color sets. Open **Windows > Dockable Dialogs > Palettes** to see all available palettes, then double-click one to open the **Palette Editor**. Click a swatch to set the foreground color; **Ctrl+click** sets the background. You can create or duplicate palettes but not edit the built-in ones. Palettes also serve as colormaps for indexed images (max 256 colors) — use **Import Palette** from the Palettes dialog context menu to pull colors from any image or gradient. Palette files use the `.gpl` format and live in your personal `palettes` folder.

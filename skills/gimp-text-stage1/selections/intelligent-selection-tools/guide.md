@@ -1,0 +1,11 @@
+# Intelligent Selection Tools (GIMP 2.10)
+
+**Fuzzy Select (Magic Wand)** grabs contiguous pixels of similar color. Activate it with **Tools → Selection Tools → Fuzzy Select** or press **U**. Click a starting pixel, then drag down/right to grow the selection threshold or up/left to shrink it. It's great for solid-colored backgrounds but struggles with complex edges. Enable **Diagonal Neighbors** in tool options to let the flood-fill cross diagonal gaps, and toggle **Draw Mask** to see a magenta overlay while you hold the mouse button.
+
+**Select By Color** works like the Magic Wand but ignores contiguity — it picks up every pixel in the image matching your clicked color within the threshold. Open it via **Tools → Selection Tools → By Color Select** or **Shift+O**. Same click-and-drag threshold trick applies. Use it when the color you want is scattered across the canvas rather than in one blob.
+
+Both tools share key options: **Threshold** (how loose the color match is), **Select by** (Composite, individual channels, HSV, or LCh components), and **Sample Merged** (compare against the flattened image instead of just the active layer).
+
+**Intelligent Scissors** snaps a path to high-contrast edges. Activate with **Tools → Selection Tools → Intelligent Scissors** or press **I**. Click along the object's boundary to drop control nodes — the tool auto-routes a curve between them along detected edges. Close the loop by clicking on your first node, then click *inside* the closed curve to convert it to a selection. Hold **Shift** while placing a node to disable edge-snapping and position it manually. Use **Backspace** to undo the last segment.
+
+**Foreground Select** is the heavy hitter for complex extractions. Open it via **Tools → Selection Tools → Foreground Select**. First, draw a rough lasso around your subject (include a margin of background). Press **Enter** — the background turns dark blue. Now paint a stroke across the foreground to tell GIMP which colors to keep. Toggle **Preview** (or press **Enter** again) to check results. Switch Draw mode to **Draw background** to erase mistakes, or **Draw unknown** to reclaim missed areas outside your initial lasso. When satisfied, click **Select** to finalize. For large images, switch the Engine to **Matting Global** if processing is too slow.

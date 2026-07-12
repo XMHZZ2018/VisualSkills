@@ -1609,6 +1609,19 @@ def phase_html_figures(taxonomy: dict, ws: Path) -> dict[str, list[dict]]:
                         )
                         if r.status_code == 200 and r.content:
                             fpath.write_bytes(r.content)
+                            # Drop tiny UI icons. QGIS (and Sphinx docs
+                            # generally) inline every menu glyph as an <img>,
+                            # drowning real screenshots. Real screenshots
+                            # always have at least one dimension >= 200 px;
+                            # icons/glyphs are 16-32 px squares.
+                            try:
+                                with Image.open(fpath) as im:
+                                    w, h = im.size
+                            except Exception:
+                                w, h = 0, 0
+                            if max(w, h) < 200:
+                                fpath.unlink(missing_ok=True)
+                                continue
                             figs.append({
                                 "path": str(fpath),
                                 "description": (img.get("alt") or "").strip(),

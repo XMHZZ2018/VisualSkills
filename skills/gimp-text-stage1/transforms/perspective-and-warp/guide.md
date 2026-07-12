@@ -1,0 +1,13 @@
+# Perspective, Warp, and 3D Transform (GIMP 2.10)
+
+The **Perspective** tool (**Tools > Transform Tools > Perspective**, or **Shift+P**) places four corner handles around your layer or selection. Drag any handle to skew the image into a new plane — great for making text look like it's receding into the distance or correcting converging lines in architecture shots. Hold **Shift** to constrain handles along edges and diagonals, or **Ctrl** to transform around the center point. Set **Direction** to **Corrective (Backward)** in tool options to fix perspective distortion by warping the grid to match the skew, then letting GIMP invert it.
+
+For full 3D control, grab the **3D Transform** tool (**Tools > Transform Tools > 3D Transform**, or **Shift+W**). It lets you set a vanishing point and rotate the layer on X, Y, and Z axes. Hold **Ctrl** to constrain rotation to the Z axis, or **Alt** to work in the layer's local frame of reference instead of the global canvas.
+
+The **Unified Transform** (**Tools > Transform Tools > Unified Transform**, or **Shift+L**) rolls rotate, scale, shear, and perspective into one tool. Diamond handles shear, squares scale, and small corner diamonds adjust perspective — all without switching tools. Drag outside the layer boundary to rotate. The **Readjust** button (GIMP 2.10.10+) resets handles while preserving the current transform, so you can chain multiple adjustments.
+
+**Handle Transform** (**Tools > Transform Tools > Handle Transform**, or **Shift+Ctrl+H**) works differently: click to place 1–4 anchor points on canvas, then drag them. One handle moves, two handles rotate+scale, three shear+scale, and four adjust perspective+scale. Use **Shift**-click to reposition a handle, **Ctrl**-click to remove one.
+
+The **Cage Transform** (**Tools > Transform Tools > Cage Transform**, or **Shift+G**) lets you draw a freeform boundary around any region — click to place anchor points, close the shape, then drag those anchors to warp the enclosed area organically. Hold **Shift** to select multiple anchors at once. Press **Enter** to commit.
+
+For brush-based deformation, use **Warp Transform** (**Tools > Transform Tools > Warp Transform**, or **W**). Paint directly on the image to push pixels around. The mode dropdown offers Move, Grow, Shrink, and Swirl options. Adjust **Size** and **Strength** to control how aggressively pixels displace. Set **Abyss policy** to control what fills areas pulled from beyond the layer edge — None (transparent), Clamp, Loop, Black, or White. The **Animate** option at the bottom can generate intermediate frames between the original and final warp, exportable as a GIF.
